@@ -135,10 +135,11 @@ const s05_COINS = (() => {
    Reihen UND die Hotbar, damit das Bild bis zum Schnitt bei 15.0 lebt. */
 const s05_REFILL = (() => {
   const out = [], r = rng(707);
-  const times = [13.75, 14.00, 14.125, 14.25, 14.375, 14.50, 14.625, 14.75, 14.8125, 14.875, 14.9375];
-  const colOrder = [0, 5, 2, 7, 4, 1, 6, 3, 8];
+  const times = [13.52, 13.64, 13.76, 13.86, 13.96, 14.06, 14.16, 14.26, 14.35, 14.44, 14.53, 14.61, 14.69, 14.76, 14.83, 14.90, 14.95];
+  const colOrder = [4, 0, 7, 2, 5, 8, 1, 6, 3];
   const targets = [];
-  for (const c of colOrder) { targets.push({ g: c }, { g: 9 + c }, { g: 18 + c }, { h: c }); }
+  // interleave rows so the panel fills evenly instead of column by column
+  for (const c of colOrder) { targets.push({ g: 9 + c }, { h: c }, { g: c }, { g: 18 + c }); }
   let n = 0;
   for (let ti = 0; ti < times.length; ti++) {
     const many = ti >= 5 ? 2 : 1;                       // zum Schluss zwei gleichzeitig

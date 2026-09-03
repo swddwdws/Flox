@@ -45,7 +45,7 @@ def pad_block(a, b, gain, fc, attack=0.35):
         d = min(2 * BAR, b - t)
         x = S.pad([N(n) for n in PROG[i % 4]], d + 1.4, attack=attack, release=1.3, fc=fc, detune=9, seed=40 + i)
         music.add(S.widen(x, 0.35), t, gain=gain); t += d; i += 1
-pad_block(0.0, 3.0, 0.16, 900, 1.2)
+pad_block(0.0, 3.0, 0.30, 1400, 0.5)
 pad_block(3.0, 20.0, 0.30, 2600)
 pad_block(20.0, 23.0, 0.34, 1500, 0.8)
 pad_block(23.0, 26.0, 0.30, 2800)
@@ -60,7 +60,7 @@ def arpeggio(a, b, gain, oct_=1, step=0.25, bright=1.2):
         x = S.pluck(f, 0.26, bright=bright, seed=60 + i)
         music.add(S.reverb(x, 1.6, 0.30), t, gain=gain, p=0.55 * np.sin(i * 0.9))
         t += BEAT * step; i += 1
-arpeggio(1.0, 3.0, 0.10, 1, 0.5, 0.7)
+arpeggio(0.5, 3.0, 0.18, 1, 0.5, 0.9)
 arpeggio(3.0, 20.0, 0.20, 1, 0.25, 1.3)
 arpeggio(20.0, 23.0, 0.12, 0, 0.5, 0.8)
 arpeggio(23.0, 26.0, 0.22, 1, 0.25, 1.5)
@@ -129,7 +129,8 @@ def impact(t, gain=0.8, sub=True):
 
 # intro riser into the first drop
 n = S.n_of(2.6); fr = N('G#2') * (N('G#4') / N('G#2')) ** np.linspace(0, 1, n) ** 1.3
-sfx.add(S.sine(fr, 2.6) * np.linspace(0.1, 1, n) ** 2.4, 0.4, gain=0.20)
+sfx.add(S.sine(fr, 2.6) * np.linspace(0.35, 1, n) ** 1.6, 0.4, gain=0.26)
+sfx.add(S.reverb(S.sine(N('G#2'), 1.5) * S.adsr(1.5, 0.02, 0.3, 0.5, 0.9) * S.expdecay(1.5, 0.7), 2.2, 0.35), 0.0, gain=0.30)
 sfx.add(S.sweep_filter(S.noise(2.6, 21), 300 * (11000 / 300) ** np.linspace(0, 1, n) ** 1.6, 'high') * np.linspace(0.05, 1, n) ** 3, 0.4, gain=0.36)
 sfx.add(S.reverse_cymbal(0.8, seed=22), 2.2, gain=0.42)
 impact(DROP1, 0.85)

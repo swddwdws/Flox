@@ -184,10 +184,10 @@ const s09_s10_WARP = new Warp({ seed: 909, count: 110, color: TOKENS.violetHot, 
 /* ------------------------------------------------------------ s09 Datum */
 const s09_s10_DATE_STR = '20.09.2026';
 const s09_s10_DATE_Y = 800;
-const s09_s10_PITCH = 12;
+const s09_s10_PITCH = 8;            // finer raster: the date is the hardest fact in the film
 
 const s09_s10_DATE_TRACK = 0.006;      // leicht positiv: die Ziffern bleiben getrennt
-const s09_s10_DATE_MAXW = 620;         // hält das Datum links von der Ladebalken-Schiene
+const s09_s10_DATE_MAXW = 780;         // hält das Datum links von der Ladebalken-Schiene
 function s09_s10_dateOpts(ctx) {
   const base = { family: FONTS.body, weight: 800, align: 'center', baseline: 'middle', size: 130 };
   const size = s09_s10_fit(ctx, s09_s10_DATE_STR, base, s09_s10_DATE_MAXW, s09_s10_DATE_TRACK);
@@ -360,7 +360,7 @@ SCENES.s09 = {
     // Ganzwort-Stutter: das Datum springt auf den Bursts rastergenau zur Seite,
     // bleibt dabei aber als Wort komplett lesbar (statt in Zeilen zu zerfallen).
     const stut = (gDate > 0.35 && hash2(fr * 23 + 5, 91) < 0.45)
-      ? (hash2(fr * 31 + 7, 13) < 0.5 ? -1 : 1) * s09_s10_PITCH * (1 + Math.floor(gDate * 2)) : 0;
+      ? (hash2(fr * 31 + 7, 13) < 0.5 ? -1 : 1) * 12 * (1 + Math.floor(gDate * 2)) : 0;
     // Glühen unter den Ziffern
     radialFill(ctx, CX, cy, 470, [[0, rgba(TOKENS.secondary, (0.16 + 0.16 * eE + 0.18 * g) * (1 - ink))], [1, rgba(TOKENS.secondary, 0)]], 'lighter');
     if (gDate > 0.02) {
@@ -438,7 +438,7 @@ const s09_s10_DUST = new Particles({
 });
 
 /* Logo-Glow einmalig offscreen (per-Frame-blur auf einem großen Bild kostet ~30 ms) */
-const s09_s10_LOGO = { w: 860, pad: 96, glow: null };
+const s09_s10_LOGO = { w: 760, pad: 96, glow: null, cx: 495 };   // safe-box centre, not frame centre
 function s09_s10_logoGlow() {
   if (s09_s10_LOGO.glow) return s09_s10_LOGO.glow;
   const M = IMG.meta, s = s09_s10_LOGO.w / M.full.w, h = M.full.h * s, pad = s09_s10_LOGO.pad;
@@ -531,9 +531,9 @@ SCENES.s10 = {
       const ga = 0.30 + 0.14 * breathT * live + 0.17 * breath * (0.35 + 0.65 * calm) + 0.45 * kick + 0.34 * Math.exp(-7 * Math.max(0, a));
       ctx.save();
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = clamp(ga);
-      ctx.drawImage(gl, CX - s09_s10_LOGO.w / 2 - s09_s10_LOGO.pad, cyL - lh / 2 - s09_s10_LOGO.pad);
+      ctx.drawImage(gl, s09_s10_LOGO.cx - s09_s10_LOGO.w / 2 - s09_s10_LOGO.pad, cyL - lh / 2 - s09_s10_LOGO.pad);
       ctx.restore();
-      ctx.drawImage(IMG.logo, CX - s09_s10_LOGO.w / 2, cyL - lh / 2, s09_s10_LOGO.w, lh);
+      ctx.drawImage(IMG.logo, s09_s10_LOGO.cx - s09_s10_LOGO.w / 2, cyL - lh / 2, s09_s10_LOGO.w, lh);
       ctx.restore();
     }
 

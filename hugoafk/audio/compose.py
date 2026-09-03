@@ -17,8 +17,8 @@ N = S.note
 # --- bar-locked cut grid (render/timeline.js): cuts at 3 6 9 12 15 17 20 23 26 ---
 # s06 plays its 2.5 s of content in 2.0 s; everything from 17.5 on moves 0.5 s earlier.
 def RT(t):
-    if t < 15.0: return t
-    if t < 17.5: return 15.0 + (t - 15.0) * 0.8
+    if t < 17.5: return t                              # s06 plays at 1:1
+    if t < 20.5: return 17.5 + (t - 17.5) * (2.5 / 3)  # s07 is compressed instead
     return t - 0.5
 
 music = S.Mix(DUR + 4)   # pads, arp, bass, drone (ducked by the kicks)
@@ -43,18 +43,20 @@ def blip_up(t, f, gain=0.3, d=0.11, p=0.0):
 # ------------------------------------------------------------------ foundation
 # sub drone: quiet at night, strong from the drop, gone in the silence gap
 env = np.interp(np.arange(S.n_of(DUR)) / S.SR,
-                [0, 0.6, 2.6, 3.0, 3.05, RT(20.5), RT(20.6), RT(23.5), RT(26.35), RT(26.36), RT(26.5), RT(26.55), 28.8, 29.6, 30],
-                [0, .45, .55, .25, 1.0, 1.0, .55, .85, .85, 0, 0, 1.0, .6, 0, 0])
+                [0, 0.25, 2.6, 3.0, 3.05, RT(20.5), RT(20.6), RT(23.5), RT(26.35), RT(26.36), RT(26.5), RT(26.55), 28.8, 29.6, 30],
+                [0, .72, .80, .45, 1.0, 1.0, .55, .85, .85, 0, 0, 1.0, .6, 0, 0])
 music.add(S.stereo(S.drive(S.drone(N('D1'), DUR, fc=150, lfo=0.2), 1.25) * env), 0.0, gain=0.11)
 # night room tone
 music.add(S.stereo(S.lowpass(S.noise(DUR, 99, 'pink'), 1400) * np.interp(np.arange(S.n_of(DUR)) / S.SR, [0, 1, RT(26.3), RT(26.4), RT(26.5), 29, 30], [0, 1, 1, 0, 1, 1, 0])), 0, gain=0.007)
 
 # ------------------------------------------------------------------ intro 0-3
 # three soft melody notes, nostalgic and open (D - A - F)
-for tt, nm, g in ((0.4, 'D4', 0.20), (1.9, 'A4', 0.16), (2.4, 'F4', 0.13)):
+for tt, nm, g in ((0.15, 'D4', 0.30), (1.9, 'A4', 0.22), (2.4, 'F4', 0.18)):
     x = S.sine(N(nm), 2.0) * S.adsr(2.0, 0.05, 0.5, 0.35, 1.2) * S.expdecay(2.0, 1.1)
     x[:S.n_of(1.2)] += S.sine(N(nm) * 2, 1.2) * S.expdecay(1.2, 0.25) * 0.18
     sfx.add(S.reverb(S.widen(x, 0.35), 2.6, 0.45), tt, gain=g)
+sfx.add(S.reverb(S.sine(N('D2'), 1.6) * S.adsr(1.6, 0.02, 0.3, 0.5, 0.9) * S.expdecay(1.6, 0.8), 2.4, 0.35), 0.0, gain=0.30)
+sfx.add(S.reverb(S.highpass(S.noise(0.9, 12), 3000) * np.linspace(1, 0, S.n_of(0.9)) ** 1.6, 1.8, 0.4), 0.0, gain=0.10)
 # power-off at 1.0: descending filtered noise + pitch-down sine, then a click
 n = S.n_of(0.55); f = 700 * (60 / 700) ** np.linspace(0, 1, n) ** 0.7
 po = S.sine(f, 0.55) * np.linspace(1, 0, n) ** 1.4
