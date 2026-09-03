@@ -1,0 +1,4 @@
+Inter, Space Grotesk, Orbitron, JetBrains Mono, Syne and Unbounded are distributed
+under the SIL Open Font License 1.1 (https://openfontlicense.org). Variable TTFs
+were obtained from the google/fonts repository (github.com/google/fonts) and the
+respective upstream projects. They are bundled here only to render the promo video.

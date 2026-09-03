@@ -1,0 +1,662 @@
+{
+  "title": "Claude Fable 5.1 — Ich stelle mich vor",
+  "concept_summary": "A 30-second first-person introduction: Claude Fable 5.1 speaks in short German \"Ich…\" lines that land on the beat, each visualised by a single abstract light system on deep black with one warm ember accent, like an Apple keynote lit by a single light source but cut with game-trailer rhythm. The film opens on a heartbeat dot that becomes a hairline, escalates through a 3-second reasoning scene into four 2-second drive scenes (code, agent loop, context tunnel, Claude Code) that are chained by continuous morphs instead of cuts, breathes for three seconds on the safety message (drums drop, three sine notes, three stacked words), then builds for three seconds with kick density doubling per bar, a filling progress bar and tightening glitch bursts that desaturate to white and snap to 0.15 s of black silence holding only the accent dot. The sub-drop at 22.0 s detonates the dot into the name \"Claude Fable 5.1\" in chrome type with a clipped light-sweep reveal, and the last four seconds hold a still end card with the lockup and an accent CTA pill \"Jetzt in Claude Code.\" Music is 120 BPM (beat 0.5 s, bar 2.0 s) so every cut sits on a bar or half-bar; everything is a deterministic function of t on Canvas 2D.",
+  "palette": {
+    "bg": "#050507",
+    "primary": "#F5F2EC",
+    "secondary": "#8A8F9C",
+    "accent": "#FF8A3D",
+    "text": "#F5F2EC",
+    "notes": "Deep near-black with a faint warm tint (never pure #000 so vignette and grain still read). Ember-amber #FF8A3D is the ONLY chroma: heartbeat dot, light sweeps, glow cores, particle highlights, the 'roter Faden' thread, the dot in '5.1', the CTA pill. The hot core of every light source is primary #F5F2EC. Secondary grey is used ONLY for non-text structure (wireframes, tick marks, dot grids at 25-60% alpha); ALL sublines and mono lines are primary at 75-85% alpha for contrast on a 6-inch screen (judge fix). Chrome fill for the name lockup: vertical gradient #F5F2EC -> #A9ADB5 -> #F5F2EC. Glows: accent at 10-35% alpha with ctx.filter blur(24-60px) in 'lighter'; blur budget max 4 blurred layers per frame, large blurs rendered on half-resolution offscreen canvases and scaled up. Global look: vignette (radial, 0 at 55% radius to 0.75 black at corners), film grain 3% (seeded per frame, 6% only in s09 build), 1px scanlines at 4% only in s04/s05/s09. Photosensitivity: no full-frame inversions, no every-frame strobing; flash events are >= 125 ms apart and there are only two full-frame white flashes (7.95 s and 22.0 s)."
+  },
+  "typography": {
+    "display_font": "Inter (variable), weight 800, letter-spacing -0.045em, headlines 112-160 px (112 px minimum, chosen per line width so nothing exceeds 900 px)",
+    "body_font": "Space Grotesk (variable), weight 500, sublines 46-52 px, letter-spacing +0.02em, primary at 75-85% alpha (never grey)",
+    "mono_font": "JetBrains Mono (variable), weight 500, 44 px for terminal lines, labels and the model id, primary 80% with accent prompts/cursors",
+    "notes": "Name reveal (s10) and end-card lockup (s11) use Syne 800 for 'Claude' / 'Fable' with chrome vertical gradient fill and '5.1' in Inter 800 (chrome, with the period in accent carrying its own glow). All text centred within safe x 90..990; nothing above y 220 or below y 1660. Width-checked line breaks: 'Ich bin' / 'neu.' at 160 px; 'Ich denke' / 'tief.' at 150; 'Ich schreibe' / 'Code.' at 130; 'Ich handle.' single line at 140; 'Ich behalte' / 'den Überblick.' at 116; 'Ich lebe in' / 'Claude Code.' at 120; 'Ehrlich.' / 'Sorgfältig.' / 'Sicher.' STACKED at 116; 'Mythos-Klasse.' single line at 112; 'Claude' / 'Fable' in Syne 800 at 168. Per-character reveals: each glyph rises 40 px, fades from 0, blur 6px -> 0, 30-40 ms stagger, easeOutExpo, plus a 1.06 -> 1.0 scale punch on the word that lands on a downbeat. Kerning-safe: measureText per glyph, fillText per glyph, accumulate advance; letter-spacing applied as extra advance. Over busy backgrounds every headline sits on a soft black legibility band (rect blurred 40px at 60% alpha)."
+  },
+  "music": {
+    "bpm": 120,
+    "key": "D minor",
+    "description": "Synthesised cinematic trailer score at 120 BPM (beat = 0.5 s, bar = 2.0 s, 15 bars). Foundation: a D1 sub-bass drone (sine + slight saturation, 0.2 Hz amplitude wobble) rising in level across the film. Intro heartbeat: two sine thumps (D1, 90 ms pitch drop) at 0.0 and 1.0. Rhythm: low pulse on beats 1/3 from 4.0, kick (pitch-drop sine 140 -> 45 Hz + click) on every beat from 8.0, hi-hat ticks (8 ms filtered noise bursts) on off-8ths from 5.0, snare click (noise burst + 180 Hz body) on beats 2/4 from 10.0, an arpeggiated pluck (D-F-A-C, saw through low-pass, 16th notes) fading in from 5.5. Pad (detuned saws, Dm -> Bb -> F -> C, one chord per 2 bars) enters at 12.0. Systematic transition language: every cut is preceded by a 0.35 s whoosh (band-passed noise sweep 200 Hz -> 6 kHz, panned in the direction of the on-screen light sweep) and every major hit by a reverse cymbal (time-reversed noise decay, 0.4-0.8 s); braams (layered detuned saws D1/D2, 1.5 s exponential tail + sine sub thump) sit on 2.0, 5.0, 8.0, 10.0, 12.0, 14.0. Breath at 16.0: drums out, pad F -> C wide, three sine melody notes D5/F5/A5 at 16.5/17.0/17.5, a very quiet riser from 18.5. Build 19.0-21.85: kick returns on 8ths (19-20) then 16ths (20-21), hats to 32nds (21-21.85), riser (white noise 200 Hz -> 12 kHz + pitch-rising sine A2 -> A4), stutter gates tightening from 1/4 to 1/16 beat mirrored by the on-screen glitch bursts, reverse cymbal 21.0 -> 21.85, then total silence 21.85-22.0. Climax at 22.0: sub-drop (sine 90 -> 30 Hz over 1.2 s) + the biggest braam (3 s tail) + a short white-noise crack, shimmer pad (Dm add9, detuned saws through high-pass, slow attack), a sustained A5 string-like note from 22.7, half-time kicks at 23.0 / 24.0 / 25.0 with soft sub swells, FM bell (D5) at 23.6. End card: soft Dm pad, FM piano-like ping (D4) at 26.0, a soft low thump for the CTA pill at 26.5, gentle fade to full silence by 29.6. Master: light sidechain to the kick, mild tape saturation, limiter at -1 dBTP, stereo 48 kHz.",
+    "structure": [
+      {
+        "start": 0,
+        "end": 2,
+        "description": "Bar 1 (intro): D1 sub drone fades in over 0.5 s, room-tone noise at -48 dB, heartbeat thumps at 0.0 and 1.0, soft airy whoosh 0.3-1.0 with the hairline draw, reverse swell 1.65-2.0 into the first braam. No drums."
+      },
+      {
+        "start": 2,
+        "end": 5,
+        "description": "Bars 2-3a: first braam at 2.0 with the light sweep, low pulse on beats 1/3 from 4.0, first sparse hi-hat ticks from 4.5; reverse cymbal 4.6-5.0 and whoosh 4.65-5.0 into the cut."
+      },
+      {
+        "start": 5,
+        "end": 8,
+        "description": "Bars 3b-4: braam at 5.0 with an inward 'suck' whoosh, hats on off-8ths, pulse every beat from 6.0, arpeggio pluck enters 5.5 aligned to the 16th grid; 0.6 s noise riser 7.4-8.0 into the flash hit at 7.95."
+      },
+      {
+        "start": 8,
+        "end": 16,
+        "description": "Bars 5-8 (drive): kick every beat from 8.0, snare click on 2/4 from 10.0, hats every 8th, full arpeggio; braams on the downbeats 8.0 / 10.0 / 12.0 / 14.0 with the pad entering at 12.0 (Dm, to Bb at 14.0). Whoosh 0.35 s before each cut; 1/16 stutter fills at 9.75 and 13.75; reverse cymbal 15.6-16.0 then the drums stop dead."
+      },
+      {
+        "start": 16,
+        "end": 19,
+        "description": "Bars 9-10a (breath): no drums. Pad F (16.0) -> C (18.0), wide with chorus, sub drone, quiet quarter-note ticks; sine notes D5 / F5 / A5 at 16.5 / 17.0 / 17.5 for the three words; slow wide whoosh 17.8-18.6; very quiet riser starts at 18.5 with hats returning at 1/8."
+      },
+      {
+        "start": 19,
+        "end": 22,
+        "description": "Bars 10b-11 (build): kick returns on 8ths 19.0-20.0 and 16ths 20.0-21.0, hats 32nds 21.0-21.85, riser climbs, arpeggio up an octave at 20.0, stutter gates at 19.5, 20.0, 20.5, 20.75, 21.0, 21.25, 21.375, 21.5, 21.625, 21.75 (1/4 -> 1/16 beat) each matching a glitch burst, reverse cymbal 21.0 -> 21.85, then HARD SILENCE 21.85-22.0 (all buses muted)."
+      },
+      {
+        "start": 22,
+        "end": 26,
+        "description": "Bars 12-13 (climax): sub-drop + final braam + crack at 22.0, shimmer pad swells from 22.3, A5 sustained from 22.7, half-time kicks at 23.0 / 24.0 / 25.0 with sub swells, FM bell D5 at 23.6, quiet key ticks 23.0-23.6 for the model id. No hats."
+      },
+      {
+        "start": 26,
+        "end": 30,
+        "description": "Bars 14-15 (end card): D4 piano-like FM ping at 26.0, pill thump + airy tick at 26.5, high shimmer 27.6-28.0 for the specular sweep, very quiet airy sweep 28.2-29.2, braam tail decays, pad and drone fade linearly to full silence by 29.6; clean end."
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "s01",
+      "name": "Herzschlag",
+      "start": 0,
+      "end": 2,
+      "headline": "Hallo.",
+      "subline": "",
+      "visual": "Pure #050507 with vignette and grain. 0.0: a single accent dot (r=3 px) at (540, 960) with a soft radial glow (accent, blur 40, 'lighter', 18% alpha). Heartbeats at 0.0 and 1.0: the dot scales to r=9 over 120 ms and back over 200 ms, and a 1 px primary ring (35% alpha) expands from r=0 to r=420 over 0.8 s while fading. 0.3-1.0: a 2 px hairline of light grows from the dot outward in both directions (x 540 -> 90 and 540 -> 990), drawn as a gradient sprite (primary core, accent halo blurred 20 px, 'lighter'), easeInOutCubic; each leading tip carries a 120 px lens-flare sprite (radial gradient, accent 40%). 1.0-1.7: 'Hallo.' (Inter 800, 150 px, primary) appears per-character (rise 40 px + fade, blur 6 -> 0, 40 ms stagger) centred on y=960, sitting ON the line as if lit by it; from 1.0 to 1.3 the line slides down 60 px to become the baseline, the dot stays behind the 'o' and glows through the glyph. 1.7-2.0: the line brightens to 60%, the dot glow doubles, and a vertical light sweep enters from x=-260 at 1.8 (see transition_out).",
+      "effects": [
+        "radial accent glow (blur 40, lighter)",
+        "expanding pulse rings",
+        "hairline light beam with lens-flare tips",
+        "per-character rise reveal",
+        "vignette",
+        "film grain 3%"
+      ],
+      "camera": "Static, then an almost imperceptible push-in from scale 1.00 to 1.02 over 2.0 s (transform around canvas centre).",
+      "transition_in": "Fade from black over 0.25 s (whole canvas alpha).",
+      "transition_out": "Vertical light sweep: a 260 px wide soft vertical beam (accent-to-primary gradient, blur 40, 'lighter') crosses left to right from 1.8 to 2.15 s; to the right of the beam s01 is drawn, to the left s02 is drawn (clip rect), so the cut is hidden inside the beam and lands on the braam at 2.0.",
+      "audio_cues": [
+        {
+          "time": 0,
+          "type": "drone",
+          "description": "D1 sub drone fades in over 0.5 s; first heartbeat thump (sine D1, 90 ms pitch drop)"
+        },
+        {
+          "time": 0.3,
+          "type": "whoosh",
+          "description": "Soft airy whoosh, stereo-widening from centre, following the hairline draw (0.3-1.0)"
+        },
+        {
+          "time": 1,
+          "type": "thump",
+          "description": "Second heartbeat thump with the dot pulse; single soft hi-hat tick as the first letter of 'Hallo.' lands"
+        },
+        {
+          "time": 1.65,
+          "type": "swell",
+          "description": "Reverse swell (0.35 s) into the first braam at 2.0"
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "name": "Ich bin neu",
+      "start": 2,
+      "end": 5,
+      "headline": "Ich bin neu.",
+      "subline": "Anthropics neuestes Claude-Modell.",
+      "extra_text": [
+        "Claude 5 · Mythos-Klasse"
+      ],
+      "visual": "Background: a slow field of 1500 seeded particles (1-2 px, primary at 8-20% alpha) drifting upward at 12 px/s with subtle horizontal sine wander. 2.0-2.15: the light sweep from s01 reveals the headline 'Ich bin' / 'neu.' (Inter 800, 160 px, primary, two lines at y=880/1040) already in place; each glyph behind the beam gets a 60 ms accent rim that decays to primary (draw glyph in accent, then primary on top with rising alpha). 2.5 (beat): 'neu.' punches from scale 1.08 to 1.0 with easeOutBack. 2.9-3.3: subline 'Anthropics neuestes Claude-Modell.' (Space Grotesk 500, 52 px, primary 80%) wipes in via a clip mask expanding from centre outward at y=1160. 3.4-4.2: a thin diagonal light streak (20 deg, 1400 px long, 90 px wide, blur 30, accent 25%, 'lighter') glides bottom-left to top-right behind the type; particles within 80 px of the streak brighten to 60%. 4.0-4.3: mono tag 'Claude 5 · Mythos-Klasse' (JetBrains Mono 44 px, primary 70%, letter-spacing +0.12em) fades in at y=1260. 4.5-5.0: the headline tracking tightens from -0.045em to -0.06em (pre-cut squeeze), the particle field accelerates 3x and streaks upward (2-frame alpha trails); at 4.9-5.0 a 2-frame white-hot flash (primary 35% full-frame) decays over 0.1 s into the cut.",
+      "effects": [
+        "seeded particle drift (1500 points)",
+        "light-sweep reveal with accent rim on glyphs",
+        "scale punch on downbeat",
+        "centre-out clip wipe for subline",
+        "diagonal light streak (lighter)",
+        "tracking squeeze",
+        "motion-blur trails via layered alpha",
+        "vignette, grain 3%"
+      ],
+      "camera": "Slow lateral drift: translate x from -12 to +12 px over 3 s with 0.5 deg counter-rotation, scale 1.02 -> 1.04 (continuing the push from s01).",
+      "transition_in": "Received from s01's vertical light sweep (beam crosses 1.8-2.15).",
+      "transition_out": "Hard cut on the half-bar at 5.0 with a 2-frame primary flash at 35% alpha decaying over 0.1 s, synced to the braam.",
+      "audio_cues": [
+        {
+          "time": 2,
+          "type": "braam",
+          "description": "First braam (D1/D2 detuned saws, 1.5 s tail) + sine sub thump on the light sweep; whoosh panned left to right"
+        },
+        {
+          "time": 2.5,
+          "type": "impact",
+          "description": "Short low pulse on the 'neu.' scale punch"
+        },
+        {
+          "time": 2.9,
+          "type": "tick",
+          "description": "Hi-hat tick as the subline wipes"
+        },
+        {
+          "time": 3.4,
+          "type": "whoosh",
+          "description": "Soft diagonal whoosh, low-left to high-right, with the streak"
+        },
+        {
+          "time": 4,
+          "type": "pulse",
+          "description": "Low pulse on beats 1/3 begins; sparse hi-hat ticks from 4.5"
+        },
+        {
+          "time": 4.6,
+          "type": "reverse_cymbal",
+          "description": "Reverse cymbal 0.4 s + whoosh 4.65-5.0 into the cut"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "name": "Ich denke tief",
+      "start": 5,
+      "end": 8,
+      "headline": "Ich denke tief.",
+      "subline": "Schritt für Schritt. Bis zum Ende.",
+      "visual": "Reasoning constellation: a manual-3D point cloud of 900 seeded points inside a sphere of radius 620 px centred at (540, 840), perspective projection (focal 1100), rotating 6 deg/s about a tilted axis. 5.0-5.5: points fly in from random far-depth positions to their sphere positions (easeOutExpo, per-point 0-300 ms delay), 2-3 px primary at 30-70% alpha, the nearest 15% with a 14 px accent blur halo. Thin secondary (12%) lines connect neighbours within 110 px. 5.5-7.3: a 'thought path' lights up: 14 points along a great-circle route are connected one after another every 125 ms (on the 16th grid) with 2 px accent lines that glow (blur 18, 'lighter'); each node flares to 10 px primary and decays; earlier segments dim to 30%. 5.6-6.2: headline 'Ich denke' / 'tief.' (Inter 800, 150 px, primary, y=880/1040) rises per-character in front of the cloud on a 60% black soft-edge legibility band (blur 40); 'tief.' scale-punches 1.06 -> 1.0 at 6.5. 6.6-7.0: subline 'Schritt für Schritt. Bis zum Ende.' (Space Grotesk 500, 50 px, primary 80%) wipes left-to-right at y=1160. 7.3-7.9: the final node at the front of the sphere bursts into a 260 px radial flare (primary core, accent halo) that the camera pushes into; simultaneously every point snaps (easeInOutCubic, 0.5 s) onto a horizontal row grid (rows every 28 px, columns every 16 px) so the constellation becomes lines of text - the morph into the code stream. 7.9-8.0: the rows start scrolling upward and the flare peaks to a full-frame primary flash at 7.95 (90%, 2 frames), s04 already drawn beneath it.",
+      "effects": [
+        "3D point cloud projection (900 points)",
+        "sequential glowing path with node flares",
+        "neighbour-link wireframe",
+        "per-character headline reveal with legibility band",
+        "radial flare burst",
+        "points-to-rows morph",
+        "vignette, grain 3%"
+      ],
+      "camera": "Sphere rotation plus canvas drift translate x -18 -> +18 px; from 7.3 a punch-in zoom from 1.0 to 1.18 centred on the final node, easeInCubic, with a 3 px 8 Hz shake in the last 0.25 s; transforms return to identity at 8.0.",
+      "transition_in": "Hard cut on the braam at 5.0 with points still in flight (motion carries the cut).",
+      "transition_out": "Points morph into text rows (7.3-7.9) under a rising flare; 2-frame full-frame flash at 7.95 hides the cut into s04, whose code stream inherits the rows.",
+      "audio_cues": [
+        {
+          "time": 5,
+          "type": "braam",
+          "description": "Braam with pitched thump; hats on off-8ths start; inward 'suck' whoosh (high to low) as points fly in"
+        },
+        {
+          "time": 5.5,
+          "type": "arp",
+          "description": "Arpeggio pluck enters, each 16th aligned to a path segment lighting up"
+        },
+        {
+          "time": 6,
+          "type": "pulse",
+          "description": "Pulse on every beat from 6.0"
+        },
+        {
+          "time": 6.5,
+          "type": "impact",
+          "description": "Low pulse on the 'tief.' punch"
+        },
+        {
+          "time": 7.4,
+          "type": "riser",
+          "description": "0.6 s noise riser into the flare"
+        },
+        {
+          "time": 7.95,
+          "type": "hit",
+          "description": "Bright short impact with the white flash"
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "name": "Ich schreibe Code",
+      "start": 8,
+      "end": 10,
+      "headline": "Ich schreibe Code.",
+      "subline": "",
+      "extra_text": [
+        "$ claude",
+        "› Bauen",
+        "› Prüfen ✓",
+        "› Ausliefern"
+      ],
+      "visual": "Code stream: the rows from s03 are now three columns of JetBrains Mono pseudo-code tokens (26 px, primary 22%, seeded from a token list: const / function / return / await / if; no digits anywhere) scrolling upward at 900 px/s, the centre column brightest; every 16th (125 ms) one line 'locks in' (brakes to 0 in 60 ms, turns primary 70%, holds 200 ms, then dissolves). 4% scanlines and a faint perspective floor grid (secondary 6%, 96 px cells, vanishing point y=380). 8.0-8.15: headline 'Ich schreibe' / 'Code.' (Inter 800, 130 px, primary, y=760/900) slams in from scale 1.3 to 1.0 with a 2-frame RGB channel split (±6 px) settling to clean, on a black legibility band. 8.2-8.4: '$ claude' (JetBrains Mono 44 px, prompt in accent, text primary 85%) typewrites at 28 ms/char at y=1120 with a blinking accent block cursor. On beats: '› Bauen' appears at 8.5 (y=1200), '› Prüfen ✓' at 9.0 (y=1280) with the accent check mark scale-punching 1.8 -> 1.0 and a 60-particle accent spark burst (radial, drag 0.9/frame, 'lighter', 0.4 s), '› Ausliefern' at 9.5 (y=1360); each new line flashes primary for 80 ms then settles to primary 80%. 9.0-9.7: a horizontal light sweep (accent, 300 px tall, blur 50, 'lighter') passes top to bottom behind everything once, brightening grid lines it crosses. 9.75-10.0: freeze/reverse stutter glitch: 3 frames frozen at t=9.75 with 4 horizontal slices displaced ±14 px, then 2 frames rendered at t-0.1, then 2 frames of per-slice displacement + RGB split (±8 px) into the cut.",
+      "effects": [
+        "vertical mono code stream with 16th-note lock-ins",
+        "scanlines 4%",
+        "perspective floor grid",
+        "scale slam with RGB split",
+        "typewriter with block cursor",
+        "spark particle burst",
+        "vertical light sweep",
+        "freeze/reverse stutter glitch",
+        "per-slice glitch displacement + RGB split",
+        "vignette, grain 3%"
+      ],
+      "camera": "Held with 2 px kick shake on every beat (8.0, 8.5, 9.0, 9.5), zoom 1.0 -> 1.03 over the scene; micro-shake 3 px on the slam at 8.0.",
+      "transition_in": "Emerging from the 7.95 flash with the code rows inherited from s03's point morph; headline slams on the downbeat at 8.0.",
+      "transition_out": "Freeze/reverse stutter (9.75-9.9) then glitch slices; hard cut at 10.0 as the stream accelerates to 2500 px/s and becomes vertical light streaks (6 layered alpha copies) that s05 collapses into rings.",
+      "audio_cues": [
+        {
+          "time": 8,
+          "type": "braam",
+          "description": "Braam + kick enters on every beat; full drive groove"
+        },
+        {
+          "time": 8.2,
+          "type": "tick",
+          "description": "Mechanical key ticks (4 ms noise bursts) with each typed character, quiet"
+        },
+        {
+          "time": 8.5,
+          "type": "impact",
+          "description": "Soft pitched sub pop for '› Bauen'"
+        },
+        {
+          "time": 9,
+          "type": "sfx",
+          "description": "Two-note success blip (sine D5 -> A5, 120 ms) + snare click on '› Prüfen ✓'; top-to-bottom whoosh with the light sweep"
+        },
+        {
+          "time": 9.5,
+          "type": "impact",
+          "description": "Soft pitched sub pop for '› Ausliefern'"
+        },
+        {
+          "time": 9.75,
+          "type": "glitch",
+          "description": "1/16 stutter fill on the arpeggio for 0.25 s matching the freeze/reverse glitch; whoosh into 10.0"
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "name": "Ich handle",
+      "start": 10,
+      "end": 12,
+      "headline": "Ich handle.",
+      "subline": "Planen. Ausführen. Verifizieren.",
+      "extra_text": [
+        "PLAN",
+        "TOOL",
+        "RUN",
+        "VERIFY"
+      ],
+      "visual": "Agent loop. 10.0-10.2: the vertical light streaks from s04 collapse (easeOutCubic) into three concentric manual-3D rings (radii 260/340/420 px around (540, 760)), each tilted on a different axis (X 65 deg, Y 40 deg, Z 20 deg) rotating at 0.8 / -0.6 / 1.1 rad/s, 2 px primary 60% with accent glow (blur 14, 'lighter'), 40 tick marks and one bright head point per ring; a core at the centre (primary, r=18, blur 30) pulses on every kick. 10.0-10.15: HUD corner brackets (primary 50%, 2 px) draw on from the inside in 150 ms at (110,320), (970,320), (110,1200), (970,1200). Four labels in JetBrains Mono 44 px uppercase sit at 12 / 3 / 6 / 9 o'clock at radius 470: 'PLAN', 'TOOL', 'RUN', 'VERIFY' (primary 45% idle; active = filled accent pill with dark text, 40-particle accent spark puff). Cycle 1 lights one label per beat: PLAN 10.0, TOOL 10.5? no - PLAN 10.0, TOOL 10.25, RUN 10.5, VERIFY 10.75 (every 8th); cycle 2 and 3 run at every 16th from 11.0 to 11.5, twice as fast; a bright dashed 'data pulse' (accent, blur 8) travels along the outer ring from the active label to the next. 11.5: on the final VERIFY a check mark stroke (2 segments, 140 ms path-length animation, accent, blur 12) draws inside the core with a bright ping. 10.0-10.15: headline 'Ich handle.' (Inter 800, 140 px, primary, single line at y=1330) slams from 1.25 to 1.0 with a 3-frame RGB split (±10 px) on a legibility band. 10.5-10.8: subline 'Planen. Ausführen. Verifizieren.' (Space Grotesk 500, 48 px, primary 80%) slide-mask reveals left to right at y=1440. 11.7-12.0: all three rings tilt to face the viewer (tilt angles -> 0 over 0.2 s) and expand past the frame edges (radius x4, easeInCubic) with 3-frame alpha trails, a forward whoosh as they become the tunnel of s06.",
+      "effects": [
+        "light streaks collapse into 3D rotating rings",
+        "HUD corner brackets draw-on",
+        "label cycle with accent fill flashes and spark puffs",
+        "data pulse travelling along a ring",
+        "check mark path animation",
+        "kick-synced core pulse",
+        "scale slam with RGB split",
+        "scanlines 4%",
+        "motion-blur trails via layered alpha",
+        "vignette, grain 3%"
+      ],
+      "camera": "Zoom punch 1.03 on every kick (10.0, 10.5, 11.0, 11.5) decaying over 0.15 s with 3 px shake; slow canvas rotation -1.5 -> +1.5 deg; 11.7-12.0 zoom punch 1.0 -> 1.15 through the ring centre.",
+      "transition_in": "Hard cut at 10.0; s04's light streaks collapse into the rings within 0.2 s.",
+      "transition_out": "Rings turn frontal and expand over the viewer (11.7-12.0), morphing into the tunnel frames of s06; no hard cut.",
+      "audio_cues": [
+        {
+          "time": 10,
+          "type": "braam",
+          "description": "Braam + kick; snare click on beats 2/4 from here"
+        },
+        {
+          "time": 10,
+          "type": "sfx",
+          "description": "Label blips: short filtered clicks at 10.0, 10.25, 10.5, 10.75 then every 0.125 s from 11.0 to 11.5, pitch rising each pass"
+        },
+        {
+          "time": 11.5,
+          "type": "ping",
+          "description": "Bright short sine ping (A5) on the VERIFY check mark + snare click"
+        },
+        {
+          "time": 11.65,
+          "type": "whoosh",
+          "description": "Long forward whoosh (Doppler-style pitch down) as the rings expand into the tunnel"
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "name": "Ich behalte den Überblick",
+      "start": 12,
+      "end": 14,
+      "headline": "Ich behalte den Überblick.",
+      "subline": "Langer Kontext. Ganze Codebasen.",
+      "visual": "Context tunnel: 24 rectangular 9:16 wireframe frames (manual projection, z spacing 180, vanishing point (540, 860), 1 px primary 25-80% alpha by depth) rushing toward the viewer at 1400 px/s (seeded loop). The four tunnel walls carry a 'document' texture: 6000 seeded dots arranged as jittered text rows (rows every 26 px, columns every 14 px, 1.5 px, secondary 25-45%) projected in perspective, suggesting endless lines of a codebase; plus 2000 star-field warp particles with streak length proportional to speed ('lighter'). 12.0-12.15: headline 'Ich behalte' / 'den Überblick.' (Inter 800, 116 px, primary, y=880/1000) slams 1.2 -> 1.0 with a 3-frame RGB split on a legibility band with an accent text-halo (glyph copy blur 24, 20%). 12.4-12.8: subline 'Langer Kontext. Ganze Codebasen.' (Space Grotesk 500, 48 px, primary 80%) per-character reveals at y=1100 with a 20 ms stagger. 12.5 (beat): the 'roter Faden': a 2 px accent thread (blur 10, 'lighter') pulls from the vanishing point forward through every frame in 0.3 s and ends under the headline at y=1060, where it stays and waves gently (sine 1.5 Hz, 6 px amplitude); every wall dot within 60 px of the thread brightens to primary 80% and decays over 0.8 s, leaving a glowing wake so nothing it passes is lost. 13.2-13.75: tunnel speed doubles, frame spacing tightens to 90, brightness rises, camera rolls 6 deg. 13.75-14.0: freeze/reverse stutter (3 frames frozen with 5 slices displaced ±20 px, 2 frames at t-0.1, 2 frames RGB split ±8 px) into the cut.",
+      "effects": [
+        "3D wireframe tunnel projection",
+        "6000-dot seeded document grid on tunnel walls",
+        "star-field warp particles (lighter)",
+        "accent thread ('roter Faden') with brightening wake",
+        "text halo glow",
+        "scale slam with RGB split",
+        "freeze/reverse stutter glitch",
+        "vignette 40%, grain 3%"
+      ],
+      "camera": "Forward flight (implicit in the tunnel), roll 0 -> 6 deg over 13.2-14.0, 3 px kick shake on 12.0 / 12.5 / 13.0 / 13.5, zoom 1.0 -> 1.05.",
+      "transition_in": "Rings of s05 morph into the tunnel frames (12.0-12.2), headline slam on the braam.",
+      "transition_out": "Freeze/reverse stutter glitch (13.75-13.95) then hard cut at 14.0; the tunnel lines snap to a single horizontal hairline at y=700 that s07 inherits.",
+      "audio_cues": [
+        {
+          "time": 12,
+          "type": "braam",
+          "description": "Braam + kick; pad enters (Dm)"
+        },
+        {
+          "time": 12.5,
+          "type": "ping",
+          "description": "Low sine ping + a 0.3 s inward whoosh for the accent thread"
+        },
+        {
+          "time": 13.2,
+          "type": "riser",
+          "description": "Short 0.55 s riser with hat ticks accelerating 1/8 -> 1/16 as the tunnel speeds up"
+        },
+        {
+          "time": 13.75,
+          "type": "glitch",
+          "description": "1/16 stutter fill (0.25 s) matching the freeze/reverse glitch; whoosh into 14.0"
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "name": "Ich lebe in Claude Code",
+      "start": 14,
+      "end": 16,
+      "headline": "Ich lebe in Claude Code.",
+      "subline": "Terminal · Desktop · Web · IDE",
+      "extra_text": [
+        "$ claude",
+        "claude-fable-5-1"
+      ],
+      "visual": "Minimal terminal, no window chrome: the tunnel lines collapse in 0.15 s into a single 2 px primary hairline at y=700 spanning x 120..960 (the s01 motif), with the s03 constellation faintly rotating behind everything at 15% alpha (the system lives behind the tool). 14.1-14.4: '$ claude' (JetBrains Mono 44 px, accent prompt, primary 85%) typewrites at 22 ms/char at y=780 with a blinking accent block cursor; 14.4: a line with an accent dot and 'claude-fable-5-1' (mono 44 px, primary 70%) fades in at y=850 over 0.15 s. 14.0-14.15: headline 'Ich lebe in' / 'Claude Code.' (Inter 800, 120 px, primary, y=1000/1130) slams 1.2 -> 1.0 with a 3-frame RGB split on a legibility band. 14.75 / 15.0 / 15.25 / 15.5 (8th notes): the subline words 'Terminal', 'Desktop', 'Web', 'IDE' (Space Grotesk 500, 48 px, primary 85%) appear one by one on a single centred line at y=1260, each with a thin HUD rectangle outline (1 px primary) that draws around the word in 80 ms and falls back to 40% alpha; the separator dots fade in 100 ms after each word. 15.6-16.0: the kick shake stops, a horizontal light streak (accent, blur 30, 'lighter', 260 px tall) passes right to left across the frame in 0.3 s, and the terminal lines and headline sink 40 px and dim to 70% while the constellation behind brightens and slows; cross-dissolve 0.25 s into s08.",
+      "effects": [
+        "tunnel-to-hairline collapse",
+        "typewriter with block cursor",
+        "dimmed constellation background (3D point cloud)",
+        "word-on-8th reveal with HUD outline draw-on",
+        "scale slam with RGB split",
+        "horizontal light streak",
+        "vignette, grain 3%"
+      ],
+      "camera": "2 px kick shake on 14.0 / 14.5 / 15.0 / 15.5, then still; slight zoom-out 1.04 -> 1.0 over the scene (an exhale before the breath).",
+      "transition_in": "Hard cut at 14.0 with the tunnel lines snapping into the hairline; headline slam on the braam.",
+      "transition_out": "Reverse cymbal, light streak, elements sink and dim; 0.25 s cross-dissolve (15.75-16.0) into the safety ring.",
+      "audio_cues": [
+        {
+          "time": 14,
+          "type": "braam",
+          "description": "Last braam of the drive phase + kick; pad chord to Bb"
+        },
+        {
+          "time": 14.1,
+          "type": "tick",
+          "description": "Quiet key ticks with the '$ claude' typewriter"
+        },
+        {
+          "time": 14.75,
+          "type": "tick",
+          "description": "Four bright ticks at 14.75 / 15.0 / 15.25 / 15.5 for Terminal / Desktop / Web / IDE, pitch rising"
+        },
+        {
+          "time": 15.6,
+          "type": "reverse_cymbal",
+          "description": "Reverse cymbal 15.6 -> 16.0 with a wide right-to-left whoosh; drums stop dead at 16.0"
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "name": "Ehrlich. Sorgfältig. Sicher.",
+      "start": 16,
+      "end": 19,
+      "headline": "Ehrlich. Sorgfältig. Sicher.",
+      "subline": "Mit zusätzlichen Sicherheitsmaßnahmen.",
+      "extra_text": [
+        "Claude Mythos 5.1: nur für zugelassene Organisationen."
+      ],
+      "visual": "The breath. The beat is gone; the picture breathes. 16.0-16.2: the constellation from s07 pulls into a perfect geodesic sphere (r=340 around (540, 900), points 30% alpha, edges 15%, rotation 0.05 rad/s) and a safety ring locks in around it: a 6 px stroke ring (r=360, primary core, accent halo blur 24, 'lighter') scales from 1.5 to 1.0 with easeOutBack in 0.2 s and emits ONE shockwave (expanding stroke ring r 360 -> 700 fading over 0.6 s); two thinner concentric rings (r=300 and 430, secondary 25%) with tick marks every 10 deg rotate slowly in opposite directions like a precision instrument. A soft protective glow (radial accent 12% -> transparent, r=560) pulses at 0.5 Hz. The three words land on the three sine notes as STACKED lines centred inside the ring, Inter 800, 116 px, primary: 'Ehrlich.' at 16.5 (y=790), 'Sorgfältig.' at 17.0 (y=930), 'Sicher.' at 17.5 (y=1070); each per-character reveals with a 25 ms stagger and a 12 px upward drift, then a 1 px accent underline draws under the word in 200 ms; the ring stroke brightens 20% for 150 ms with each word (no slam, no shake). 17.8-18.2: subline 'Mit zusätzlichen Sicherheitsmaßnahmen.' (Space Grotesk 500, 46 px, primary 80%) fades in at y=1210. 18.0-18.5: footnote 'Claude Mythos 5.1:' / 'nur für zugelassene Organisationen.' (Space Grotesk 500, 44 px, primary 55%, two lines at y=1400/1456) fades in. 17.8-18.6: a slow, elegant light sweep (accent, 220 px wide, 15 deg tilt, blur 45) passes right to left behind the ring; a 40 deg specular arc travels around the ring stroke in sync. 18.5-19.0: the riser begins: the outer ring tightens (r 360 -> 300), its rotation accelerates exponentially, the glow brightens, the sphere starts contracting, and from 18.7 the text picks up a fine 1-2 px per-frame jitter.",
+      "effects": [
+        "geodesic sphere from point cloud (3D projection)",
+        "ring lock-in with ease-out-back and single shockwave",
+        "concentric precision rings with tick marks",
+        "breathing radial glow",
+        "per-character word reveals with underline path animation",
+        "diagonal light sweep with specular arc",
+        "contraction pre-build with text jitter",
+        "vignette 30%, grain 2% (calmest look of the film)"
+      ],
+      "camera": "Very slow push-in 1.0 -> 1.05 over 3 s, no shake, minimal drift (sine 0.2 Hz, 3 px). From 18.7 a fine 0.5 px tremor that grows in s09.",
+      "transition_in": "0.25 s cross-dissolve from s07; constellation orders itself into the sphere, ring lock-in on the soft thump at 16.0.",
+      "transition_out": "Seamless (no cut): the contracting ring and sphere become the core of s09 at 19.0.",
+      "audio_cues": [
+        {
+          "time": 16,
+          "type": "pad",
+          "description": "Drums out; wide pad F with chorus, sub drone, quiet quarter-note ticks; soft metallic lock-in ping (sine 880 Hz, fast decay, reverb) + soft sub thump for the ring"
+        },
+        {
+          "time": 16.5,
+          "type": "melody",
+          "description": "Sine note D5 for 'Ehrlich.'"
+        },
+        {
+          "time": 17,
+          "type": "melody",
+          "description": "Sine note F5 for 'Sorgfältig.'"
+        },
+        {
+          "time": 17.5,
+          "type": "melody",
+          "description": "Sine note A5 for 'Sicher.'"
+        },
+        {
+          "time": 17.8,
+          "type": "whoosh",
+          "description": "Slow wide whoosh right to left with the sweep; pad to C at 18.0"
+        },
+        {
+          "time": 18.5,
+          "type": "riser",
+          "description": "Very quiet noise riser begins, hats return at 1/8 as the ring tightens"
+        }
+      ]
+    },
+    {
+      "id": "s09",
+      "name": "Mythos-Klasse (Build)",
+      "start": 19,
+      "end": 22,
+      "headline": "Mythos-Klasse.",
+      "subline": "Anthropics intelligentestes verfügbares Modell.",
+      "visual": "The build. 19.0: the contracted ring and sphere become a glaring core (r=100, primary-white with accent halo, blur 60, 'lighter') at (540, 800); the three precision rings now spin fast (2-4 rad/s) in opposing directions with their tick marks smeared into light streaks; a slowly rotating tilted 3D wireframe grid plane (secondary 18%, 120 px cells, vanishing point y=560) appears behind, its lines pulsing accent on each kick. On every kick a shockwave ring (2 px accent, r 100 -> 900 in 0.4 s, alpha 0.6 -> 0) bursts from the core. 3000 accent particles fall radially inward from beyond the frame edges with easeInQuart and 3-frame alpha trails (a reverse explosion). A vertical progress bar on the right (x 940..960, y 300..1620, 1 px primary outline) fills bottom to top in accent from 19.0 to 21.85 as a visual countdown, its top emitting a spark stream growing from 20 to 300 particles per frame. 19.0-19.3: headline 'Mythos-Klasse.' (Inter 800, 112 px, primary, single line at y=1250) assembles by glitch: 6 horizontal slices arrive from alternating sides with ±40 px offsets and RGB split (±10 px), clean by 19.3, on a legibility band. 19.4-19.9: subline 'Anthropics intelligentestes' / 'verfügbares Modell.' (Space Grotesk 500, 46 px, primary 80%, y=1360/1416) typewrites at 18 ms/char with an accent cursor. 19.0-20.0 (kick on 8ths): zoom punch 1.04 + 3 px shake on every 8th; grain rises 3% -> 6%. 20.0-21.0 (kick on 16ths): zoom punch 1.06 on every 16th, shake grows 3 -> 9 px, the rings merge into a light vortex (12 layered rotating ring copies at 15% alpha), core grows to r=200. 21.0-21.85: glitch bursts at 21.0, 21.25, 21.375, 21.5, 21.625, 21.75 (each 2 frames: 8-14 slices displaced ±30 px, RGB split ±10 px, 1-frame luma flash on the type; frames between bursts perfectly clean); the particle infall accelerates; from 21.35 all colour desaturates toward white (a primary overlay rising 0 -> 85% with a blur 80 centre glow, vignette inverting); 21.6-21.85 the headline and subline tear into slices that are sucked into the core. 21.85-22.0: HARD BLACK - all layers off, all camera transforms snapped to identity, only a single accent dot (r=3, the s01 dot) at (540, 960). Nothing moves for 0.15 s.",
+      "effects": [
+        "glaring core with kick-synced shockwave rings",
+        "3D wireframe grid plane with beat pulse",
+        "reverse-explosion particle convergence with trails",
+        "light vortex from layered rotating ring copies",
+        "progress bar with spark stream",
+        "slice-assembly headline with RGB split",
+        "typewriter subline",
+        "escalating per-slice glitch bursts + RGB split + luma flash",
+        "desaturation wash to white",
+        "scanlines 4%, grain 3% -> 6%",
+        "hard black-out to a single accent point"
+      ],
+      "camera": "Zoom punch on every kick (1.04 on 8ths, 1.06 on 16ths), shake growing 3 -> 9 px (14 Hz), roll oscillating ±3 deg from 20.0, overall push-in 1.0 -> 1.25 over 19.0-21.85 (easeInQuad); at 21.85 every transform snaps to identity and the shake stops dead.",
+      "transition_in": "Seamless from s08: the contracting ring becomes the core as the kick returns at 19.0.",
+      "transition_out": "Wash to white 21.35-21.85, then hard black with the single dot and total silence 21.85-22.0; the sub-drop at 22.0 detonates s10.",
+      "audio_cues": [
+        {
+          "time": 19,
+          "type": "kick",
+          "description": "Kick returns on 8ths; riser audible (noise 200 Hz -> 12 kHz + sine A2 -> A4); headline glitch assembly"
+        },
+        {
+          "time": 19.5,
+          "type": "glitch",
+          "description": "Stutter gates at 19.5, 20.0, 20.5, 20.75 (1/4 beat), each matching a kick punch"
+        },
+        {
+          "time": 20,
+          "type": "kick",
+          "description": "Kick switches to 16ths, arpeggio up an octave, snare-click roll begins"
+        },
+        {
+          "time": 21,
+          "type": "glitch",
+          "description": "Stutter gates tightening to 1/8 then 1/16 beat at 21.0, 21.25, 21.375, 21.5, 21.625, 21.75, each matching a glitch burst; hats at 32nds"
+        },
+        {
+          "time": 21,
+          "type": "reverse_cymbal",
+          "description": "Reverse cymbal 21.0 -> 21.85 swelling under the wash to white"
+        },
+        {
+          "time": 21.85,
+          "type": "silence",
+          "description": "Hard cut to full silence (all buses muted) until 22.0"
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "name": "Name Reveal",
+      "start": 22,
+      "end": 26,
+      "headline": "Claude Fable 5.1",
+      "subline": "",
+      "extra_text": [
+        "claude-fable-5-1",
+        "Anthropic"
+      ],
+      "visual": "Climax. 22.0: the accent dot explodes: a 1080-wide, 8 px primary shockwave beam bursts vertically into a full-frame flash (primary 100% for 2 frames, decaying to 0 over 0.4 s, 'lighter'), 4000 particles fly radially outward (2500 px/s initial, damping 0.92/frame, 2-5 px, 'lighter', 3-layer trails) and two shockwave rings (primary and accent, 3 px, r 0 -> 1400 in 0.5 s). Behind the decaying flash the name is already there: 'Claude' / 'Fable' in Syne 800, 168 px, chrome vertical gradient fill (#F5F2EC -> #A9ADB5 -> #F5F2EC), two lines centred at y=860/1030; '5.1' in Inter 800, 220 px, chrome, centred at y=1260, its period in accent with its own glow (blur 20, 'lighter'). 22.0-22.12: the whole lockup scale-punches 1.6 -> 1.0 (easeOutExpo) with a 4-frame RGB split (20 px) settling to 0 by 22.25; a halo (glyph copy blur 40, primary 50%, 'lighter') decays to 25% over 0.6 s. 22.1-22.9: a grand cinematic light sweep (340 px wide beam tilted 12 deg, primary core with accent halo, blur 55, 'lighter') travels left to right across the type as a clip: glyphs left of the beam fully lit chrome, glyphs inside the beam get a 2 px accent specular rim + inner glow, glyphs right of the beam are 18% ghosted (easeInOutCubic). 22.2-24.0: tracking settles from +0.06em to -0.02em (a breath outward, then in). 22.3-23.5: the particles decelerate and re-form loosely into a faint constellation sphere (r=560, primary 18%, edges 8%) behind the name, rotating 0.05 rad/s - the system is complete and calm. 22.9-23.3: a 3 px accent underline (blur 10) draws under 'Fable' from centre outward. 23.0 / 24.0 / 25.0: the halo bloom breathes (blur 30, alpha 0.25 -> 0.5 -> 0.25 over 0.4 s) on the half-time kicks with a 1.02 camera punch. 23.0-23.6: 'claude-fable-5-1' (JetBrains Mono 44 px, primary 75%) typewrites at y=1400 with an accent cursor. 23.6-24.0: 'Anthropic' (Space Grotesk 500, 50 px, primary 75%, letter-spacing animating +0.5em -> +0.3em) fades in at y=1490. 22.4-25.5: a horizontal lens-flare streak (900 px gradient sprite, primary 20%) sits on '5.1' and slowly fades; 400 large soft accent motes (r 3-9 px, blur 8, 6-14% alpha) drift upward lazily; a radial accent glow (12%, 1000 px) breathes at 0.25 Hz behind the name; a barely visible second sweep (primary 8%) passes right to left 24.6-25.4. 25.6-26.0: the name group scales to 0.62 and moves up to centre y=700 while 'claude-fable-5-1' and 'Anthropic' fade out; motes, glow and constellation persist into s11.",
+      "effects": [
+        "shockwave beam to full-frame flash",
+        "4000-particle burst with trails re-forming into a constellation",
+        "double shockwave rings",
+        "chrome gradient name with scale punch and RGB split settle",
+        "cinematic clipped light-sweep reveal with specular rim",
+        "tracking settle",
+        "accent underline draw",
+        "bloom breathing on half-time kicks",
+        "typewriter model id",
+        "lens flare streak",
+        "soft accent motes with blur",
+        "breathing radial glow",
+        "vignette, grain 3%"
+      ],
+      "camera": "Impact: 22.0-22.15 snap zoom from 1.30 back to 1.0 (easeOutExpo) with 12 px shake decaying to 0 by 22.5; 1.02 punches on 23.0 / 24.0 / 25.0; slow majestic push-in 1.0 -> 1.06 over 22.5-25.6, then easing back to 1.0 by 26.0.",
+      "transition_in": "Sub-drop flash from the black-and-silent dot at exactly 22.0.",
+      "transition_out": "0.4 s crossfade into the end card (25.6-26.0): the lockup scales to 0.62 and rises to y=700 while the end-card text fades in below; motes, glow and constellation stay continuous.",
+      "audio_cues": [
+        {
+          "time": 22,
+          "type": "sub_drop",
+          "description": "Sub-drop (90 -> 30 Hz sine, 1.2 s) + the biggest braam (3 s tail) + white-noise crack for the flash; wide long whoosh left to right (0.8 s) with the reveal sweep"
+        },
+        {
+          "time": 22.3,
+          "type": "pad",
+          "description": "Shimmer pad Dm add9 swells"
+        },
+        {
+          "time": 22.7,
+          "type": "pad",
+          "description": "High sustained A5 string-like note enters and holds"
+        },
+        {
+          "time": 23,
+          "type": "kick",
+          "description": "Half-time kick with soft sub swell (also 24.0 and 25.0), bloom breath; quiet key ticks 23.0-23.6 for the model-id typewriter"
+        },
+        {
+          "time": 23.6,
+          "type": "sfx",
+          "description": "Soft FM bell (D5) as 'Anthropic' fades in"
+        },
+        {
+          "time": 25.6,
+          "type": "whoosh",
+          "description": "Very soft airy whoosh as the lockup rises into the end card"
+        }
+      ]
+    },
+    {
+      "id": "s11",
+      "name": "End Card",
+      "start": 26,
+      "end": 30,
+      "headline": "Claude Fable 5.1",
+      "subline": "Jetzt in Claude Code.",
+      "extra_text": [
+        "Anthropic",
+        "claude-fable-5-1"
+      ],
+      "visual": "Clean end card, continuous with s10's world (motes at 60% speed, breathing glow, constellation at 12% alpha rotating 0.04 rad/s in the upper third). Lockup (all centred, safe area): 'Claude Fable' in Syne 800, 112 px, chrome, single line at y=640; '5.1' in Inter 800, 136 px, chrome with accent period + glow, at y=790; 'Anthropic' in Space Grotesk 500, 44 px, letter-spacing +0.3em, primary 75%, at y=880. 26.0: the lockup settles with a mini punch 1.03 -> 1.0 on the ping. 26.0-26.5: a thin accent hairline (2 px, 520 px wide, blur 8) draws from centre outward at y=960 - the s01 motif closing the loop. 26.5-26.8: the CTA pill scales in 0.85 -> 1.0 with easeOutBack: a rounded rectangle 640 x 120 px centred at (540, 1100), accent fill with a soft bloom (blur 24, 20%), containing 'Jetzt in Claude Code.' in Space Grotesk 700, 52 px, dark text #050507. 27.6-28.0: one specular sweep (white gradient stripe, 'screen') passes across the pill left to right. 27.0-27.4: 'claude-fable-5-1' (JetBrains Mono 44 px, primary 65%) fades in at y=1300 with an accent block cursor blinking at 1 Hz until 29.0, then solid. 28.2-29.2: one last elegant light sweep (primary 10%, 260 px wide, 12 deg) passes left to right across the whole card. 29.2-30.0: everything holds perfectly still except the motes and the slow glow breath; no fade to black, the card stays fully readable on the final frame at 30.0.",
+      "effects": [
+        "scaled-down chrome name lockup",
+        "hairline draw (callback to s01)",
+        "CTA pill scale-in with ease-out-back and bloom",
+        "specular sweep (screen)",
+        "fade-ins",
+        "blinking mono cursor",
+        "slow motes",
+        "breathing glow",
+        "faint constellation (3D point cloud)",
+        "final soft light sweep",
+        "vignette, grain 3%"
+      ],
+      "camera": "Static, locked; only a 1.00 -> 1.01 drift over the 4 s so the frame is never dead.",
+      "transition_in": "0.4 s crossfade from s10 (25.6-26.0) with the name lockup scaling into place.",
+      "transition_out": "None; hard hold on the final frame to 30.0 s.",
+      "audio_cues": [
+        {
+          "time": 26,
+          "type": "hit",
+          "description": "Single FM piano-like ping (D4) with a soft sub tap as the lockup settles"
+        },
+        {
+          "time": 26.5,
+          "type": "sfx",
+          "description": "Soft low thump + airy tick as the CTA pill scales in"
+        },
+        {
+          "time": 27,
+          "type": "tick",
+          "description": "Very soft tick as the model id fades in"
+        },
+        {
+          "time": 27.6,
+          "type": "sfx",
+          "description": "Quiet high shimmer (filtered noise, 0.4 s) with the specular sweep"
+        },
+        {
+          "time": 28.2,
+          "type": "whoosh",
+          "description": "Gentle airy sweep left to right, very quiet"
+        },
+        {
+          "time": 29,
+          "type": "fade",
+          "description": "Pad, braam tail and drone fade to full silence by 29.6; clean end"
+        }
+      ]
+    }
+  ]
+}
