@@ -35,7 +35,7 @@ function s10_51(ctx, x, y, size, alpha = 1, tracking = 0) {
 function s10_lockup(ctx, t, tracking, sweep) {
   const nameO = Object.assign({ tracking }, s10_NAME);
   const drawAll = (mode) => {
-    if (mode === 'ghost') ctx.globalAlpha *= 0.18;
+    if (mode === 'ghost') ctx.globalAlpha *= 0.5;
     s10_chrome(ctx, 'Claude', 540, 860, nameO); s10_chrome(ctx, 'Fable', 540, 1030, nameO); s10_51(ctx, 540, 1260, 220, 1, tracking * 0.6);
     if (mode === 'beam') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const st = { stroke: { color: T().accent, width: 2.5 }, strokeOnly: true, glow: { color: T().accent, blur: 18 } }; drawText(ctx, 'Claude', 540, 860, Object.assign({}, nameO, st)); drawText(ctx, 'Fable', 540, 1030, Object.assign({}, nameO, st)); drawText(ctx, '5.1', 540, 1260, Object.assign({ size: 220, family: FONTS.body, weight: 800, tracking: tracking * 0.6 }, st)); ctx.restore(); }
   };
@@ -62,7 +62,7 @@ SCENES.s10 = {
     let zoom = lerp(1.12, 1.0, E.outExpo(remap(t, 22, 22.15))) * lerp(1, 1.03, E.inOutQuad(remap(t, 22.5, 25.5))) * lerp(1.03, 1.0, E.inOutQuad(remap(t, 25.5, 25.9)));
     for (const k of [23, 24, 25]) { zoom *= 1 + 0.02 * impulse(t, k, 12); const b = remap(t, k, k + 0.4); if (b > 0 && b < 1) FX.bloom = Math.max(FX.bloom, 0.25 + 0.25 * Math.sin(Math.PI * b)); }
     FX.rgb = Math.max(FX.rgb, 12 * (1 - ez(t, 22, 22.25, E.outCubic)));
-    const sphereA = 0.18 * ez(t, 22.8, 23.5, E.inOutQuad), sweepP = E.inOutCubic(remap(t, 22.1, 22.9));
+    const sphereA = 0.18 * ez(t, 22.8, 23.5, E.inOutQuad), sweepP = E.outCubic(remap(t, 22.0, 22.6));
     const tracking = lerp(0.06, -0.02, E.outCubic(remap(t, 22.2, 24.0))) * s10_NAME.size;
     const exitP = E.inOutCubic(remap(t, 25.55, 25.9));
     withCamera(ctx, { zoom }, () => {
@@ -75,9 +75,9 @@ SCENES.s10 = {
       // name group (scales to 0.62 and rises at the end)
       const gs = lerp(1, 0.767, exitP), gy = -366.6 * exitP, punch = lerp(1.25, 1, E.outExpo(remap(t, 22, 22.12)));
       withCamera(ctx, { zoom: gs * punch, ox: 540, oy: 1060, y: gy }, () => {
-        const halo = lerp(lerp(0.5, 0.25, ez(t, 22, 22.6, E.outCubic)), 0.22, exitP);
+        const halo = lerp(lerp(0.75, 0.25, ez(t, 22, 22.7, E.outCubic)), 0.22, exitP);
         ctx.save(); ctx.filter = 'blur(40px)'; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = halo; s10_lockup(ctx, t, tracking, null); ctx.restore();
-        s10_lockup(ctx, t, tracking, sweepP < 1 ? { x: lerp(-260, 1400, sweepP) } : null);
+        s10_lockup(ctx, t, tracking, sweepP < 1 ? { x: lerp(40, 1400, sweepP) } : null);
         // accent underline under 'Fable' (centre outward)
         const up = E.outCubic(remap(t, 22.9, 23.3)) * (1 - E.inQuad(remap(t, 25.55, 25.8))); if (up > 0) { const uw = measureText(ctx, 'Fable', Object.assign({ tracking }, s10_NAME)) * up; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= up; ctx.fillStyle = acc; ctx.filter = 'blur(8px)'; ctx.globalAlpha = 0.7; ctx.fillRect(540 - uw / 2, 1122, uw, 6); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.fillRect(540 - uw / 2, 1123, uw, 3); ctx.restore(); }
         // lens flare streak on '5.1'

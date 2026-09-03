@@ -40,14 +40,17 @@ SCENES.s08 = {
       s08_ticks(ctx, C.x, C.y, 300 * lerp(1, 0.88, ez(t, 18.5, 19)), t * 0.08 + accel, 36, 10, T().secondary, 0.25);
       s08_ticks(ctx, C.x, C.y, 430, -t * 0.06 - accel * 0.8, 36, -12, T().secondary, 0.22);
       // main safety ring: lock-in (1.5 → 1, easeOutBack, 0.2 s), brightens with each word, tightens 360 → 300 in the riser
-      const lock = E.outBack(remap(t, 16, 16.2)); const r = lerp(360, 300, ez(t, 18.5, 19, E.inQuad)) * lerp(1.5, 1, lock);
+      const lock = E.outBack(remap(t, 15.97, 16.17)); const r = lerp(360, 300, ez(t, 18.5, 19, E.inQuad)) * lerp(1.5, 1, lock);
       let bright = 0.85; for (const w of s08_WORDS) if (t >= w[1] && t < w[1] + 0.15) bright += 0.2;
-      s08_ring(ctx, C.x, C.y, r, Math.min(1, bright) * clamp(lock * 2 + 0.2), 6);
+      if (t >= 15.97) s08_ring(ctx, C.x, C.y, r, Math.min(1, bright) * clamp(lock * 2 + 0.2), 6);
       // single shockwave at the lock-in: 360 → 700 over 0.6 s
       const sw = remap(t, 16.0, 16.6);
       if (sw > 0 && sw < 1) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = rgba(acc, 0.9 * (1 - sw)); ctx.lineWidth = 8 * (1 - sw * 0.6); ctx.filter = 'blur(4px)'; ctx.beginPath(); ctx.arc(C.x, C.y, lerp(360, 700, E.outCubic(sw)), 0, TAU); ctx.stroke(); ctx.restore(); }
       // specular arc travelling around the ring with the sweep
       if (t >= 17.8 && t <= 18.6) { const a0 = lerp(0.4, TAU + 0.4, E.inOutCubic(remap(t, 17.8, 18.6))); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = rgba(pri, 0.9); ctx.lineWidth = 9; ctx.filter = 'blur(5px)'; ctx.beginPath(); ctx.arc(C.x, C.y, r, a0, a0 + 0.7); ctx.stroke(); ctx.restore(); }
+      // pre-seed s09 during the riser: infall particles, grid plane and progress-bar outline fade in 18.7-19.0
+      const pre = ez(t, 18.7, 19.0, E.inQuad);
+      if (pre > 0) { ctx.save(); ctx.globalAlpha *= pre; s09_infall(ctx, t, C); floorGrid(ctx, t, { horizon: 560, camH: 300, spacing: 120, speed: 260, color: T().secondary, alpha: 0.18 * pre, rows: 20, cols: 9, lineWidth: 1.5, xScale: 1.2 }); ctx.strokeStyle = rgba(pri, 0.6 * pre); ctx.lineWidth = 1; ctx.strokeRect(940, 300, 20, 1320); ctx.restore(); }
       // the three words on the three notes, stacked, with underline draw-ons; fine jitter from 18.7
       const jit = tremAmp * 1.2, exitP = E.inQuad(remap(t, 18.85, 19.0));
       ctx.save(); ctx.globalAlpha *= 1 - exitP; ctx.translate(C.x, C.y); ctx.scale(1 - 0.6 * exitP, 1 - 0.6 * exitP); ctx.translate(-C.x, -C.y);
@@ -112,12 +115,11 @@ SCENES.s09 = {
     const roll = t >= 20 ? Math.sin((t - 20) * TAU * 1.3) * 3 * Math.PI / 180 * remap(t, 20, 20.4) : 0;
     // rgb during slice assembly + bursts
     const wash = ez(t, 21.35, 21.85, E.inQuad);
-    FX.rgb = Math.max(FX.rgb, 4 * (1 - E.outExpo(remap(t, 19, 19.3))));
     for (const b of s09_BURSTS) if (t >= b && t < b + 0.067) { FX.glitch = Math.max(FX.glitch, wash > 0.5 ? 0.22 : (b >= 21.5 ? 0.45 : 0.75)); if (wash < 0.5) FX.rgb = Math.max(FX.rgb, 10); FX.glitchSeed = Math.floor(b * 1000); } FX.vignette = 0.6 * (1 - wash); FX.bloom = Math.max(FX.bloom, 0.2 + 0.3 * wash);
     withCamera(ctx, { zoom: push * punch, rot: roll }, () => {
       // tilted wireframe grid plane, pulsing accent on kicks
       const inP = ez(t, 19, 19.2, E.outCubic);
-      floorGrid(ctx, t, { horizon: 560, camH: 300, spacing: 120, speed: 260 + 400 * remap(t, 20, 21.85), color: mixColor(T().secondary, acc, kImp), alpha: (0.18 + 0.3 * kImp) * inP, rows: 20, cols: 9, lineWidth: 1.5, xScale: 1.2 });
+      floorGrid(ctx, t, { horizon: 560, camH: 300, spacing: 120, speed: 260 + 400 * remap(t, 20, 21.85), color: mixColor(T().secondary, acc, kImp), alpha: 0.18 + 0.3 * kImp * inP, rows: 20, cols: 9, lineWidth: 1.5, xScale: 1.2 });
       if (inP < 1) { const cp = E.inCubic(remap(t, 19, 19.2)); sphereCloud(ctx, t, { cx: C.x, cy: C.y, r: lerp(200, 40, cp), count: 170, alpha: 0.32 * (1 - cp), edgeAlpha: 0.15 * (1 - cp), rot: t * 0.05, tilt: 0.5, seed: 8 }); s08_ring(ctx, C.x, C.y, lerp(300, 100, cp), 0.95 * (1 - cp * 0.6), lerp(6, 14, cp)); s08_ticks(ctx, C.x, C.y, lerp(300 * 0.88, 300, cp), t * 0.08 + 9, 36, 10, T().secondary, 0.25 * (1 - cp)); s08_ticks(ctx, C.x, C.y, 430, -t * 0.06 - 7.2, 36, -12, T().secondary, 0.22 * (1 - cp)); }
       // reverse explosion: particles fall inward
       s09_infall(ctx, t, C);
@@ -130,14 +132,10 @@ SCENES.s09 = {
       for (const k of s09_KICKS) { const l = (t - k) / 0.4; if (l <= 0 || l >= 1) continue; ctx.strokeStyle = rgba(acc, 0.6 * (1 - l)); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(C.x, C.y, lerp(100, 900, E.outCubic(l)), 0, TAU); ctx.stroke(); }
       ctx.restore();
       // glaring core
-      const coreR = lerp(100, 200, remap(t, 20, 21)) * (1 + 0.15 * kImp);
+      const coreR = lerp(100, 200, remap(t, 20, 21)) * (1 + 0.15 * kImp) * lerp(0.35, 1, ez(t, 19, 19.15, E.outCubic));
       radialFill(ctx, C.x, C.y, coreR * 3.2, [[0, rgba(acc, 0.75)], [0.3, rgba(acc, 0.3)], [1, rgba(acc, 0)]], 'lighter');
       radialFill(ctx, C.x, C.y, coreR, [[0, '#ffffff'], [0.55, pri], [1, rgba(pri, 0)]], 'lighter');
       // progress bar countdown (right edge) with spark stream
-      const prog = remap(t, 19, 21.85);
-      ctx.save(); ctx.strokeStyle = rgba(pri, 0.6); ctx.lineWidth = 1; ctx.strokeRect(940, 300, 20, 1320); ctx.restore();
-      progressBar(ctx, 950, 960, 1316, prog, { vertical: true, thickness: 16, color: acc, track: pri });
-      s09_sparks(ctx, t, 950, 1618 - 1316 * prog, Math.floor(lerp(20, 130, prog)));
       // headline assembling by slices on a legibility band; tears into the core at the end
       band(ctx, 1250, 220, 0.6 * (1 - wash));
       s09_sliceText(ctx, 'Mythos-Klasse.', C.x, 1250, s09_HL, t, C);
@@ -149,5 +147,10 @@ SCENES.s09 = {
       // desaturation wash to white (21.35-21.85)
       if (wash > 0) { ctx.save(); ctx.fillStyle = rgba(pri, 0.85 * wash); ctx.fillRect(-200, -200, W + 400, H + 400); ctx.restore(); radialFill(ctx, C.x, C.y, 900, [[0, rgba(pri, 0.9 * wash)], [1, rgba(pri, 0)]], 'lighter'); }
     });
+    // progress-bar countdown drawn outside the camera so it stays pinned to the frame edge
+    const prog = remap(t, 19, 21.85);
+    ctx.save(); ctx.globalAlpha = 1 - wash; ctx.strokeStyle = rgba(pri, 0.6); ctx.lineWidth = 1; ctx.strokeRect(940, 300, 20, 1320);
+    progressBar(ctx, 950, 960, 1316, prog, { vertical: true, thickness: 16, color: acc, track: pri });
+    s09_sparks(ctx, t, 950, 1618 - 1316 * prog, Math.floor(lerp(20, 130, prog))); ctx.restore();
   }
 };

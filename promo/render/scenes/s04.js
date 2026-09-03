@@ -266,7 +266,7 @@
         }
 
         // ---------------- terminal block
-        if (t >= 8.2 && textA > 0.01) {
+        if (t >= 8.05 && textA > 0.01) {
           ctx.save(); ctx.globalAlpha *= textA;
           ctx.font = font(44, FONTS.mono, 500); ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.letterSpacing = '0px';
           if (!s04_cw44) s04_cw44 = ctx.measureText('M').width;
@@ -274,7 +274,7 @@
           // growing legibility band
           let bottom = 1120;
           for (let i = 1; i < s04_TERM.length; i++) if (t >= s04_TERM[i].t0 - 0.08) bottom = lerp(bottom, s04_TERM[i].y, ez(t, s04_TERM[i].t0 - 0.08, s04_TERM[i].t0 + 0.04, E.outCubic));
-          band(ctx, (1120 + bottom) / 2, bottom - 1120 + 150, 0.5 * ez(t, 8.2, 8.35));
+          band(ctx, (1120 + bottom) / 2, bottom - 1120 + 150, 0.5 * ez(t, 8.05, 8.2));
           const mo = { size: 44, family: FONTS.mono, weight: 500, align: 'left' };
           let curX = 0, curY = 0, curSolid = true;
           for (const ln of s04_TERM) {

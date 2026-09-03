@@ -17,7 +17,7 @@ const s06_THR_X0 = 170, s06_THR_X1 = 910, s06_THR_Y = 1060;   // horizontal thre
 const s06_HL_Y = 700, s06_HL_X0 = 120, s06_HL_X1 = 960;       // hairline s07 inherits
 const s06_COLL0 = 13.80, s06_COLL1 = 13.95;                    // collapse window (the engine stutter shows t = 13.883 and 13.95 last)
 const s06_COLLG = 0.72;                                        // geometry collapse at p = 1: s07 picks the residual lines up at exactly this fraction
-const s06_TXT0 = 13.79, s06_TXT1 = 13.87;                      // text blur-and-fade window (fully gone before the collapse frames are shown)
+const s06_TXT0 = 14.02, s06_TXT1 = 14.10;   // text stays alive through the cut (QA round 2)                      // text blur-and-fade window (fully gone before the collapse frames are shown)
 
 // ---- speed / distance / spacing ------------------------------------------
 // 1400 px/s, doubling to 2800 with a 0.25 s ramp from 13.2 (analytic integral → continuous distance)
@@ -210,7 +210,7 @@ SCENES.s06 = {
     // ---------------- timing scalars
     const dist = s06_dist(t);
     const ramp = ez(t, 13.2, 13.75, E.inOutQuad);             // speed-up / brightness rise
-    const p = remap(t, s06_COLL0, s06_COLL1);                 // collapse into the hairline (last frames)
+    const p = 0.35 * remap(t, s06_COLL0, s06_COLL1);          // collapse only starts (35 %) before the cut; s07 finishes it (QA round 2)
     const textFade = 1 - ez(t, s06_TXT0, s06_TXT1, E.inQuad); // headline/subline blur-and-fade before the collapse (never squashed)
     const hp = s06_headP(t);                                  // thread head progress 0..1
     let kick = 0; for (const k of s06_KICKS) kick += impulse(t, k, 12);
