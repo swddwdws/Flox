@@ -5,7 +5,7 @@
 
 const W = 1080, H = 1920, FPS = 30, DURATION = 30, TOTAL_FRAMES = 900;
 const CX = W / 2, CY = H / 2;
-const SAFE = { x0: 90, x1: 990, y0: 220, y1: 1700 };
+const SAFE = { x0: 90, x1: 990, y0: 220, y1: 1660 };
 const TAU = Math.PI * 2;
 
 /* ------------------------------------------------------------------ math */
@@ -167,7 +167,7 @@ function drawKinetic(ctx, str, x, y, o = {}, p = 1, mode = 'rise') {
   }
   if (mode === 'type' && p < 1 && o.caret !== false) {
     const k = Math.min(n, Math.floor(p * n)); const cxp = k < n ? x0 + L.chars[k].x : x0 + L.width + 4;
-    if (Math.floor(p * n * 2) % 2 === 0 || true) { ctx.fillStyle = o.caretColor || color; ctx.fillRect(cxp, y - size * 0.42, size * 0.55, size * 0.84); }
+    if (o.caretBlink === false || Math.floor(p * n * 1.5) % 3 !== 2) { ctx.fillStyle = o.caretColor || color; ctx.fillRect(cxp, y - size * 0.42, size * 0.55, size * 0.84); }
   }
   ctx.restore();
   return L.width;
@@ -190,7 +190,7 @@ function softSprite(color = '#ffffff', size = 128) {
 function dot(ctx, x, y, r, color, alpha = 1) { const s = softSprite(color); ctx.save(); ctx.globalAlpha *= alpha; ctx.drawImage(s, x - r, y - r, r * 2, r * 2); ctx.restore(); }
 // lens flare: core + anamorphic streak + ring
 function flare(ctx, x, y, o = {}) {
-  const col = o.color || T().secondary, I = o.intensity ?? 1, R = o.size || 400;
+  const col = o.color || T().accent, I = o.intensity ?? 1, R = o.size || 400;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= I;
   radialFill(ctx, x, y, R, [[0, 'rgba(255,255,255,0.95)'], [0.08, rgba(col, 0.7)], [0.3, rgba(col, 0.18)], [1, rgba(col, 0)]]);
   if (o.streak !== false) {

@@ -27,10 +27,19 @@ const s05_STREAKS = (() => {
 const s05_DUST = new Particles({ seed: 5051, count: 160, size: [1.5, 4.5], vel: { x: 0, y: -26 }, area: { x0: 40, y0: 200, x1: W - 40, y1: 1300 }, color: '#FF8A3D', alpha: 0.35, drift: 24, twinkle: 2.2 });
 const s05_WARP = new Warp({ seed: 5052, count: 260, color: '#F5F2EC', speed: 1.4 });
 // half-resolution offscreen canvas: the ring glow is drawn here once and blitted with a single blur (instead of one blur per stroke)
-const s05_OFF = makeCanvas(W / 2, H / 2);
+const s05_OFFS = 0.25;   // offscreen scale (quarter resolution)
+const s05_OFF = makeCanvas(W * s05_OFFS, H * s05_OFFS);
 const s05_OFFCTX = s05_OFF.getContext('2d');
-const s05_OFF2 = makeCanvas(W / 2, H / 2);
+const s05_OFF2 = makeCanvas(W * s05_OFFS, H * s05_OFFS);
 const s05_OFF2CTX = s05_OFF2.getContext('2d');
+// cheap soft ring (layered alpha instead of a blur filter) for the 11.5 ping
+function s05_softRing(ctx, x, y, life, radius, color, width, alpha) {
+  if (life <= 0 || life >= 1) return;
+  const R = radius * E.outCubic(life), a = (1 - life) * alpha, w = width * (1 - life * 0.7);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = color;
+  for (let i = 0; i < 4; i++) { ctx.lineWidth = w * (1 + i * 1.6); ctx.globalAlpha = a * (i === 0 ? 0.55 : 0.16 / (i)); ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.stroke(); }
+  ctx.restore();
+}
 
 // ---- 3D ring geometry ------------------------------------------------------
 // returns projected point {x,y,s} for parametric angle a on ring k at time t.
@@ -101,7 +110,7 @@ function s05_drawRings(ctx, t, tiltAmt, q, rs, cx, cy, alphaMul, lw, tickMul = 1
 // data pulse: 3 trailing dashes along the outer ring (glowPass=true draws the fat soft version for the blurred offscreen)
 function s05_drawPulse(ctx, aParam, t, tiltAmt, q, rs, cx, cy, glowPass) {
   const P = T();
-  ctx.lineWidth = glowPass ? 10 : 4;
+  ctx.lineWidth = glowPass ? 16 : 4;
   for (let d = 0; d < 3; d++) {
     const span = 0.22, aa = aParam - d * 0.16;
     ctx.strokeStyle = rgba(P.accent, (glowPass ? 0.8 : 0.95) * (1 - d * 0.3));
@@ -202,14 +211,14 @@ SCENES.s05 = {
           s05_drawRings(ctx, tt, ta, rq, rss, rcx, ccy, ringAlpha * (0.38 / k), lw * 0.8, 0);
         }
       }
-      // glow pass: rings (+ pulse) drawn once on a half-res offscreen canvas, blurred there (7 px = 14 px effective), blitted once
+      // glow pass: rings (+ pulse) drawn once on a quarter-res offscreen canvas, blurred there (3.5 px = 14 px effective), blitted once
       {
-        const o = s05_OFFCTX; o.setTransform(0.5, 0, 0, 0.5, 0, 0); o.globalCompositeOperation = 'source-over'; o.filter = 'none'; o.globalAlpha = 1;
+        const o = s05_OFFCTX; o.setTransform(s05_OFFS, 0, 0, s05_OFFS, 0, 0); o.globalCompositeOperation = 'source-over'; o.filter = 'none'; o.globalAlpha = 1;
         o.clearRect(0, 0, W, H); o.globalCompositeOperation = 'lighter'; o.lineCap = 'round';
-        s05_drawRings(o, t, tiltAmt, rectQ, rs, rcx, rcy, ringAlpha, lw * 2.4, tickMul);
+        s05_drawRings(o, t, tiltAmt, rectQ, rs, rcx, rcy, ringAlpha, lw * 4, tickMul);
         if (pulseA != null) s05_drawPulse(o, pulseA, t, tiltAmt, rectQ, rs, rcx, rcy, true);
         const o2 = s05_OFF2CTX; o2.setTransform(1, 0, 0, 1, 0, 0); o2.globalCompositeOperation = 'source-over'; o2.filter = 'none'; o2.globalAlpha = 1;
-        o2.clearRect(0, 0, W / 2, H / 2); o2.filter = 'blur(7px)'; o2.drawImage(s05_OFF, 0, 0); o2.filter = 'none';
+        o2.clearRect(0, 0, W * s05_OFFS, H * s05_OFFS); o2.filter = 'blur(3.5px)'; o2.drawImage(s05_OFF, 0, 0); o2.filter = 'none';
         ctx.save(); ctx.globalAlpha = 0.9; ctx.drawImage(s05_OFF2, 0, 0, W, H); ctx.restore();
       }
       // crisp pass
@@ -253,7 +262,7 @@ SCENES.s05 = {
           // ping
           const ping = impulse(t, 11.5, 9);
           if (ping > 0.02) flare(ctx, rcx, rcy, { color: P.accent, size: 320, intensity: 0.9 * ping, streakLen: 2.6, streakThin: 0.03 });
-          shockwave(ctx, rcx, rcy, remap(t, 11.5, 11.95), { radius: 700, color: P.accent, width: 10, alpha: 0.7 });
+          s05_softRing(ctx, rcx, rcy, remap(t, 11.5, 11.95), 700, P.accent, 10, 0.7);
         }
       }
 

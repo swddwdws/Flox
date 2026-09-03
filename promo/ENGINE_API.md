@@ -70,3 +70,8 @@ Then look at the PNGs (single frames are 1080×1920).
 ## Added helpers
 - `sphereCloud(ctx, t, {cx, cy, r, count, alpha, edgeAlpha, rot, tilt, spread, seed, color, size, link})` — fibonacci point sphere with neighbour edges, perspective projected; returns projected points.
 - `drawKinetic` modes `rise`/`drop` accept `opts.rise` (px travel, default 0.6·size) and `opts.blurIn` (px of blur at start).
+
+## Performance notes
+- Every `stroke()`/`fill()`/`drawImage()` issued while `ctx.filter = 'blur(...)'` is set costs its own software blur pass (~30 ms at full frame). Inside `glow()` (or any blurred layer) build ONE path and stroke/fill it once; never loop many blurred strokes.
+- `flare()` defaults to the accent colour; `SAFE.y1` is 1660.
+- `drawKinetic(..., 'type')` caret blinks per typed character; pass `caretBlink: false` for a solid caret.
