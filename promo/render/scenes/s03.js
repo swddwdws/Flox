@@ -29,12 +29,21 @@
   // the last node must sit at the front of the sphere at lt = 2.3 (the 7.3 burst): un-rotate its world direction
   const endWorld = s03_norm([0.10, -0.16, -0.98]);
   const b13 = s03_rot(endWorld, -ROT_SPEED * 2.3, [0, 0, 0]);
-  const h = [1, 0.25, 0.1], hd = h[0] * b13[0] + h[1] * b13[1] + h[2] * b13[2];
-  const u = s03_norm([h[0] - hd * b13[0], h[1] - hd * b13[1], h[2] - hd * b13[2]]);
-  const ARC = 165 * Math.PI / 180;
+  // The route is a circle on the sphere's front face (plane normal PC, angular radius rho, passing through b13) rather
+  // than a great circle: the sphere is bigger than the frame, so a great circle through the burst node always leaves the
+  // frame / dives under the headline band. This arc runs from the upper left (~300,280) over the top of the frame down
+  // to the burst node (~675,625): every node stays in x 130..720 / y 248..645 while the path is visible (5.4–7.7).
+  const PC = s03_norm([-0.02, -0.22, -0.975]);   // plane normal in base (un-rotated) sphere coordinates, ~19° from b13
+  const pcd = PC[0] * b13[0] + PC[1] * b13[1] + PC[2] * b13[2], rho = Math.acos(clamp(pcd, -1, 1));
+  const cc = [PC[0] * pcd, PC[1] * pcd, PC[2] * pcd];                                  // circle centre (inside the sphere)
+  const r0 = s03_norm([b13[0] - cc[0], b13[1] - cc[1], b13[2] - cc[2]]);              // centre → b13
+  const r1 = s03_norm([PC[1] * r0[2] - PC[2] * r0[1], PC[2] * r0[0] - PC[0] * r0[2], PC[0] * r0[1] - PC[1] * r0[0]]);
+  const ARC = 112 * Math.PI / 180, sr = Math.sin(rho);
   for (let k = 0; k < NPATH; k++) {
-    const ph = -ARC * (NPATH - 1 - k) / (NPATH - 1), c = Math.cos(ph), s = Math.sin(ph);
-    bx[k] = (c * b13[0] + s * u[0]) * RAD * 0.985; by[k] = (c * b13[1] + s * u[1]) * RAD * 0.985; bz[k] = (c * b13[2] + s * u[2]) * RAD * 0.985;
+    const a = ARC * (NPATH - 1 - k) / (NPATH - 1), c = Math.cos(a), s = Math.sin(a);
+    bx[k] = (cc[0] + sr * (c * r0[0] + s * r1[0])) * RAD * 0.985;
+    by[k] = (cc[1] + sr * (c * r0[1] + s * r1[1])) * RAD * 0.985;
+    bz[k] = (cc[2] + sr * (c * r0[2] + s * r1[2])) * RAD * 0.985;
   }
   for (let i = NPATH; i < N; i++) {
     // mostly on the shell, some inside
@@ -166,10 +175,9 @@
             const r = lerp(1.7, 3.2, depth) * (0.85 + 0.3 * tone[i]) * (1 + 1.3 * hot);
             const tw = 0.82 + 0.18 * Math.sin(t * 3.1 + tone[i] * TAU);
             const al = Math.min(1, lerp(0.3, 0.7, depth) * (0.75 + 0.25 * tone[i]) * tw * (1 + 0.35 * beat) + 0.55 * hot) * (1 - morph);
-            if (flying && arrive < 0.999) { // short motion trail while in flight (capped at 110 px), accent under a primary core
-              let tx = qx[i] - x, ty = qy[i] - y; const tl = Math.hypot(tx, ty); if (tl > 110) { tx *= 110 / tl; ty *= 110 / tl; }
-              c.globalAlpha = al * 0.55; c.strokeStyle = ACC; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x + tx, y + ty); c.lineTo(x, y); c.stroke();
-              c.globalAlpha = al * 0.6; c.strokeStyle = PRI; c.lineWidth = 1; c.beginPath(); c.moveTo(x + tx * 0.6, y + ty * 0.6); c.lineTo(x, y); c.stroke();
+            if (flying && arrive < 0.999 && tone[i] < 0.5 && hot > 0.05) { // short motion trail (≤ 40 px, ≤ 30 % alpha) on half of the points only, so the fly-in reads as points, not scratches
+              let tx = qx[i] - x, ty = qy[i] - y; const tl = Math.hypot(tx, ty); if (tl > 40) { tx *= 40 / tl; ty *= 40 / tl; }
+              c.globalAlpha = Math.min(0.3, al * 0.3); c.strokeStyle = ACC; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x + tx, y + ty); c.lineTo(x, y); c.stroke();
             }
             c.globalAlpha = al; c.drawImage(spr, x - r * 1.6, y - r * 1.6, r * 3.2, r * 3.2);
             const front = clamp((-pz[i] - 330) / 160) * arrive;
@@ -213,6 +221,12 @@
           c.restore();
         }
 
+        // -- 7.3 burst ring + sparks: drawn BEFORE the headline so the ring passes behind the legibility band / glyphs --
+        if (t >= 7.3) {
+          shockwave(c, FLX, FLY, remap(t, 7.3, 7.85), { radius: 1000, color: ACC, width: 12, alpha: 0.7 });
+          burst(c, FLX, FLY, remap(t, 7.3, 7.9), { count: 70, color: ACC, radius: 420, seed: 33, alpha: 0.9 });
+        }
+
         // -- headline on a legibility band --
         const textA = 1 - ez(t, 7.74, 7.92, E.inQuad);
         const hp1 = remap(t, 5.6, 6.05), hp2 = remap(t, 5.75, 6.2);
@@ -232,11 +246,8 @@
           c.restore();
         }
 
-        // -- 7.3 burst: the front node flares, ring + sparks, rising to the 7.95 flash --
+        // -- 7.3 burst: the front node flares (on top of the text), rising to the 7.95 flash --
         if (t >= 7.3) {
-          const life = remap(t, 7.3, 7.85);
-          shockwave(c, FLX, FLY, life, { radius: 1000, color: ACC, width: 12, alpha: 0.7 });
-          burst(c, FLX, FLY, remap(t, 7.3, 7.9), { count: 70, color: ACC, radius: 420, seed: 33, alpha: 0.9 });
           const R = lerp(60, 260, ez(t, 7.3, 7.9, E.outCubic)) + 600 * ez(t, 7.88, 8.0, E.inQuad);
           const I = lerp(0.55, 1.0, ez(t, 7.3, 7.9)) + 0.5 * ez(t, 7.88, 8.0);
           flare(c, FLX, FLY, { color: ACC, size: R, intensity: I, streakLen: 2.6, ring: false });

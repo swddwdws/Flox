@@ -110,7 +110,13 @@
   })();
 
   let s04_cw = 0, s04_cw44 = 0;
-  // the three-column stream; dy = vertical offset (streak copies), aMul = alpha multiplier, locks = rows currently locked (hidden here)
+  // current y of a locked line: decelerating brake over 60 ms (27 px), then a slow 8 px lift while it dissolves
+  function s04_lockY(k, t) {
+    const d = t - k.t0, bd = Math.min(d, 0.06);
+    return k.y0 - 900 * (bd - bd * bd / 0.12) - 8 * remap(d, 0.26, 0.41);
+  }
+  // the three-column stream; dy = vertical offset (streak copies), aMul = alpha multiplier, locks = rows currently locked (hidden here;
+  // scrolling neighbours within ±16 px of a locked line fade out so two lines never double-print)
   function s04_drawStream(ctx, t, dy, aMul, locks, comp) {
     ctx.save();
     ctx.font = font(s04_SIZE, FONTS.mono, 500); ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.letterSpacing = '0px';
@@ -123,14 +129,25 @@
         const L = rows[r]; if (!L) continue;
         let y = s04_ROW0 + s04_LH * r - off; y = ((y + 300) % s04_RH + s04_RH) % s04_RH - 300;
         if (y < -30 || y > H + 30) continue;
-        let hidden = false; for (const k of locks) if (k.col === ci && k.row === r) { hidden = true; break; }
-        if (hidden) continue;
-        vis.push(L, y + dy);
+        let hidden = false, near = 1;
+        for (const k of locks) {
+          if (k.col !== ci) continue;
+          if (k.row === r) { hidden = true; break; }
+          near = Math.min(near, smoothstep(remap(Math.abs(y - s04_lockY(k, t)), 16, 30)));   // 0 inside ±16 px, 1 beyond 30 px
+        }
+        if (hidden || near <= 0.01) continue;
+        vis.push(L, y + dy, near);
       }
-      ctx.fillStyle = rgba(PRI, Math.min(1, C.a * aMul));
-      for (let i = 0; i < vis.length; i += 2) ctx.fillText(vis[i].s, C.x0, vis[i + 1]);
-      ctx.fillStyle = rgba(PRI, Math.min(1, C.a * aMul * 0.9));    // keywords drawn again on top → brighter
-      for (let i = 0; i < vis.length; i += 2) { const kw = vis[i].kw; for (let j = 0; j < kw.length; j += 2) ctx.fillText(kw[j + 1], C.x0 + kw[j] * s04_cw, vis[i + 1]); }
+      const a0 = Math.min(1, C.a * aMul), a1 = Math.min(1, C.a * aMul * 0.9);
+      ctx.fillStyle = rgba(PRI, a0);
+      for (let i = 0; i < vis.length; i += 3) { if (vis[i + 2] < 1) ctx.fillStyle = rgba(PRI, a0 * vis[i + 2]); ctx.fillText(vis[i].s, C.x0, vis[i + 1]); if (vis[i + 2] < 1) ctx.fillStyle = rgba(PRI, a0); }
+      ctx.fillStyle = rgba(PRI, a1);    // keywords drawn again on top → brighter
+      for (let i = 0; i < vis.length; i += 3) {
+        const kw = vis[i].kw; if (!kw.length) continue;
+        if (vis[i + 2] < 1) ctx.fillStyle = rgba(PRI, a1 * vis[i + 2]);
+        for (let j = 0; j < kw.length; j += 2) ctx.fillText(kw[j + 1], C.x0 + kw[j] * s04_cw, vis[i + 1]);
+        if (vis[i + 2] < 1) ctx.fillStyle = rgba(PRI, a1);
+      }
     }
     ctx.restore();
   }
@@ -211,18 +228,17 @@
           ctx.save(); ctx.font = font(s04_SIZE, FONTS.mono, 500); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
           for (const k of locks) {
             const d = t - k.t0, L = s04_LINES[k.col][k.row], x0 = s04_COLS[k.col].x0;
-            const bd = Math.min(d, 0.06), y = k.y0 - 900 * (bd - bd * bd / 0.12);            // decelerating travel (27 px)
-            const dis = remap(d, 0.26, 0.41);
+            const dis = remap(d, 0.26, 0.41), y = s04_lockY(k, t);                          // decelerating travel (27 px) + lift
             const a = (d < 0.06 ? lerp(1, 0.7, d / 0.06) : 0.7) * (1 - E.inQuad(dis));
             ctx.letterSpacing = (7 * dis).toFixed(1) + 'px';
-            if (d < 0.06) { // motion trail while braking
-              const tr = 1 - d / 0.06; ctx.fillStyle = rgba(PRI, 0.22 * tr);
-              ctx.fillText(L.s, x0, y + 12 * tr); ctx.fillText(L.s, x0, y + 24 * tr);
+            if (d < 0.06) { // one faint motion-trail copy while braking (kept short so it never reads as a double print)
+              const tr = 1 - d / 0.06; ctx.fillStyle = rgba(PRI, 0.1 * tr);
+              ctx.fillText(L.s, x0, y + 10 * tr);
             }
-            ctx.fillStyle = rgba(PRI, a); ctx.fillText(L.s, x0, y - 8 * dis);
+            ctx.fillStyle = rgba(PRI, a); ctx.fillText(L.s, x0, y);
             // accent marker block at the line start (blinks during the hold)
             const mx = x0 + (L.s.length - L.s.trimStart().length) * s04_cw - 20;   // sits at the indented line start
-            if (dis < 1 && (d < 0.1 || Math.floor(d * 8) % 2 === 0)) { ctx.fillStyle = rgba(ACC, 0.95 * (1 - dis)); ctx.fillRect(mx, y - 10 - 8 * dis, 9, 20); }
+            if (dis < 1 && (d < 0.1 || Math.floor(d * 8) % 2 === 0)) { ctx.fillStyle = rgba(ACC, 0.95 * (1 - dis)); ctx.fillRect(mx, y - 10, 9, 20); }
           }
           ctx.restore();
         }
@@ -257,9 +273,9 @@
           const cw = s04_cw44, x0 = s04_TX;
           // growing legibility band
           let bottom = 1120;
-          for (let i = 1; i < s04_TERM.length; i++) if (t >= s04_TERM[i].t0) bottom = lerp(bottom, s04_TERM[i].y, ez(t, s04_TERM[i].t0, s04_TERM[i].t0 + 0.15, E.outCubic));
+          for (let i = 1; i < s04_TERM.length; i++) if (t >= s04_TERM[i].t0 - 0.08) bottom = lerp(bottom, s04_TERM[i].y, ez(t, s04_TERM[i].t0 - 0.08, s04_TERM[i].t0 + 0.04, E.outCubic));
           band(ctx, (1120 + bottom) / 2, bottom - 1120 + 150, 0.5 * ez(t, 8.2, 8.35));
-          const mo = { size: 44, family: FONTS.mono, weight: 500, align: 'left', rise: 18, stagger: 0.45, ease: E.outExpo };
+          const mo = { size: 44, family: FONTS.mono, weight: 500, align: 'left' };
           let curX = 0, curY = 0, curSolid = true;
           for (const ln of s04_TERM) {
             if (t < ln.t0) break;
@@ -269,28 +285,35 @@
               for (let i = 0; i < n; i++) { ctx.fillStyle = i === 0 ? ACC : rgba(PRI, 0.85); ctx.fillText(ln.s[i], x0 + i * cw, ln.y); }
               curX = x0 + n * cw + 6; curY = ln.y; curSolid = n < ln.s.length;
             } else {
-              const p = remap(d, 0, 0.16), flash = d < 0.08;
+              // the line IS the beat hit: fully visible on the beat frame, scale slam 1.2 → 1.0 over 120 ms (E.outExpo),
+              // 80 ms primary flash on top, then it settles to primary 80 %
+              const sp = ez(d, 0, 0.12, E.outExpo), flash = d < 0.08;
               const word = ln.check ? ln.s.slice(2, -2) : ln.s.slice(2);
-              const wa = flash ? 1 : 0.8;
-              drawKinetic(ctx, '›', x0, ln.y, Object.assign({}, mo, { color: ACC }), p, 'rise');
-              drawKinetic(ctx, word, x0 + 2 * cw, ln.y, Object.assign({}, mo, { color: rgba(PRI, wa) }), p, 'rise');
-              if (flash) { // 80 ms primary flash: additive double + accent glow on the prompt
-                ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.5;
-                drawKinetic(ctx, word, x0 + 2 * cw, ln.y, Object.assign({}, mo, { color: PRI }), p, 'rise');
-                ctx.restore();
-                dot(ctx, x0 + cw * 0.5, ln.y, 60, ACC, 0.7 * (1 - d / 0.08));
-              }
-              let endX = x0 + ln.s.length * cw;
+              const wa = flash ? 1 : 0.8, nch = ln.check ? 10.5 : ln.s.length;
+              FX.rgb = Math.max(FX.rgb, 3 * (1 - ez(d, 0, 0.07)));   // subtle 2-frame split; the hit is the scale slam
+              withCamera(ctx, { zoom: lerp(1.2, 1, sp), ox: x0 + nch * cw / 2, oy: ln.y }, () => {
+                drawText(ctx, '›', x0, ln.y, Object.assign({}, mo, { color: ACC }));
+                drawText(ctx, word, x0 + 2 * cw, ln.y, Object.assign({}, mo, { color: rgba(PRI, wa) }));
+                if (flash) { // 80 ms primary flash: additive double + accent glow on the prompt
+                  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.5 * (1 - d / 0.08);
+                  drawText(ctx, word, x0 + 2 * cw, ln.y, Object.assign({}, mo, { color: PRI }));
+                  ctx.restore();
+                  dot(ctx, x0 + cw * 0.5, ln.y, 44, ACC, 0.55 * (1 - d / 0.08));
+                }
+                if (ln.check) { // check mark: opaque from the beat frame, punching 1.8 → 1.0
+                  const cxk = x0 + 9.5 * cw, cyk = ln.y;
+                  const scl = lerp(1.8, 1, ez(d, 0, 0.25, E.outExpo)), imp = impulse(t, ln.t0, 9);
+                  dot(ctx, cxk, cyk, 90 * (0.6 + 0.8 * imp), ACC, 0.55 * imp + 0.12);
+                  s04_check(ctx, cxk, cyk, scl, 1);
+                }
+              });
               if (ln.check) {
-                const cxk = x0 + 9.5 * cw, cyk = ln.y;
-                const scl = lerp(1.8, 1, ez(d, 0, 0.25, E.outExpo)), imp = impulse(t, ln.t0, 9);
-                dot(ctx, cxk, cyk, 90 * (0.6 + 0.8 * imp), ACC, 0.55 * imp + 0.12);
-                s04_check(ctx, cxk, cyk, scl, remap(d, 0, 0.06));
                 const life = remap(d, 0, 0.4);
-                if (life > 0 && life < 1) burst(ctx, cxk, cyk, life, { count: 60, color: ACC, radius: 280, seed: 404, alpha: 0.95 });
-                endX = x0 + 10.5 * cw;
+                if (life > 0 && life < 1) burst(ctx, x0 + 9.5 * cw, ln.y, life, { count: 60, color: ACC, radius: 280, seed: 404, alpha: 0.95 });
               }
-              curX = endX + 6; curY = ln.y; curSolid = d < 0.25;
+              // the cursor stays at the previous line end until the slam has settled (2 frames), then jumps behind the new word
+              if (d >= 0.066) { curX = x0 + nch * cw + 6; curY = ln.y; curSolid = d < 0.25; }
+              else curSolid = true;
             }
           }
           // accent block cursor after the newest line (solid while typing / just landed, then blinking)
