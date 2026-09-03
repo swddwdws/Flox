@@ -248,7 +248,7 @@ gate = np.ones(n_total); gate[a:b] = 0; gate[a - r:a] = np.linspace(1, 0, r); ga
 mix *= gate[:, None]
 # final fade to silence by 29.6
 fo = np.interp(tt, [0, 28.6, 29.6, 30], [1, 1, 0, 0]); mix *= fo[:, None]
-out = S.master(mix, target_peak=S.db(-1.0))
+out = S.master(mix, target_tp=S.db(-2.0))
 out *= fo[:, None]
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
 S.write_wav(OUT, out)

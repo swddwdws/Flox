@@ -59,12 +59,12 @@ SCENES.s10 = {
   draw(ctx, lt, t, dur) {
     const acc = T().accent, pri = T().primary;
     // camera: impact snap 1.30 → 1.0, push-in 1.0 → 1.06 (22.5-25.6) then back; punches on half-time kicks
-    let zoom = lerp(1.30, 1.0, E.outExpo(remap(t, 22, 22.15))) * lerp(1, 1.06, E.inOutQuad(remap(t, 22.5, 25.6))) * lerp(1.06, 1.0, E.inOutQuad(remap(t, 25.6, 26)));
+    let zoom = lerp(1.12, 1.0, E.outExpo(remap(t, 22, 22.15))) * lerp(1, 1.03, E.inOutQuad(remap(t, 22.5, 25.5))) * lerp(1.03, 1.0, E.inOutQuad(remap(t, 25.5, 25.9)));
     for (const k of [23, 24, 25]) { zoom *= 1 + 0.02 * impulse(t, k, 12); const b = remap(t, k, k + 0.4); if (b > 0 && b < 1) FX.bloom = Math.max(FX.bloom, 0.25 + 0.25 * Math.sin(Math.PI * b)); }
-    FX.rgb = Math.max(FX.rgb, 20 * (1 - ez(t, 22, 22.25, E.outCubic)));
+    FX.rgb = Math.max(FX.rgb, 12 * (1 - ez(t, 22, 22.25, E.outCubic)));
     const sphereA = 0.18 * ez(t, 22.8, 23.5, E.inOutQuad), sweepP = E.inOutCubic(remap(t, 22.1, 22.9));
     const tracking = lerp(0.06, -0.02, E.outCubic(remap(t, 22.2, 24.0))) * s10_NAME.size;
-    const exitP = E.inOutCubic(remap(t, 25.6, 26.0));
+    const exitP = E.inOutCubic(remap(t, 25.55, 25.9));
     withCamera(ctx, { zoom }, () => {
       s10_world(ctx, t, t, { sphere: sphereA, glow: 0.12 });
       // second faint sweep right → left
@@ -73,19 +73,19 @@ SCENES.s10 = {
       // vertical shockwave beam at the detonation
       const beam = 1 - ez(t, 22, 22.25, E.outCubic); if (beam > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgba(pri, beam); ctx.filter = 'blur(10px)'; ctx.fillRect(540 - 4 - 40 * beam, -100, 8 + 80 * beam, H + 200); ctx.restore(); }
       // name group (scales to 0.62 and rises at the end)
-      const gs = lerp(1, 0.62, exitP), gy = -361 * exitP, punch = lerp(1.6, 1, E.outExpo(remap(t, 22, 22.12)));
+      const gs = lerp(1, 0.767, exitP), gy = -366.6 * exitP, punch = lerp(1.25, 1, E.outExpo(remap(t, 22, 22.12)));
       withCamera(ctx, { zoom: gs * punch, ox: 540, oy: 1060, y: gy }, () => {
-        const halo = lerp(0.5, 0.25, ez(t, 22, 22.6, E.outCubic)) * clamp(1 - exitP);
+        const halo = lerp(lerp(0.5, 0.25, ez(t, 22, 22.6, E.outCubic)), 0.22, exitP);
         ctx.save(); ctx.filter = 'blur(40px)'; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = halo; s10_lockup(ctx, t, tracking, null); ctx.restore();
         s10_lockup(ctx, t, tracking, sweepP < 1 ? { x: lerp(-260, 1400, sweepP) } : null);
         // accent underline under 'Fable' (centre outward)
-        const up = E.outCubic(remap(t, 22.9, 23.3)); if (up > 0) { const uw = measureText(ctx, 'Fable', Object.assign({ tracking }, s10_NAME)) * up; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = acc; ctx.filter = 'blur(8px)'; ctx.globalAlpha = 0.7; ctx.fillRect(540 - uw / 2, 1122, uw, 6); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.fillRect(540 - uw / 2, 1123, uw, 3); ctx.restore(); }
+        const up = E.outCubic(remap(t, 22.9, 23.3)) * (1 - E.inQuad(remap(t, 25.55, 25.8))); if (up > 0) { const uw = measureText(ctx, 'Fable', Object.assign({ tracking }, s10_NAME)) * up; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= up; ctx.fillStyle = acc; ctx.filter = 'blur(8px)'; ctx.globalAlpha = 0.7; ctx.fillRect(540 - uw / 2, 1122, uw, 6); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.fillRect(540 - uw / 2, 1123, uw, 3); ctx.restore(); }
         // lens flare streak on '5.1'
         const fl = 0.2 * win(t, 22.4, 22.9, 24.8, 25.5); if (fl > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(540, 1260); ctx.scale(1, 0.05); radialFill(ctx, 0, 0, 520, [[0, rgba(pri, fl * 3)], [0.3, rgba(pri, fl)], [1, rgba(pri, 0)]]); ctx.restore(); }
       });
       // model id + Anthropic (fade out during the exit)
-      const fo = 1 - exitP;
-      drawKinetic(ctx, 'claude-fable-5-1', 540, 1400, Object.assign({ color: rgba(pri, 0.75 * fo), caretColor: acc }, s10_MONO), remap(t, 23.0, 23.6), 'type');
+      const fo = 1 - ez(t, 25.55, 25.8, E.inQuad);
+      if (t >= 23.0 && fo > 0) drawKinetic(ctx, 'claude-fable-5-1', 540, 1400, Object.assign({ color: rgba(pri, 0.75 * fo), caretColor: acc }, s10_MONO), remap(t, 23.0, 23.6), 'type');
       const ap = ez(t, 23.6, 24.0, E.outCubic); if (ap > 0) drawText(ctx, 'Anthropic', 540, 1490, { size: 50, family: FONTS.head, weight: 500, tracking: lerp(0.5, 0.3, ap) * 50, color: rgba(pri, 0.75 * ap * fo), upper: false });
     });
   }
@@ -94,25 +94,26 @@ SCENES.s10 = {
 /* ------------------------------------------------------------------- s11 */
 SCENES.s11 = {
   draw(ctx, lt, t, dur) {
-    const acc = T().accent, pri = T().primary; t = Math.max(26, t);
+    const acc = T().accent, pri = T().primary; const real = t; t = Math.max(26, t); const live = real >= 26 - 1e-6;
     const tm = 26 + (t - 26) * 0.6;   // motes at 60 % speed, continuous with s10
     const zoom = lerp(1.0, 1.01, remap(t, 26, 30)) * (1 + 0.03 * impulse(t, 26, 10));
     withCamera(ctx, { zoom }, () => {
-      s10_world(ctx, t, tm, { sphere: 0.11, glow: 0.10, gy: 900, sy: 900 });
-      if (t >= 28.2 && t <= 29.2) lightSweep(ctx, E.inOutCubic(remap(t, 28.2, 29.2)), { angle: 12 * Math.PI / 180, width: 260, color: pri, alpha: 0.10 });
+      s10_world(ctx, t, tm, { sphere: lerp(0.18, 0.11, remap(t, 26, 27)), glow: lerp(0.12, 0.10, remap(t, 26, 27)), gy: 1000, sy: 960 });
+      if (!live) return;
+      if (t >= 28.2 && t <= 29.2) lightSweep(ctx, E.inOutCubic(remap(t, 28.2, 29.2)), { angle: 12 * Math.PI / 180, width: 220, color: acc, alpha: 0.07 });
       // lockup
-      const nameO = { size: 92, family: FONTS.alt, weight: 800, tracking: -0.02 * 92 };
-      const lock = () => { s10_chrome(ctx, 'Claude', 540, 575, nameO); s10_chrome(ctx, 'Fable', 540, 680, nameO); s10_51(ctx, 540, 826, 136); };
+      const nameO = { size: 112, family: FONTS.alt, weight: 800, tracking: -0.02 * 112 };
+      const lock = () => { s10_chrome(ctx, 'Claude', 540, 540, nameO); s10_chrome(ctx, 'Fable', 540, 670, nameO); s10_51(ctx, 540, 847, 169, 1, -0.02 * 112 * 0.6); };
       ctx.save(); ctx.filter = 'blur(30px)'; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.22 + 0.06 * Math.sin(t * TAU * 0.25); lock(); ctx.restore();
       lock();
-      drawText(ctx, 'Anthropic', 540, 920, { size: 44, family: FONTS.head, weight: 500, tracking: 0.3 * 44, color: rgba(pri, 0.75) });
+      drawText(ctx, 'Anthropic', 540, 945 + 10 * (1 - ez(t, 26.0, 26.3)), { size: 44, family: FONTS.head, weight: 500, tracking: 0.3 * 44, color: rgba(pri, 0.75 * ez(t, 26.0, 26.3)) });
       // hairline callback (26.0-26.5), centre outward
-      const hp = E.outExpo(remap(t, 26.0, 26.5)); if (hp > 0) { const hw = 260 * hp; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = acc; ctx.filter = 'blur(8px)'; ctx.globalAlpha = 0.8; ctx.fillRect(540 - hw, 998, hw * 2, 5); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.fillRect(540 - hw, 999, hw * 2, 2); ctx.restore(); }
+      const hp = E.outExpo(remap(t, 26.0, 26.5)); if (hp > 0) { const hw = 260 * hp; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = acc; ctx.filter = 'blur(8px)'; ctx.globalAlpha = 0.8; ctx.fillRect(540 - hw, 1018, hw * 2, 5); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.fillRect(540 - hw, 1019, hw * 2, 2); ctx.restore(); }
       // CTA pill (26.5-26.8) with one specular sweep (27.6-28.0)
-      if (t >= 26.5) pill(ctx, 'Jetzt in Claude Code.', 540, 1120, { size: 52, family: FONTS.head, weight: 700, padX: 44, h: 120, color: acc, textColor: '#050507' }, remap(t, 26.5, 26.8), t >= 27.6 && t <= 28.0 ? remap(t, 27.6, 28.0) : -1);
+      if (t >= 26.5) pill(ctx, 'Jetzt in Claude Code.', 540, 1140, { size: 52, family: FONTS.head, weight: 700, padX: 44, h: 120, color: acc, textColor: '#050507' }, remap(t, 26.5, 26.8), t >= 27.6 && t <= 28.0 ? remap(t, 27.6, 28.0) : -1);
       // model id with blinking cursor until 29.0
       const mp = ez(t, 27.0, 27.4, E.outCubic);
-      if (mp > 0) { const o = Object.assign({ color: rgba(pri, 0.65 * mp) }, s10_MONO); const w = measureText(ctx, 'claude-fable-5-1', o); drawText(ctx, 'claude-fable-5-1', 540, 1310, o); const on = t >= 29.0 || (Math.floor((t - 27.0) * 2) % 2 === 0); if (on) { ctx.save(); ctx.globalAlpha = mp; ctx.fillStyle = acc; ctx.fillRect(540 + w / 2 + 12, 1310 - 21, 22, 42); ctx.restore(); } }
+      if (mp > 0) { const o = Object.assign({ color: rgba(pri, 0.65 * mp) }, s10_MONO); const w = measureText(ctx, 'claude-fable-5-1', o); drawText(ctx, 'claude-fable-5-1', 540, 1330, o); const on = t >= 29.0 || (Math.floor((t - 27.0) * 2) % 2 === 0); if (on) { ctx.save(); ctx.globalAlpha = mp; ctx.fillStyle = acc; ctx.fillRect(540 + w / 2 + 12, 1330 - 21, 22, 42); ctx.restore(); } }
     });
   }
 };

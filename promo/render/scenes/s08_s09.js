@@ -24,7 +24,7 @@ function s08_underline(ctx, x, y, w, p, col) {
 SCENES.s08 = {
   draw(ctx, lt, t, dur) {
     const C = s08_C, acc = T().accent, pri = T().primary; lt = Math.max(0, lt); t = Math.max(16, t);
-    const zoom = lerp(1.0, 1.05, lt / 3), drift = Math.sin(t * TAU * 0.2) * 3;
+    const zoom = lerp(1.0, 1.02, lt / 3), drift = Math.sin(t * TAU * 0.2) * 3;
     const tremAmp = lerp(0, 1.6, remap(t, 18.7, 19)), trem = (fbm1(t * 40, 5) - .5) * 2 * tremAmp;
     withCamera(ctx, { zoom, x: drift + trem, y: trem * 0.7 }, () => {
       // protective glow (0.5 Hz breath) brightening into the build
@@ -33,7 +33,7 @@ SCENES.s08 = {
       // slow elegant light sweep right → left behind the ring (17.8-18.6)
       if (t >= 17.75 && t <= 18.7) lightSweep(ctx, 1 - E.inOutCubic(remap(t, 17.8, 18.6)), { angle: 15 * Math.PI / 180, width: 220, color: acc, alpha: 0.17 });
       // sphere: pulls in 16.0-16.2, contracts 18.5-19.0
-      const spread = lerp(1.7, 1, ez(t, 16, 16.25, E.outCubic)), R = lerp(340, 200, ez(t, 18.5, 19, E.inQuad));
+      const spread = lerp(1.45, 1, ez(t, 16, 16.25, E.outCubic)), R = lerp(340, 200, ez(t, 18.5, 19, E.inQuad));
       sphereCloud(ctx, t, { cx: C.x, cy: C.y, r: R, count: 170, alpha: 0.32 * clamp(remap(t, 16, 16.15) + 0.4), edgeAlpha: 0.15, rot: t * 0.05, tilt: 0.5, spread, seed: 8 });
       // precision rings (secondary) with 10° ticks, opposite directions, accelerating into the build
       const accel = ez(t, 18.5, 19, E.inExpo) * 9;
@@ -49,9 +49,10 @@ SCENES.s08 = {
       // specular arc travelling around the ring with the sweep
       if (t >= 17.8 && t <= 18.6) { const a0 = lerp(0.4, TAU + 0.4, E.inOutCubic(remap(t, 17.8, 18.6))); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = rgba(pri, 0.9); ctx.lineWidth = 9; ctx.filter = 'blur(5px)'; ctx.beginPath(); ctx.arc(C.x, C.y, r, a0, a0 + 0.7); ctx.stroke(); ctx.restore(); }
       // the three words on the three notes, stacked, with underline draw-ons; fine jitter from 18.7
-      const jit = tremAmp * 1.2;
+      const jit = tremAmp * 1.2, exitP = E.inQuad(remap(t, 18.85, 19.0));
+      ctx.save(); ctx.globalAlpha *= 1 - exitP; ctx.translate(C.x, C.y); ctx.scale(1 - 0.6 * exitP, 1 - 0.6 * exitP); ctx.translate(-C.x, -C.y);
       for (const [w, t0, y] of s08_WORDS) {
-        if (t < t0) continue; const p = remap(t, t0, t0 + 0.45);
+        if (t < t0 - 1 / 30) continue; const p = remap(t, t0 - 1 / 30, t0 - 1 / 30 + 0.45);
         const jx = (hash2(Math.floor(t * 30), Math.floor(y)) - .5) * 2 * jit, jy = (hash2(Math.floor(t * 30) + 7, Math.floor(y)) - .5) * 2 * jit;
         drawKinetic(ctx, w, C.x + jx, y + jy, Object.assign({ stagger: 0.6, ease: E.outExpo, rise: 14, blurIn: 8 }, s08_HL), p, 'rise');
         const uw = measureText(ctx, w, s08_HL); s08_underline(ctx, C.x + jx, y + 74 + jy, uw, remap(t, t0 + 0.3, t0 + 0.5), acc);
@@ -60,6 +61,7 @@ SCENES.s08 = {
       drawKinetic(ctx, 'Mit zusätzlichen Sicherheitsmaßnahmen.', C.x, 1300, Object.assign({ color: rgba(pri, 0.8), stagger: 0.4, rise: 16, blurIn: 6 }, s08_SUB), remap(t, 17.8, 18.25), 'rise');
       const fp = ez(t, 18.0, 18.5, E.outCubic);
       if (fp > 0) { drawText(ctx, 'Claude Mythos 5.1:', C.x, 1440, { size: 44, family: FONTS.head, weight: 500, tracking: 0.02 * 44, color: rgba(pri, 0.55 * fp) }); drawText(ctx, 'nur für zugelassene Organisationen.', C.x, 1496, { size: 44, family: FONTS.head, weight: 500, tracking: 0.02 * 44, color: rgba(pri, 0.55 * fp) }); }
+      ctx.restore();
     });
   }
 };
@@ -105,21 +107,23 @@ SCENES.s09 = {
       ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(540, 960, 3, 0, TAU); ctx.fill(); dot(ctx, 540, 960, 16, acc, 0.45); return;
     }
     let lastK = 19; for (const k of s09_KICKS) if (k <= t) lastK = k; const kImp = impulse(t, lastK, 14);
-    const push = lerp(1, 1.25, E.inQuad(remap(t, 19, 21.85))), punch = 1 + (t < 20 ? 0.04 : 0.06) * kImp;
+    const push = lerp(1, 1.12, E.inQuad(remap(t, 19, 21.85))), punch = 1 + (t < 20 ? 0.04 : 0.06) * kImp;
     FX.shake = Math.max(FX.shake, lerp(3, 9, remap(t, 19.5, 21.5)) * (0.35 + 0.65 * kImp));
     const roll = t >= 20 ? Math.sin((t - 20) * TAU * 1.3) * 3 * Math.PI / 180 * remap(t, 20, 20.4) : 0;
     // rgb during slice assembly + bursts
-    FX.rgb = Math.max(FX.rgb, 10 * (1 - E.outExpo(remap(t, 19, 19.3))));
-    for (const b of s09_BURSTS) if (t >= b && t < b + 0.067) { FX.glitch = Math.max(FX.glitch, b >= 21.5 ? 0.45 : 0.75); FX.rgb = Math.max(FX.rgb, 10); FX.glitchSeed = Math.floor(b * 1000); }
-    const wash = ez(t, 21.35, 21.85, E.inQuad); FX.vignette = 0.6 * (1 - wash); FX.bloom = Math.max(FX.bloom, 0.2 + 0.3 * wash);
+    const wash = ez(t, 21.35, 21.85, E.inQuad);
+    FX.rgb = Math.max(FX.rgb, 4 * (1 - E.outExpo(remap(t, 19, 19.3))));
+    for (const b of s09_BURSTS) if (t >= b && t < b + 0.067) { FX.glitch = Math.max(FX.glitch, wash > 0.5 ? 0.22 : (b >= 21.5 ? 0.45 : 0.75)); if (wash < 0.5) FX.rgb = Math.max(FX.rgb, 10); FX.glitchSeed = Math.floor(b * 1000); } FX.vignette = 0.6 * (1 - wash); FX.bloom = Math.max(FX.bloom, 0.2 + 0.3 * wash);
     withCamera(ctx, { zoom: push * punch, rot: roll }, () => {
       // tilted wireframe grid plane, pulsing accent on kicks
-      floorGrid(ctx, t, { horizon: 560, camH: 300, spacing: 120, speed: 260 + 400 * remap(t, 20, 21.85), color: mixColor(T().secondary, acc, kImp), alpha: 0.18 + 0.3 * kImp, rows: 20, cols: 9, lineWidth: 1.5, xScale: 1.2 });
+      const inP = ez(t, 19, 19.2, E.outCubic);
+      floorGrid(ctx, t, { horizon: 560, camH: 300, spacing: 120, speed: 260 + 400 * remap(t, 20, 21.85), color: mixColor(T().secondary, acc, kImp), alpha: (0.18 + 0.3 * kImp) * inP, rows: 20, cols: 9, lineWidth: 1.5, xScale: 1.2 });
+      if (inP < 1) { const cp = E.inCubic(remap(t, 19, 19.2)); sphereCloud(ctx, t, { cx: C.x, cy: C.y, r: lerp(200, 40, cp), count: 170, alpha: 0.32 * (1 - cp), edgeAlpha: 0.15 * (1 - cp), rot: t * 0.05, tilt: 0.5, seed: 8 }); s08_ring(ctx, C.x, C.y, lerp(300, 100, cp), 0.95 * (1 - cp * 0.6), lerp(6, 14, cp)); s08_ticks(ctx, C.x, C.y, lerp(300 * 0.88, 300, cp), t * 0.08 + 9, 36, 10, T().secondary, 0.25 * (1 - cp)); s08_ticks(ctx, C.x, C.y, 430, -t * 0.06 - 7.2, 36, -12, T().secondary, 0.22 * (1 - cp)); }
       // reverse explosion: particles fall inward
       s09_infall(ctx, t, C);
       // precision rings spinning fast with smeared ticks; from 20.0 merge into a vortex
       const spin = lerp(2, 4.5, remap(t, 19, 21)), merge = remap(t, 20, 21);
-      for (let k = 0; k < 3; k++) { const r = [300, 360, 430][k] * lerp(1, 0.78, merge), dir = k % 2 ? -1 : 1; for (let s = 3; s >= 0; s--) s08_ticks(ctx, C.x, C.y, r, (t - s * 0.02) * spin * dir * (1 + k * 0.3), 36, 14, pri, s === 0 ? 0.4 : 0.1, 1.5); }
+      for (let k = 0; k < 3; k++) { const r = [300, 360, 430][k] * lerp(1, 0.78, merge), dir = k % 2 ? -1 : 1; for (let s = 3; s >= 0; s--) s08_ticks(ctx, C.x, C.y, r, (t - s * 0.02) * spin * dir * (1 + k * 0.3), 36, 14, pri, (s === 0 ? 0.4 : 0.1) * inP, 1.5); }
       if (merge > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = rgba(acc, 0.15 * merge); ctx.lineWidth = 2; for (let i = 0; i < 12; i++) { const rr = 200 + i * 26; ctx.setLineDash([rr * 0.9, rr * 0.5]); ctx.lineDashOffset = -(t * (i % 2 ? -3 : 3) * (1 + i * 0.1)) * rr; ctx.beginPath(); ctx.arc(C.x, C.y, rr, 0, TAU); ctx.stroke(); } ctx.setLineDash([]); ctx.restore(); }
       // shockwave on every kick
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -135,12 +139,12 @@ SCENES.s09 = {
       progressBar(ctx, 950, 960, 1316, prog, { vertical: true, thickness: 16, color: acc, track: pri });
       s09_sparks(ctx, t, 950, 1618 - 1316 * prog, Math.floor(lerp(20, 130, prog)));
       // headline assembling by slices on a legibility band; tears into the core at the end
-      band(ctx, 1250, 220, 0.6);
+      band(ctx, 1250, 220, 0.6 * (1 - wash));
       s09_sliceText(ctx, 'Mythos-Klasse.', C.x, 1250, s09_HL, t, C);
       // subline typewriter (two lines) with accent cursor; tears with the headline
       const tearA = 1 - E.inQuad(remap(t, 21.6, 21.85));
       const sub = { size: 46, family: FONTS.head, weight: 500, tracking: 0.02 * 46, color: rgba(pri, 0.8 * tearA), caretColor: acc };
-      drawKinetic(ctx, 'Anthropics intelligentestes', C.x, 1360 + (C.y - 1360) * (1 - tearA), sub, remap(t, 19.4, 19.65), 'type');
+      if (t >= 19.4) drawKinetic(ctx, 'Anthropics intelligentestes', C.x, 1360 + (C.y - 1360) * (1 - tearA), sub, remap(t, 19.4, 19.65), 'type');
       if (t >= 19.65) drawKinetic(ctx, 'verfügbares Modell.', C.x, 1416 + (C.y - 1416) * (1 - tearA), sub, remap(t, 19.65, 19.9), 'type');
       // desaturation wash to white (21.35-21.85)
       if (wash > 0) { ctx.save(); ctx.fillStyle = rgba(pri, 0.85 * wash); ctx.fillRect(-200, -200, W + 400, H + 400); ctx.restore(); radialFill(ctx, C.x, C.y, 900, [[0, rgba(pri, 0.9 * wash)], [1, rgba(pri, 0)]], 'lighter'); }

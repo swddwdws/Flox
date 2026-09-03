@@ -303,23 +303,37 @@ class Mix:
     def add_bus(self, bus, gain=1.0):
         self.buf[:len(bus)] += bus[:self.n] * gain
 
-def limiter(x, ceiling=0.94, attack=0.003, release=0.12):
-    peak = np.max(np.abs(x), axis=1) + 1e-9
-    la = n_of(attack)
+def true_peak(x, os=4):
+    """inter-sample (true) peak via 4x oversampling, linear scale"""
+    return float(np.max(np.abs(signal.resample_poly(np.asarray(x, dtype=np.float64), os, 1, axis=0))))
+
+def limiter(x, ceiling=0.79, attack=0.003, release=0.12, os=4):
+    """true-peak aware look-ahead limiter: the gain envelope is computed on a 4x oversampled copy."""
+    x = np.asarray(x, dtype=np.float64)
+    xo = signal.resample_poly(x, os, 1, axis=0)
+    peak = np.max(np.abs(xo), axis=1) + 1e-9
+    la = n_of(attack) * os
     env = maximum_filter1d(peak, size=2 * la + 1)
     need = np.minimum(1.0, ceiling / env)
-    hold = minimum_filter1d(need, size=n_of(release))
-    a = np.exp(-1 / (release * SR)); g = signal.lfilter([1 - a], [1, -a], hold)
-    g = np.minimum(g, need)  # never exceed instantaneous need
+    hold = minimum_filter1d(need, size=n_of(release) * os)
+    a = np.exp(-1 / (release * SR * os)); g = signal.lfilter([1 - a], [1, -a], hold)
+    g = np.minimum(g, need)
+    g = g[::os][:len(x)]
+    if len(g) < len(x): g = np.concatenate([g, np.full(len(x) - len(g), g[-1])])
     y = x * g[:, None]
-    return np.tanh(y * 1.5 / ceiling) / np.tanh(1.5) * ceiling
+    # gentle safety only for the residual overshoot above the ceiling (rare after oversampled detection)
+    over = np.abs(y) > ceiling
+    y[over] = np.sign(y[over]) * (ceiling + np.tanh((np.abs(y[over]) - ceiling) / ceiling * 4) * ceiling * 0.05)
+    return y
 
-def master(x, target_peak=db(-1.0), lowcut=28):
+def master(x, target_tp=db(-2.0), lowcut=28):
+    """DC removal, low cut, true-peak limiting to target_tp (dBTP). Never normalises upward."""
     x = x - np.mean(x, axis=0, keepdims=True)
     x = highpass(x, lowcut, 2)
-    x = limiter(x, ceiling=target_peak)
-    pk = np.max(np.abs(x)) + 1e-9
-    x *= target_peak / pk
+    x = limiter(x, ceiling=target_tp * 0.94)
+    tp = true_peak(x)
+    if tp > target_tp: x *= target_tp / tp
+    print('master: true peak %.2f dBTP, sample peak %.2f dBFS' % (20 * np.log10(true_peak(x) + 1e-9), 20 * np.log10(np.max(np.abs(x)) + 1e-9)))
     return x
 
 def write_wav(path, x):

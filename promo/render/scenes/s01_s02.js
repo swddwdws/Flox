@@ -1,6 +1,6 @@
 // s01_s02.js — "Hallo." (0.0–2.0) + "Ich bin neu." (2.0–5.0)
 // Both scenes live in one file because the vertical light-sweep reveal crosses the cut at 2.0:
-// the 260 px beam travels x -260 → 1340 from 1.8 to 2.15 (easeInOutCubic); to its right s01 is drawn,
+// the 260 px beam travels x -260 → 1340 from 1.77 to 2.23 (easeInOutSine, centre crosses CX exactly at 2.0); to its right s01 is drawn,
 // to its left s02 is drawn (hard clip hidden inside the beam core). Everything is a pure function of the
 // absolute time t; seeded tables live at module level (all names prefixed s01_s02_).
 // Engine owns: fade from black 0–0.25, flash 35 % + punch at 5.0.
@@ -9,11 +9,14 @@
   const A = () => T().accent, P = () => T().primary;
   const DEG = Math.PI / 180;
   const HEAD_S01 = 150, HEAD_S02 = 160, DOT_Y = 960;
+  // beam window: symmetric around the braam at 2.0 so the beam centre passes CX on the downbeat
+  const BEAM_T0 = 1.77, BEAM_T1 = 2.23;
+  const s01_s02_inOutSine = u => 0.5 - 0.5 * Math.cos(Math.PI * clamp(u));
 
   /* ------------------------------------------------------------ beam */
-  function s01_s02_beamX(t) { return lerp(-260, 1340, E.inOutCubic(remap(t, 1.8, 2.15))); }
+  function s01_s02_beamX(t) { return lerp(-260, 1340, s01_s02_inOutSine(remap(t, BEAM_T0, BEAM_T1))); }
   function s01_s02_beam(ctx, t) {
-    const bx = s01_s02_beamX(t), fade = 1 - ez(t, 2.11, 2.15, E.inQuad);
+    const bx = s01_s02_beamX(t), fade = 1 - ez(t, BEAM_T1 - 0.05, BEAM_T1, E.inQuad);
     if (fade <= 0) return;
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= fade;
     // wide accent halo (ellipse, soft in both axes)
@@ -33,6 +36,20 @@
 
   /* ------------------------------------------------------------- s01 */
   function s01_s02_lineY(t) { return DOT_Y + 60 * E.inOutCubic(remap(t, 1.0, 1.3)); }
+  // measured once: x offset of the centre of the 'o' in the centred 'Hallo.' layout, and half the 'o' height
+  let s01_s02_oDx = null, s01_s02_oHalf = 42;
+  function s01_s02_measureO(c) {
+    if (s01_s02_oDx !== null) return;
+    const L = layoutChars(c, 'Hallo.', { size: HEAD_S01, family: FONTS.body, weight: 800, tracking: -0.045 * HEAD_S01 });
+    const o = L.chars[4]; s01_s02_oDx = o.x + o.w / 2 - L.width / 2;
+    c.font = font(HEAD_S01, FONTS.body, 800); const m = c.measureText('o');
+    if (m.actualBoundingBoxAscent > 0) s01_s02_oHalf = m.actualBoundingBoxAscent / 2;
+  }
+  // dot position: at (CX, 960) until 1.0, then glides with the line drop to sit behind the counter of the 'o'
+  function s01_s02_dotPos(t) {
+    const m = E.inOutCubic(remap(t, 1.0, 1.3));
+    return { x: CX + (s01_s02_oDx || 0) * m, y: lerp(DOT_Y, s01_s02_lineY(t) - 3 - s01_s02_oHalf, m) };
+  }
   function s01_s02_dotR(t) {
     let r = 3;
     for (const b of [0, 1]) {
@@ -44,7 +61,8 @@
   function s01_s02_drawS01(ctx, t) {
     const cam = { zoom: lerp(1, 1.02, clamp(t / 2)) };
     withCamera(ctx, cam, c => {
-      const ly = s01_s02_lineY(t);
+      s01_s02_measureO(c);
+      const ly = s01_s02_lineY(t), dp = s01_s02_dotPos(t);
       const bright = ez(t, 1.7, 2.0, E.inOutCubic);          // line brightens, dot glow doubles
       const glowMul = 1 + bright;
       const r = s01_s02_dotR(t);
@@ -53,9 +71,9 @@
       for (const b of [0, 1]) {
         const d = t - b; if (d <= 0 || d >= 0.8) continue;
         const p = d / 0.8, R = 420 * E.outCubic(p);
-        c.save(); c.globalAlpha *= 0.35 * (1 - p); c.strokeStyle = P(); c.lineWidth = 1; c.beginPath(); c.arc(CX, DOT_Y, R, 0, TAU); c.stroke();
+        c.save(); c.globalAlpha *= 0.35 * (1 - p); c.strokeStyle = P(); c.lineWidth = 1; c.beginPath(); c.arc(dp.x, dp.y, R, 0, TAU); c.stroke();
         // faint accent echo trailing the ring
-        c.globalAlpha = 0.18 * (1 - p); c.strokeStyle = A(); c.beginPath(); c.arc(CX, DOT_Y, R * 0.82, 0, TAU); c.stroke();
+        c.globalAlpha = 0.18 * (1 - p); c.strokeStyle = A(); c.beginPath(); c.arc(dp.x, dp.y, R * 0.82, 0, TAU); c.stroke();
         c.restore();
       }
 
@@ -88,11 +106,11 @@
         }, hp, 'rise');
       }
 
-      // accent dot + soft radial glow (accent 18 %, doubling 1.7–2.0); drawn last so it glows through the glyphs
+      // accent dot + soft radial glow (accent 18 %, doubling 1.7–2.0); drawn last so it glows through the 'o'
       const gr = 190 + (r - 3) * 14;
-      radialFill(c, CX, DOT_Y, gr, [[0, rgba(A(), 0.18 * glowMul)], [0.35, rgba(A(), 0.07 * glowMul)], [1, rgba(A(), 0)]], 'lighter');
-      dot(c, CX, DOT_Y, r * 5, A(), 0.85);
-      c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = P(); c.beginPath(); c.arc(CX, DOT_Y, r, 0, TAU); c.fill(); c.restore();
+      radialFill(c, dp.x, dp.y, gr, [[0, rgba(A(), 0.18 * glowMul)], [0.35, rgba(A(), 0.07 * glowMul)], [1, rgba(A(), 0)]], 'lighter');
+      dot(c, dp.x, dp.y, r * 5, A(), 0.85);
+      c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = P(); c.beginPath(); c.arc(dp.x, dp.y, r, 0, TAU); c.fill(); c.restore();
     });
   }
 
@@ -110,7 +128,7 @@
     pacc[i] = 0.55 + 0.9 * s01_s02_pr();
   }
   // pre-cut acceleration 4.5–5.0: extra upward displacement (integral of an easeInCubic speed ramp)
-  function s01_s02_accel(t) { const u = remap(t, 4.5, 5.0); return 112 * u * u * u * u; }
+  function s01_s02_accel(t) { const u = remap(t, 4.5, 5.0); return 40 * u * u * u * u; }   // capped so trails stay ≤ ~25 px
   function s01_s02_pPos(i, t, out) {
     let y = py0[i] - pvy[i] * t - s01_s02_accel(t) * pacc[i];
     let x = px0[i] + Math.sin(t * pfr[i] + pph[i]) * pam[i];
@@ -118,7 +136,7 @@
   }
   const s01_s02_p0 = { x: 0, y: 0 }, s01_s02_p1 = { x: 0, y: 0 };
 
-  // diagonal streak 3.4–4.2 (20°, 1400 × 90, accent 25 %) gliding bottom-left → top-right
+  // diagonal streak 3.4–4.2 (20°, 1400 × 70, accent 25 % halo, primary 45 % core + hot hairline) gliding bottom-left → top-right
   function s01_s02_streak(t) {
     const p = E.inOutCubic(remap(t, 3.4, 4.2));
     return { x: lerp(160, 920, p), y: lerp(1560, 420, p), a: win(t, 3.4, 3.55, 4.05, 4.2), ang: -20 * DEG };
@@ -139,7 +157,7 @@
       if (trail) {
         s01_s02_pPos(i, t - 2 / FPS, s01_s02_p1);
         const ty = s01_s02_p1.y, len = ty - y;
-        if (len > 1.5 && len < H * 0.5) { c.globalAlpha = al * 0.7; c.lineWidth = s; c.beginPath(); c.moveTo(x, ty); c.lineTo(x, y); c.stroke(); }
+        if (len > 1.5 && len < H * 0.5) { c.globalAlpha = al * 0.4; c.lineWidth = s; c.beginPath(); c.moveTo(x, ty); c.lineTo(x, y); c.stroke(); }
       }
       c.globalAlpha = al; c.fillRect(x - s / 2, y - s / 2, s, s);
     }
@@ -149,19 +167,25 @@
     const st = s01_s02_streak(t); if (st.a <= 0) return;
     c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha *= st.a;
     c.translate(st.x, st.y); c.rotate(st.ang);
-    c.save(); c.scale(700, 45);
+    c.save(); c.scale(700, 35);
     let g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, rgba(A(), 0.25)); g.addColorStop(0.5, rgba(A(), 0.12)); g.addColorStop(1, rgba(A(), 0));
     c.fillStyle = g; c.fillRect(-1, -1, 2, 2); c.restore();
     c.save(); c.scale(600, 10);
-    g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, rgba(P(), 0.22)); g.addColorStop(1, rgba(P(), 0));
+    g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, rgba(P(), 0.45)); g.addColorStop(0.5, rgba(P(), 0.18)); g.addColorStop(1, rgba(P(), 0));
     c.fillStyle = g; c.fillRect(-1, -1, 2, 2); c.restore();
+    // hot hairline along the streak axis (2 px primary 60 %, blur 6) so it reads as light, tapering at both ends
+    const hg = c.createLinearGradient(-620, 0, 620, 0);
+    hg.addColorStop(0, rgba(P(), 0)); hg.addColorStop(0.25, rgba(P(), 0.6)); hg.addColorStop(0.75, rgba(P(), 0.6)); hg.addColorStop(1, rgba(P(), 0));
+    c.strokeStyle = hg; c.lineCap = 'round'; c.beginPath(); c.moveTo(-620, 0); c.lineTo(620, 0);
+    c.filter = 'blur(6px)'; c.lineWidth = 2.5; c.stroke(); c.filter = 'none';
+    c.lineWidth = 1.2; c.globalAlpha *= 0.7; c.stroke();
     c.restore();
   }
 
   // headline 'Ich bin' / 'neu.' — already in place, revealed by the beam with a 60 ms accent rim per glyph
   function s01_s02_headline(c, t) {
     const size = HEAD_S02, em = lerp(-0.045, -0.06, E.inCubic(remap(t, 4.5, 5.0))), tr = size * em;
-    const bx = t < 2.15 ? s01_s02_beamX(t) : 1e9;
+    const bx = t < BEAM_T1 ? s01_s02_beamX(t) : 1e9;
     const lines = [['Ich bin', 880], ['neu.', 1040]];
     for (const [str, y] of lines) {
       c.save();
@@ -173,7 +197,7 @@
         if (ch.ch === ' ') continue;
         const gx = x0 + ch.x, behind = bx - (gx + ch.w / 2);   // px the beam centre is past this glyph
         if (behind < -ch.w) continue;                          // still ahead of the beam (clipped anyway)
-        const rim = clamp(1 - behind / 280);                    // ≈ 60 ms at the beam's speed
+        const rim = clamp(1 - behind / 320);                    // ≈ 60 ms at the beam's peak speed (~5.5 kpx/s)
         if (rim > 0) { c.fillStyle = A(); c.globalAlpha = 1; c.fillText(ch.ch, gx, y); }
         c.globalAlpha = 1 - rim * 0.92; c.fillStyle = P(); c.fillText(ch.ch, gx, y);
       }
@@ -228,13 +252,13 @@
 
   /* ------------------------------------------------------- composite */
   function s01_s02_draw(ctx, t) {
-    if (t < 1.8) { s01_s02_drawS01(ctx, t); return; }
-    if (t >= 2.15) { s01_s02_drawS02(ctx, t); return; }
+    if (t < BEAM_T0) { s01_s02_drawS01(ctx, t); return; }
+    if (t >= BEAM_T1) { s01_s02_drawS02(ctx, t); return; }
     const bx = s01_s02_beamX(t);
     ctx.save(); ctx.beginPath(); ctx.rect(bx, -10, W - bx + 20, H + 20); ctx.clip(); s01_s02_drawS01(ctx, t); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(-10, -10, bx + 10, H + 20); ctx.clip(); s01_s02_drawS02(ctx, t); ctx.restore();
     s01_s02_beam(ctx, t);
-    FX.bloom = Math.max(FX.bloom, 0.32 * win(t, 1.8, 1.9, 2.05, 2.15));
+    FX.bloom = Math.max(FX.bloom, 0.32 * win(t, BEAM_T0, BEAM_T0 + 0.1, BEAM_T1 - 0.1, BEAM_T1));
   }
   SCENES.s01 = { draw(ctx, lt, t) { s01_s02_draw(ctx, t); } };
   SCENES.s02 = { draw(ctx, lt, t) { s01_s02_draw(ctx, t); } };

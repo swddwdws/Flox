@@ -165,7 +165,7 @@ function drawKinetic(ctx, str, x, y, o = {}, p = 1, mode = 'rise') {
     if (!o.strokeOnly) { ctx.fillStyle = color; ctx.fillText(ch, -c.w / 2, 0); }
     ctx.restore();
   }
-  if (mode === 'type' && p < 1 && o.caret !== false) {
+  if (mode === 'type' && p > 0 && p < 1 && o.caret !== false) {
     const k = Math.min(n, Math.floor(p * n)); const cxp = k < n ? x0 + L.chars[k].x : x0 + L.width + 4;
     if (o.caretBlink === false || Math.floor(p * n * 1.5) % 3 !== 2) { ctx.fillStyle = o.caretColor || color; ctx.fillRect(cxp, y - size * 0.42, size * 0.55, size * 0.84); }
   }
@@ -447,7 +447,7 @@ function glitchSlices(ctx, src, intensity, seed) {
   }
   // block corruption
   const nb = Math.floor(intensity * 6);
-  for (let i = 0; i < nb; i++) { const bw = 60 + r() * 400, bh = 20 + r() * 120, sx = r() * (W - bw), sy = r() * (H - bh), tx = sx + (r() - .5) * 400, ty = sy + (r() - .5) * 60; ctx.globalCompositeOperation = r() < .5 ? 'source-over' : 'difference'; ctx.drawImage(src, sx, sy, bw, bh, tx, ty, bw, bh); }
+  for (let i = 0; i < nb; i++) { const bw = 60 + r() * 400, bh = 20 + r() * 120, sx = r() * (W - bw), sy = r() * (H - bh), tx = sx + (r() - .5) * 400, ty = sy + (r() - .5) * 60; ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(src, sx, sy, bw, bh, tx, ty, bw, bh); }
   ctx.restore();
 }
 function bloom(ctx, src, blur = 24, alpha = 0.5) {
@@ -472,13 +472,13 @@ function resetFX() {
 function applyTransition(tr, t, fx) {
   const at = tr.at, d = t - at, types = Array.isArray(tr.type) ? tr.type : [tr.type];
   for (const ty of types) switch (ty) {
-    case 'flash': { const a = tr.amount ?? 0.9; const v = d < 0 ? ez(t, at - 0.07, at, E.inQuad) * 0.6 : Math.exp(-13 * d); if (v * a > fx.flash) { fx.flash = v * a; if (tr.color) fx.flashColor = tr.color; } break; }
+    case 'flash': { const a = tr.amount ?? 0.9, pre = tr.pre ?? 0.07; const v = d < 0 ? (pre > 0 ? ez(t, at - pre, at, E.inQuad) * 0.6 : 0) : Math.exp(-13 * d); if (v * a > fx.flash) { fx.flash = v * a; if (tr.color) fx.flashColor = tr.color; } break; }
     case 'glitch': { const a = tr.amount ?? 1, pre = tr.pre ?? 0.13, post = tr.post ?? 0.27; if (d < -pre || d > post) break; const g = d < 0 ? ez(t, at - pre, at, E.inCubic) : 1 - ez(t, at, at + post, E.outCubic); fx.glitch = Math.max(fx.glitch, g * a); fx.rgb = Math.max(fx.rgb, g * 18 * a); fx.glitchSeed = Math.floor(at * 1000) + 17; break; }
-    case 'punch': { if (d >= 0) { fx.zoom *= 1 + (tr.amount ?? 0.1) * Math.exp(-9 * d); fx.shake = Math.max(fx.shake, (tr.shake ?? 10) * Math.exp(-7 * d)); } break; }
+    case 'punch': { if (d >= 0) { fx.zoom *= 1 + (tr.punch ?? tr.amount ?? 0.1) * Math.exp(-9 * d); fx.shake = Math.max(fx.shake, (tr.shake ?? 10) * Math.exp(-7 * d)); } break; }
     case 'punchOut': { if (d >= 0) fx.zoom *= 1 - (tr.amount ?? 0.08) * Math.exp(-9 * d); break; }
     case 'zoom': { const a = tr.amount ?? 0.6, dur = tr.dur ?? 0.3; if (d < 0) { const e = ez(t, at - dur, at, E.inExpo); fx.zoom *= 1 + a * e; fx.blur = Math.max(fx.blur, 14 * ez(t, at - dur, at, E.inQuad)); } else { fx.zoom *= 1 + 0.16 * Math.exp(-8 * d); } break; }
     case 'whip': { const dur = tr.dur ?? 0.16; if (d < -dur || d > dur) break; const s = d < 0 ? ez(t, at - dur, at, E.inQuad) : 1 - ez(t, at, at + dur, E.outQuad); fx.whip = Math.max(fx.whip, s * (tr.amount ?? 120)); fx.whipDir = tr.dir ?? 1; fx.y += -(tr.dir ?? 1) * 90 * s * (d < 0 ? 1 : -1); break; }
-    case 'shake': { if (d >= 0) fx.shake = Math.max(fx.shake, (tr.amount ?? 22) * Math.exp(-(tr.decay ?? 6) * d)); break; }
+    case 'shake': { if (d >= 0) fx.shake = Math.max(fx.shake, (tr.shake ?? tr.amount ?? 22) * Math.exp(-(tr.decay ?? 6) * d)); break; }
     case 'fade': { const dur = tr.dur ?? 0.4; const v = d < 0 ? (tr.inOnly ? 0 : ez(t, at - dur, at, E.inQuad)) : (tr.outOnly ? 0 : 1 - ez(t, at, at + dur, E.outQuad)); fx.fade = Math.max(fx.fade, v); break; }
     case 'invert': { if (d >= 0 && d < (tr.dur ?? 0.07)) fx.invert = 1; break; }
     case 'stutter': { const pre = tr.pre ?? 0.2; if (d >= -pre && d < 0) { fx.rgb = Math.max(fx.rgb, 6); fx.glitch = Math.max(fx.glitch, 0.12); } break; }

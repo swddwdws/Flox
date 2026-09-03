@@ -76,6 +76,19 @@ else:
         (ok if a['channels'] == 2 else bad)('channels %s' % a['channels'])
         d = float(a.get('duration', 0)); (ok if 29.5 <= d <= 30.6 else bad)('audio duration %.3f s' % d)
     fm = j['format']
+    # decoded audio true peak (4x oversampled) must stay below -1 dBTP; also confirm not silent and no DC offset
+    try:
+        import numpy as np
+        from scipy import signal as sg
+        raw = subprocess.run([ff, '-v', 'error', '-i', f, '-map', '0:a:0', '-f', 'f32le', '-ac', '2', '-ar', '48000', '-'], capture_output=True).stdout
+        a = np.frombuffer(raw, dtype=np.float32).reshape(-1, 2).astype(np.float64)
+        tp = 20 * np.log10(np.max(np.abs(sg.resample_poly(a, 4, 1, axis=0))) + 1e-12); sp = 20 * np.log10(np.max(np.abs(a)) + 1e-12)
+        rms = 20 * np.log10(np.sqrt(np.mean(a ** 2)) + 1e-12); dc = float(np.max(np.abs(np.mean(a, axis=0))))
+        (ok if tp <= -1.0 else bad)('audio true peak %.2f dBTP (sample peak %.2f dBFS), limit -1.0 dBTP' % (tp, sp))
+        (ok if rms > -30 else bad)('audio level rms %.1f dBFS' % rms)
+        (ok if dc < 0.01 else bad)('audio DC offset %.4f' % dc)
+    except Exception as e:
+        bad('audio true-peak check failed: %s' % e)
     (ok if 'mp4' in fm['format_name'] else bad)('container %s' % fm['format_name'])
     print('  size %.1f MB, bitrate %.2f Mbit/s' % (int(fm['size']) / 1e6, int(fm.get('bit_rate', 0)) / 1e6))
 sys.exit(fail)

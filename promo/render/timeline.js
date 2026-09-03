@@ -27,13 +27,13 @@ TL.add('s10', 22, 26);    // Name reveal
 TL.add('s11', 26, 30);    // End card
 TL.transitions.push(
   { at: 0.0, type: 'fade', dur: 0.25 },                                            // fade from black (in only; d<0 side never happens)
-  { at: 5.0, type: ['flash', 'punch'], amount: 0.35, color: '#F5F2EC', shake: 4 },  // hard cut into s03
+  { at: 5.0, type: ['flash', 'punch'], amount: 0.35, punch: 0.05, color: '#F5F2EC', shake: 4 },  // hard cut into s03
   { at: 7.95, type: 'flash', amount: 0.95, color: '#F5F2EC' },                      // white flash hides the cut into s04
   { at: 8.0, type: 'punch', amount: 0.05, shake: 3 },
-  { at: 10.0, type: ['stutter', 'glitch', 'punch'], pre: 0.25, amount: 0.7, post: 0.12, shake: 3 },
+  { at: 10.0, type: ['stutter', 'glitch', 'punch'], pre: 0.25, amount: 0.7, punch: 0.05, post: 0.12, shake: 3 },
   { at: 12.0, type: ['punch', 'rgb'], amount: 0.06, dur: 0.12, shake: 3 },
-  { at: 14.0, type: ['stutter', 'glitch', 'punch'], pre: 0.25, amount: 0.7, post: 0.12, shake: 3 },
+  { at: 14.0, type: ['stutter', 'glitch', 'punch'], pre: 0.25, amount: 0.7, punch: 0.05, post: 0.12, shake: 3 },
   { at: 16.0, type: 'xfade', dur: 0.25 },
-  { at: 22.0, type: ['flash', 'punch', 'shake'], amount: 1.0, color: '#F5F2EC', shake: 14, decay: 7 },
-  { at: 26.0, type: 'xfade', dur: 0.4 },
+  { at: 22.0, type: ['flash', 'punch', 'shake'], amount: 1.0, punch: 0.08, pre: 0, color: '#F5F2EC', shake: 14, decay: 7 },
+  // 26.0: no crossfade — s10 lands its lockup exactly on the s11 layout, so the cut is invisible
 );
