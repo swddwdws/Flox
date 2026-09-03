@@ -20,7 +20,7 @@ const html = 'file://' + path.resolve(__dirname, '..', 'render', 'index.html');
 
 let frames = [];
 if (args.frames) frames = args.frames.split(',').map(Number);
-else if (args.times) frames = args.times.split(',').map(s => Math.round(parseFloat(s) * FPS));
+else if (args.times) frames = args.times.split(',').map(s => Math.round(parseFloat(s) * FPS + 1e-6));
 else {
   const s = parseInt(args.start || '0', 10), e = parseInt(args.end || String(TOTAL), 10), ev = parseInt(args.every || '1', 10);
   for (let f = s; f < e; f += ev) frames.push(f);

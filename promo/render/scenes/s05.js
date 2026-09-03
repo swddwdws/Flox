@@ -37,7 +37,7 @@ function s05_softRing(ctx, x, y, life, radius, color, width, alpha) {
   if (life <= 0 || life >= 1) return;
   const R = radius * E.outCubic(life), a = (1 - life) * alpha, w = width * (1 - life * 0.7);
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = color;
-  for (let i = 0; i < 4; i++) { ctx.lineWidth = w * (1 + i * 1.6); ctx.globalAlpha = a * (i === 0 ? 0.55 : 0.16 / (i)); ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.stroke(); }
+  for (let i = 0; i < 4; i++) { ctx.lineWidth = w * (1 + i * 1.6); ctx.globalAlpha = a * (i === 0 ? 0.38 : 0.16 / (i)); ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.stroke(); }
   ctx.restore();
 }
 
@@ -159,7 +159,10 @@ SCENES.s05 = {
     const camRot = lerp(-1.5, 1.5, lt / 2) * Math.PI / 180 * (1 - rectQ);   // unwinds so the final frames are axis-aligned for s06
     withCamera(ctx, { zoom: camZoom, rot: camRot, ox: rcx, oy: rcy }, () => {
       // ---------------- ambient: soft accent glow behind the centre + dust
-      radialFill(ctx, rcx, rcy, 620, [[0, rgba(P.accent, 0.16 + 0.1 * kick)], [0.45, rgba(P.accent, 0.05)], [1, rgba(P.accent, 0)]], 'lighter');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      dot(ctx, rcx, rcy, 640, P.accent, 0.22 + 0.12 * kick);
+      dot(ctx, rcx, rcy, 300, P.accent, 0.14 + 0.1 * kick);
+      ctx.restore();
       s05_DUST.draw(ctx, t, { alpha: 0.35 * hudFade, zoom: 1 + 0.35 * E.inCubic(flyP) });
 
       // ---------------- HUD guide ring (secondary structure) + label ticks
@@ -246,13 +249,14 @@ SCENES.s05 = {
           const L1 = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]), L2 = Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1]), Ltot = L1 + L2, drawn = cp * Ltot;
           const punch = 1 + 0.25 * impulse(t, 11.5, 10);
           ctx.save(); ctx.translate(rcx, rcy + 4); ctx.scale(punch, punch); ctx.globalAlpha = coreFade; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-          glow(ctx, 12, 0.9, c => {
-            c.strokeStyle = P.accent; c.lineWidth = 7;
+          const checkPath = c => {
             c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
             if (drawn <= L1) { const f = drawn / L1; c.lineTo(lerp(pts[0][0], pts[1][0], f), lerp(pts[0][1], pts[1][1], f)); }
             else { c.lineTo(pts[1][0], pts[1][1]); const f = clamp((drawn - L1) / L2); c.lineTo(lerp(pts[1][0], pts[2][0], f), lerp(pts[1][1], pts[2][1], f)); }
-            c.stroke();
-          });
+          };
+          ctx.save(); ctx.globalCompositeOperation = 'lighter';
+          for (let g = 3; g >= 0; g--) { ctx.strokeStyle = rgba(P.accent, g === 0 ? 0.95 : 0.14); ctx.lineWidth = 7 + g * 11; checkPath(ctx); ctx.stroke(); }
+          ctx.restore();
           ctx.strokeStyle = rgba(P.primary, 0.9); ctx.lineWidth = 2.5;
           ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
           if (drawn <= L1) { const f = drawn / L1; ctx.lineTo(lerp(pts[0][0], pts[1][0], f), lerp(pts[0][1], pts[1][1], f)); }
@@ -287,7 +291,8 @@ SCENES.s05 = {
             const rep = impulse(t, activeT0, 12);
             const sweep = remap(t, activeT0 + 0.05, activeT0 + 0.3);
             ctx.save(); ctx.globalAlpha = hudFade; ctx.translate(lp.x, lp.y); ctx.scale(1 + 0.12 * rep, 1 + 0.12 * rep); ctx.translate(-lp.x, -lp.y);
-            pill(ctx, s05_LABELS[i], lp.x, lp.y, { size: 44, family: FONTS.mono, weight: 600, padX: 26, h: 72, color: P.accent, textColor: '#141210', tracking: 2 }, p, sweep);
+            { const pw = lp.w + 52, gp = clamp(p * 2); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.55 * gp; ctx.translate(lp.x, lp.y); ctx.scale(pw / 72, 1); dot(ctx, 0, 0, 92, P.accent, 1); ctx.restore(); }
+            pill(ctx, s05_LABELS[i], lp.x, lp.y, { size: 44, family: FONTS.mono, weight: 600, padX: 26, h: 72, color: P.accent, textColor: '#141210', tracking: 2, glow: false }, p, sweep);
             ctx.restore();
             // 40-particle spark puff
             const life = remap(t, activeT0, activeT0 + 0.38);
@@ -303,9 +308,12 @@ SCENES.s05 = {
         const sp = ez(lt, 0, 0.15, E.outExpo);
         const hs = lerp(1.25, 1, sp) * (1 + 0.06 * impulse(t, 10.0, 14));
         withCamera(ctx, { zoom: hs, ox: CX, oy: 1330 }, () => {
-          ctx.save(); if (sp < 0.9) ctx.filter = `blur(${((1 - sp) * 5).toFixed(1)}px)`;
-          ctx.globalAlpha = textFade;
-          drawText(ctx, 'Ich handle.', CX, 1330, { size: 140, family: FONTS.body, weight: 800, color: P.primary, tracking: -0.045 * 140 });
+          ctx.save(); ctx.globalAlpha = textFade;
+          const ho = { size: 140, family: FONTS.body, weight: 800, color: P.primary, tracking: -0.045 * 140 };
+          if (sp < 0.9) { // motion ghosts on the slam (cheaper than a blur filter)
+            const gd = (1 - sp) * 14; ctx.save(); ctx.globalAlpha *= 0.35; drawText(ctx, 'Ich handle.', CX, 1330 - gd, ho); drawText(ctx, 'Ich handle.', CX, 1330 + gd, ho); ctx.restore();
+          }
+          drawText(ctx, 'Ich handle.', CX, 1330, ho);
           ctx.restore();
         });
         // subline — slide-mask reveal left → right at y=1440 (10.5–10.8)

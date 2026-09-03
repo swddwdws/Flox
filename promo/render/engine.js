@@ -280,7 +280,7 @@ function floorGrid(ctx, t, o = {}) {
   ctx.beginPath();
   for (let i = -nx; i <= nx; i++) { const x0 = CX + i * sp * (o.xScale ?? 1.6); const p0 = { x: CX + (x0 - CX) * f / (zNear + f), y: yAt(0) }, p1 = { x: CX + (x0 - CX) * f / (zFar + f), y: yAt(zFar) }; ctx.moveTo(p0.x, Math.min(p0.y, floorY)); ctx.lineTo(p1.x, p1.y); }
   ctx.stroke();
-  if (o.fade !== false) { ctx.globalCompositeOperation = 'destination-out'; const g = ctx.createLinearGradient(0, hz, 0, hz + 380); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.globalAlpha = 1; ctx.fillRect(0, hz - 10, W, 400); }
+  if (o.fade !== false) { ctx.globalCompositeOperation = 'source-over'; const g = ctx.createLinearGradient(0, hz, 0, hz + 380); g.addColorStop(0, rgba(o.fadeColor || T().bg, 1)); g.addColorStop(1, rgba(o.fadeColor || T().bg, 0)); ctx.fillStyle = g; ctx.globalAlpha = 1; ctx.fillRect(0, hz - 10, W, 400); }
   ctx.restore();
 }
 // rectangular tunnel of receding frames
