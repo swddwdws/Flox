@@ -180,8 +180,8 @@ function s06_s07_farm(ctx, t, wire) {
 
 /* pumpkin items popping out of the farm — before the reset and again once the bot is back */
 const s06_s07_POPS = [15.00, 15.25, 16.98, 17.23, 17.48];
-// only the outer front-edge pumpkins pop, so the item never lands on another block
-const s06_s07_POPCELLS = (() => s06_s07_PUMPS.filter(c => c.ix + c.iy >= 5))();
+// only the front-LEFT pumpkins pop: that corridor is free of the bot (x~540) and the check (x~790)
+const s06_s07_POPCELLS = (() => s06_s07_PUMPS.filter(c => c.iy >= 1 && c.ix <= -2))();
 function s06_s07_items(ctx, t, wire) {
   if (wire > 0.4) return;
   const O = s06_s07_ISO;
@@ -191,20 +191,20 @@ function s06_s07_items(ctx, t, wire) {
     const cell = s06_s07_POPCELLS[Math.floor(hash1(k * 17 + 5) * s06_s07_POPCELLS.length)];
     if (!cell) continue;
     const g = isoPos(cell.ix, cell.iy, 0, O), e = E.outCubic(life);
-    const dx = (hash2(k, 3) - 0.5) * 96 + 40;                       // drift out to the free front-right
+    const dx = -(30 + hash2(k, 3) * 48);                             // drift out over the empty left ground
     const x0 = g.x, y0 = g.y - O.size * 1.9;                        // start above the block top
-    const x = x0 + dx * e, y = y0 - e * 168 + life * life * 34;     // rise, then a touch of gravity
+    const x = x0 + dx * e, y = y0 - e * 140 + life * life * 30;     // rise, then a touch of gravity
     const a = clamp((1 - life) * 1.8) * clamp(life / 0.10) * (1 - wire);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    // short gold trail behind the item
+    // short warm trail behind the item (torch light of the voxel world, not UI gold)
     for (let t2 = 1; t2 <= 4; t2++) {
       const e2 = E.outCubic(Math.max(0, life - t2 * 0.055));
-      dot(ctx, x0 + dx * e2, y0 - e2 * 168, 30 - t2 * 4, TOKENS.gold, a * 0.16 / t2);
+      dot(ctx, x0 + dx * e2, y0 - e2 * 140, 28 - t2 * 4, s06_s07_C.torch, a * 0.13 / t2);
     }
-    dot(ctx, x, y, 56, TOKENS.gold, a * 0.30);
+    dot(ctx, x, y, 50, s06_s07_C.torch, a * 0.26);
     ctx.restore();
     ctx.save(); ctx.globalAlpha *= a;
-    itemIcon(ctx, 'pumpkin', x, y, 5.4, { rotate: (hash2(k, 9) - 0.5) * 0.5 + life * 0.5 });
+    itemIcon(ctx, 'pumpkin', x, y, 4.9, { rotate: (hash2(k, 9) - 0.5) * 0.5 + life * 0.5 });
     ctx.restore();
   }
 }
@@ -228,7 +228,7 @@ function s06_s07_spot(ctx, t) {
 
 /* red warning HUD: brackets + Press Start 2P label; calms down once the bot is back */
 function s06_s07_warnHud(ctx, t) {
-  const p = ez(t, 15.02, 15.30, E.outExpo);
+  const p = ez(t, 14.97, 15.26, E.outExpo);
   if (p <= 0.001) return;
   const alarm = 1 - remap(t, 16.42, 16.70);                 // 1 = red alert, 0 = resolved
   const pu = (0.45 + 0.55 * pulse(t, 0.5, 5.5, 15.0)) * alarm + (1 - alarm) * 0.5;
@@ -291,7 +291,7 @@ function s06_s07_loading(ctx, t) {
   const a = win(t, 15.92, 16.06, 16.40, 16.52);
   if (a <= 0.01) return;
   const p = clamp(remap(t, 15.94, 16.42) * 1.03);        // linear: the bar must visibly travel
-  const len = 460, x0 = CX - len / 2, by = 1318, th = 14;
+  const len = 460, x0 = CX - len / 2, by = 936, th = 14;
   ctx.save(); ctx.globalAlpha *= a;
   progressBar(ctx, CX, by, len, p, { color: TOKENS.secondary, thickness: th, track: '#FFFFFF' });
   // specular highlight running along the filled part
@@ -310,7 +310,7 @@ function s06_s07_loading(ctx, t) {
     const on = 0.25 + 0.75 * Math.max(0, Math.sin((t - 15.95) * 7.4 - k * 0.9));
     ctx.fillStyle = rgba(TOKENS.violetHot, 0.25 + 0.7 * on);
     const s = 12 + 4 * on;
-    ctx.fillRect(CX - 30 + k * 30 - s / 2, 1372 - s / 2, s, s);
+    ctx.fillRect(CX - 30 + k * 30 - s / 2, 974 - s / 2, s, s);
   }
   ctx.restore();
 }
@@ -393,9 +393,9 @@ SCENES.s06 = {
 
     /* subline — three sentences, 15.5 / 16.4 / 16.9 */
     const subs = [
-      { s: 'Trennt sich.', t0: 15.50, y: 778, c: rgba(T().text, 0.85) },
-      { s: 'Kommt zurück.', t0: 16.40, y: 834, c: rgba(T().text, 0.85) },
-      { s: 'Gleiche Stelle.', t0: 16.90, y: 890, c: TOKENS.violetHot },
+      { s: 'Trennt sich.', t0: 15.50, y: 752, c: rgba(T().text, 0.85) },
+      { s: 'Kommt zurück.', t0: 16.40, y: 808, c: rgba(T().text, 0.85) },
+      { s: 'Gleiche Stelle.', t0: 16.90, y: 864, c: TOKENS.violetHot },
     ];
     for (const s of subs) {
       const p = ez(t, s.t0, s.t0 + 0.34, E.outExpo);
@@ -412,7 +412,7 @@ SCENES.s06 = {
 /* ================================================================== s07 phone */
 const s06_s07_PW = 480, s06_s07_PH = 700;               // phone body in px
 const s06_s07_OW = 620, s06_s07_OH = 900;               // offscreen size
-const s06_s07_PCY = 1072;                               // phone centre on screen (button lands ~y 1279)
+const s06_s07_PCY = 1060;                               // phone centre on screen (STOPP button lands ~y 1218–1310)
 let s06_s07_pc = null, s06_s07_px = null;
 function s06_s07_poff() {
   if (!s06_s07_pc) { s06_s07_pc = makeCanvas(s06_s07_OW, s06_s07_OH); s06_s07_px = s06_s07_pc.getContext('2d'); }
@@ -533,11 +533,12 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
   ctx.fillStyle = TOKENS.violetHot; ctx.fillRect(left, bot - 10, 16, 5);
   ctx.globalAlpha = 1;
   // a soft violet scan band travelling down the feed keeps the screen alive
-  const sc0 = ((t - 17.5) * 0.42) % 1, syy = lerp(top, bot, sc0);
+  const sc0 = ((t - 17.5) * 0.62) % 1, syy = lerp(top, bot, sc0);
   ctx.globalCompositeOperation = 'lighter';
-  const sg = ctx.createLinearGradient(0, syy - 60, 0, syy + 60);
-  sg.addColorStop(0, 'rgba(0,0,0,0)'); sg.addColorStop(0.5, rgba(TOKENS.secondary, 0.16)); sg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = sg; ctx.fillRect(x, syy - 60, w, 120);
+  const sg = ctx.createLinearGradient(0, syy - 70, 0, syy + 70);
+  sg.addColorStop(0, 'rgba(0,0,0,0)'); sg.addColorStop(0.5, rgba(TOKENS.secondary, 0.20)); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sg; ctx.fillRect(x, syy - 70, w, 140);
+  ctx.fillStyle = rgba(TOKENS.violetHot, 0.34); ctx.fillRect(x, syy - 1.5, w, 3);
   ctx.restore();
 
   /* the one-click control */
@@ -545,16 +546,18 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
   const press = win(t, 18.98, 19.03, 19.12, 19.20) + win(t, 19.50, 19.55, 19.62, 19.70);
   const sc = 1 - 0.035 * clamp(press);
   const label = stopped ? 'START' : 'STOPP';
-  const col = stopped ? '#22B45E' : T().primary;
+  // green stays a signal, never a surface: while stopped the chrome goes dark violet with a thin ok outline
+  const col = stopped ? '#1C1630' : T().primary;
+  const edge = stopped ? TOKENS.ok : rgba('#FFFFFF', 0.18);
   ctx.save();
   ctx.translate(x + w / 2, by + bh / 2); ctx.scale(sc, sc); ctx.translate(-(x + w / 2), -(by + bh / 2));
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.35 + 0.3 * clamp(press);
-  dot(ctx, x + w / 2, by + bh / 2, bw * 0.55, col, 0.5); ctx.restore();
-  ctx.fillStyle = mixColor(col, '#000000', 0.12 + 0.18 * clamp(press));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= (stopped ? 0.16 : 0.35) + 0.3 * clamp(press);
+  dot(ctx, x + w / 2, by + bh / 2, bw * 0.55, stopped ? TOKENS.ok : col, 0.5); ctx.restore();
+  ctx.fillStyle = stopped ? col : mixColor(col, '#000000', 0.12 + 0.18 * clamp(press));
   roundRect(ctx, bx, by, bw, bh, 16); ctx.fill();
-  ctx.strokeStyle = rgba('#FFFFFF', 0.18); ctx.lineWidth = 2; roundRect(ctx, bx + 1, by + 1, bw - 2, bh - 2, 15); ctx.stroke();
+  ctx.strokeStyle = edge; ctx.lineWidth = stopped ? 3 : 2; roundRect(ctx, bx + 1, by + 1, bw - 2, bh - 2, 15); ctx.stroke();
   drawText(ctx, label, x + w / 2, by + bh / 2 + 2,
-    { size: 48, family: FONTS.body, weight: 800, color: '#FFF4F4', align: 'center', tracking: 2 });
+    { size: 48, family: FONTS.body, weight: 800, color: stopped ? TOKENS.ok : '#FFF4F4', align: 'center', tracking: 2 });
   ctx.restore();
   return { bx: bx, by: by + bh / 2 };
 }
@@ -595,21 +598,36 @@ function s06_s07_finger(ctx, t, P, vBtn) {
 SCENES.s07 = {
   draw(ctx, lt, t) {
     FX.shake = Math.max(FX.shake, 5 * impulse(t, 19.00, 16) + 3 * impulse(t, 19.52, 16));
+    // exit ramp before the 20.5 cut — type lifts off and the phone glow drops
+    const outP = E.inOutCubic(clamp(remap(t, 20.30, 20.50)));
 
     /* backdrop: violet breath + drifting voxel dust */
     nightSky(ctx, t, { count: 60, seed: 91, color: '#CFC6E8', alpha: 0.2, hMul: 1, drift: true });
     s06_s07_dust(ctx, t, 0.4);
-    radialFill(ctx, CX, s06_s07_PCY, 720,
-      [[0, rgba(TOKENS.secondary, 0.16 + 0.05 * Math.sin((t - 17.5) * 2))], [0.6, rgba(TOKENS.deepViolet, 0.06)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    // beat pulse behind the phone (18.0 / 18.5 / 19.0 / 19.5 / 20.0 …)
+    const beat = pulse(t, 0.5, 6.5, 17.5);
+    radialFill(ctx, CX, s06_s07_PCY, 760,
+      [[0, rgba(TOKENS.secondary, 0.15 + 0.05 * Math.sin((t - 17.5) * 2) + 0.09 * beat)], [0.6, rgba(TOKENS.deepViolet, 0.06 + 0.03 * beat)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    // the 17.5 braam: a violet impact ring so the cut lands on a hit, not on a hole
+    const imp = 1 - remap(t, 17.50, 17.90);
+    if (imp > 0.01) {
+      radialFill(ctx, CX, s06_s07_PCY, 900,
+        [[0, rgba(TOKENS.violetHot, 0.30 * imp * imp)], [0.55, rgba(TOKENS.secondary, 0.12 * imp)], [1, 'rgba(0,0,0,0)']], 'lighter');
+      shockwave(ctx, CX, s06_s07_PCY, remap(t, 17.50, 17.92), { radius: 700, color: TOKENS.violetHot, width: 14, alpha: 0.55 });
+      speedLines(ctx, t, { count: 22, seed: 17, color: TOKENS.secondary, speed: 1900, dir: 1, alpha: 0.26 * imp * imp });
+    }
+
+    lightSweep(ctx, ((t - 17.5) / 2) % 1, { angle: -0.42, width: 620, color: TOKENS.secondary, alpha: 0.075 });
 
     /* the phone, rendered flat and then mapped with a perspective yaw */
-    const fly = ez(t, 17.50, 17.96, E.outExpo);
+    const fly = ez(t, 17.50, 17.90, E.outExpo);
+    const breath = 1 + 0.014 * Math.sin((t - 17.5) * 1.7);         // never stops moving
     const P = {
-      cx: lerp(CX + 330, CX, fly),
-      cy: lerp(s06_s07_PCY + 300, s06_s07_PCY, fly),
-      k: lerp(0.72, 1, fly),
-      yaw: lerp(-0.62, 0, fly) + 0.055 * Math.sin((t - 17.5) * 0.85),
-      roll: lerp(0.20, 0, fly) + 0.014 * Math.sin((t - 17.5) * 0.62),
+      cx: lerp(CX + 104, CX, fly) + 7 * Math.sin((t - 17.5) * 0.73),
+      cy: lerp(s06_s07_PCY + 44, s06_s07_PCY, fly) + 11 * Math.sin((t - 17.5) * 1.35 + 0.6),
+      k: lerp(0.90, 1, fly) * breath,
+      yaw: lerp(-0.34, 0, fly) + 0.09 * Math.sin((t - 17.5) * 1.05),
+      roll: lerp(0.115, 0, fly) + 0.022 * Math.sin((t - 17.5) * 0.66 + 1.3),
       f: 1250,
     };
     const x = s06_s07_poff();
@@ -622,7 +640,7 @@ SCENES.s07 = {
     const vBtn = (btn ? btn.by : s06_s07_OH / 2) - s06_s07_OH / 2;
 
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    dot(ctx, P.cx, P.cy + s06_s07_PH * 0.52 * P.k, 300 * P.k, TOKENS.secondary, 0.16);
+    dot(ctx, P.cx, P.cy + s06_s07_PH * 0.50 * P.k, 290 * P.k, TOKENS.secondary, (0.14 + 0.06 * beat) * (1 - outP * 0.85));
     ctx.restore();
 
     ctx.save();
@@ -640,21 +658,27 @@ SCENES.s07 = {
 
     s06_s07_finger(ctx, t, P, vBtn);
 
-    /* headline — two lines, slam at 17.55 / 17.67 */
-    band(ctx, 540, 300, 0.5);
+    /* type exit: lift and fade the block before the 20.5 cut so the dissolve starts clean */
+    ctx.save();
+    ctx.globalAlpha *= 1 - outP;
+    ctx.translate(0, -46 * outP);
+
+    /* headline — two lines, slam at 17.47 / 17.59 (readable on the very first frame of the cut) */
+    band(ctx, 470, 320, 0.5);
     const hOpt = { size: 104, family: FONTS.body, weight: 800, color: T().text, align: 'center' };
-    const s1 = s06_s07_fit(ctx, 'Steuerung', hOpt, 790), s2 = s06_s07_fit(ctx, 'vom Handy.', hOpt, 790);
-    s06_s07_slam(ctx, 'Steuerung', CX, 470, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 17.55);
-    s06_s07_slam(ctx, 'vom Handy.', CX, 580, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 17.67);
+    const s1 = s06_s07_fit(ctx, 'Steuerung', hOpt, 700), s2 = s06_s07_fit(ctx, 'vom Handy.', hOpt, 700);
+    s06_s07_slam(ctx, 'Steuerung', CX, 400, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 17.47);
+    s06_s07_slam(ctx, 'vom Handy.', CX, 508, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 17.59);
 
     /* subline — two lines so it stays inside the safe area */
     const subs = ['Live-Konsole · Statistiken', '1-Klick-Stopp.'];
     subs.forEach((s, i) => {
-      const p = ez(t, 18.10 + i * 0.14, 18.44 + i * 0.14, E.outExpo);
+      const p = ez(t, 18.00 + i * 0.14, 18.34 + i * 0.14, E.outExpo);
       if (p <= 0) return;
       const o = { size: 46, family: FONTS.head, weight: 500, color: rgba(T().text, 0.85), align: 'center', stagger: 0.5, ease: E.outExpo };
-      o.size = s06_s07_fit(ctx, s, Object.assign({}, o, { trackF: 0.02 }), 790); o.tracking = 0.02 * o.size;
-      drawKinetic(ctx, s, CX, 666 + i * 54, o, p, 'rise');
+      o.size = s06_s07_fit(ctx, s, Object.assign({}, o, { trackF: 0.02 }), 700); o.tracking = 0.02 * o.size;
+      drawKinetic(ctx, s, CX, 606 + i * 54, o, p, 'rise');
     });
+    ctx.restore();
   },
 };

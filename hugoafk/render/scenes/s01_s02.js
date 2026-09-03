@@ -233,19 +233,21 @@ SCENES.s01 = {
 
     nightSky(ctx, t, { count: 60, seed: 21, alpha: 0.22 * remap(t, 1.6, 2.4), hMul: 0.58, drift: true });
 
-    const revealP = ez(t, 1.44, 2.1, E.outCubic);
+    const revealP = ez(t, 1.38, 2.1, E.outCubic);
     const botA = ez(t, 1.30, 1.56, E.outCubic) * (0.82 + 0.18 * Math.sin(t * 7));
     // continuous camera: a slow creep out of the reveal, then the push into the cut —
     // no frame between 1.3 and 3.0 sits still.
-    const creep = remap(t, 1.26, 2.05), push = ez(t, 2.05, 3.0, E.inOutCubic);
-    const zoom = 1 + 0.05 * creep + 0.16 * push;
-    withCamera(ctx, { zoom, x: 7 * Math.sin((t - 1.3) * 1.15), y: -9 * creep - 22 * push, ox: CX, oy: 1500 }, c => {
+    const creep = remap(t, 1.26, 3.0), push = ez(t, 2.30, 3.0, E.inQuad);
+    const zoom = 1 + 0.075 * creep + 0.125 * push;
+    withCamera(ctx, { zoom, x: 10 * Math.sin((t - 1.3) * 1.4), y: -13 * creep - 16 * push, ox: CX, oy: 1500 }, c => {
       // ground glow so the wireframe does not float in nothing
       radialFill(c, CX, 1520, 700, [[0, rgba(TOKENS.deepViolet, 0.34 * revealP)], [1, 'rgba(0,0,0,0)']], 'lighter');
       s01_s02_worldCubes(c, t, true, revealP);
       s01_s02_bot(c, t, true, botA);
       s01_s02_items(c, t, true, revealP, t > 1.42 ? 1200 : 0);
     });
+    // violet motes drifting up out of the farm — keeps the hold alive under the copy
+    s01_s02_dust.draw(ctx, t, { alpha: 0.34 * remap(t, 1.27, 1.95), scale: 1 });
 
     // headlines
     const hp = ez(t, 1.25, 1.55, E.outExpo), sp = ez(t, 1.75, 2.10, E.outExpo);
@@ -302,7 +304,7 @@ function s01_s02_matteCache() {
   if (s01_s02_matteC) return s01_s02_matteC;
   const L = s01_s02_lock(), pad = 70;
   const c = makeCanvas(Math.ceil(L.w + pad * 2), Math.ceil(L.h + pad * 2)), x = c.getContext('2d');
-  x.filter = 'blur(18px)'; x.drawImage(IMG.logo, pad, pad, L.w, L.h);
+  x.filter = 'blur(13px)'; x.drawImage(IMG.logo, pad, pad, L.w, L.h);
   x.filter = 'none';
   x.globalCompositeOperation = 'source-in';
   x.fillStyle = '#05040A'; x.fillRect(0, 0, c.width, c.height);
@@ -343,6 +345,30 @@ const s01_s02_dust = new Particles({
 });
 const s01_s02_kick = t => t < 3.46 ? 0 : pulse(t, 0.5, 7, 3.5);
 
+// voxel motes rising behind the lockup — the farm's particles carried into the logo
+// beat, and the thing that keeps the picture moving between the kicks
+const s01_s02_MOTES = (() => {
+  const r = rng(2609), out = [];
+  for (let i = 0; i < 44; i++) out.push({
+    x: 40 + r() * (W - 80), sz: 9 + r() * 20, sp: 62 + r() * 110, ph: r() * 2400,
+    sway: 14 + r() * 30, swf: 0.5 + r() * 0.9, spin: (r() - 0.5) * 0.5,
+    col: r() < 0.72 ? '#A855F7' : '#C77DFF', a: 0.16 + r() * 0.22,
+  });
+  return out;
+})();
+function s01_s02_motes(ctx, t, alpha) {
+  if (alpha <= 0.01) return;
+  const span = H + 320;
+  for (const m of s01_s02_MOTES) {
+    const y = H + 160 - (((t * m.sp + m.ph) % span) + span) % span;
+    const x = m.x + Math.sin(t * m.swf + m.ph) * m.sway;
+    cube(ctx, 0, 0, 0, {
+      size: m.sz, cx: x, cy: y, color: m.col, alpha: m.a * alpha,
+      topF: 1.35, leftF: 0.8, rightF: 0.52,
+    });
+  }
+}
+
 function s01_s02_grid(ctx, t) {
   const p = ez(t, 4.6, 5.8, E.outCubic);
   if (p <= 0) return;
@@ -371,15 +397,19 @@ SCENES.s02 = {
 
     /* -------- backdrop */
     const SCX = s01_s02_SCX;
-    const bgp = 0.16 + 0.14 * k;
+    const bgp = 0.16 + 0.09 * k;
     radialFill(ctx, SCX, s01_s02_LOCKY, 900,
       [[0, rgba(TOKENS.deepViolet, bgp)], [0.55, rgba(TOKENS.deepViolet, bgp * 0.35)], [1, 'rgba(0,0,0,0)']], 'lighter');
     radialFill(ctx, SCX, s01_s02_LOCKY - 190, 620,
-      [[0, rgba(T().primary, 0.10 + 0.10 * k)], [1, 'rgba(0,0,0,0)']], 'lighter');
+      [[0, rgba(T().primary, 0.10 + 0.06 * k)], [1, 'rgba(0,0,0,0)']], 'lighter');
     nightSky(ctx, t, { count: 70, seed: 21, alpha: 0.22, hMul: 0.6, drift: true });
 
-    withCamera(ctx, { zoom: 1 + 0.05 * ez(t, 4.6, 6.0, E.inOutCubic), y: -10 * ez(t, 4.6, 6.0, E.inOutCubic) }, c => {
+    // background camera: a constant slow drift from the impact on, then the push of the
+    // last bar — the backdrop is never still between the kicks
+    const bdrift = remap(t, 3.2, 4.6), bpush = ez(t, 4.6, 6.0, E.inOutCubic);
+    withCamera(ctx, { zoom: 1 + 0.022 * bdrift + 0.05 * bpush, x: 7 * Math.sin((t - 3.2) * 0.85), y: -5 * bdrift - 10 * bpush }, c => {
       s01_s02_grid(c, t);
+      s01_s02_motes(c, t, 0.9 * remap(t, 3.16, 3.7));
       // the farm from s01 keeps running behind the logo — violet wireframe horizon
       const fp = ez(t, 4.45, 5.8, E.outCubic);
       if (fp > 0.01) {
@@ -407,21 +437,28 @@ SCENES.s02 = {
     const sc = 1 + breathe + 0.022 * k + 0.05 * Math.exp(-16 * Math.max(0, t - HIT)) + 0.03 * ez(t, 5.75, 6.0, E.inQuad);
     const hy = L.y + dyH, ay = L.y + L.M.afk.offsetY * L.s + dyA;
 
+    // slow sway on top of the breathe — the biggest bright object in frame keeps moving
+    // between the kicks (amplitude budgeted into the safe-area maths above)
+    const swx = t > 3.2 ? 5.0 * Math.sin((t - 3.2) * 1.05) : 0;
+    const swy = t > 3.2 ? 6.5 * Math.sin((t - 3.2) * 1.55) : 0;
+
     ctx.save();
-    ctx.translate(SCX, s01_s02_LOCKY); ctx.scale(sc, sc); ctx.translate(-SCX, -s01_s02_LOCKY);
+    ctx.translate(SCX + swx, s01_s02_LOCKY + swy); ctx.scale(sc, sc); ctx.translate(-SCX, -s01_s02_LOCKY);
 
     if (t > 3.04) {
       const app = clamp(remap(t, 3.04, 3.16));
-      // dark plate first: keeps the counters and the letter gaps black
-      const Mt = s01_s02_matteCache();
-      ctx.save(); ctx.globalAlpha = 0.62 * app;
-      ctx.drawImage(Mt.c, L.x - Mt.pad, L.y - Mt.pad);
-      ctx.restore();
-      // then the halo — masked to the outside of the letterforms, capped so the seams survive
+      // halo first — already masked to the outside of the letterforms …
       const G = s01_s02_glowCache();
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = (0.20 + 0.18 * k + 0.16 * Math.exp(-9 * Math.max(0, t - HIT))) * app;
+      ctx.globalAlpha = (0.24 + 0.16 * k + 0.18 * Math.exp(-9 * Math.max(0, t - HIT))) * app;
       ctx.drawImage(G.c, L.x - G.pad, L.y - G.pad);
+      ctx.restore();
+      // … then a tight near-black plate ON TOP of it: the halo can only survive outside
+      // the plate's feather, so the counters and the narrow gaps between the letters
+      // stay dark and the wordmark reads as letters instead of one red slab.
+      const Mt = s01_s02_matteCache();
+      ctx.save(); ctx.globalAlpha = 0.88 * app;
+      ctx.drawImage(Mt.c, L.x - Mt.pad, L.y - Mt.pad);
       ctx.restore();
     }
     // motion trail while the halves travel
