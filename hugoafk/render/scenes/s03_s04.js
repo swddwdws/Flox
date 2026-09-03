@@ -309,10 +309,11 @@ const s03_s04_PUMPKINS = (() => {
 
 // one item every 0.25 s
 const s03_s04_ITEMS = (() => {
-  const kinds = ['pumpkin', 'emerald', 'pumpkin', 'spawner', 'pumpkin', 'emerald', 'pumpkin', 'emerald'];
+  // real HugoSMP AFK loot: pumpkins, sea pickles and spawner drops
+  const kinds = ['pumpkin', 'sea_pickle', 'pumpkin', 'rotten_flesh', 'sea_pickle', 'bone', 'pumpkin', 'gunpowder', 'sea_pickle', 'string', 'pumpkin', 'rotten_flesh'];
   const out = [];
   for (let k = 0; k < kinds.length; k++) {
-    out.push({ k: k, t0: 9.25 + k * 0.25, kind: kinds[k], src: kinds[k] === 'spawner' ? null : s03_s04_PUMPKINS[(k * 7 + 3) % s03_s04_PUMPKINS.length] });
+    out.push({ k: k, t0: 9.25 + k * 0.25, kind: kinds[k], src: (kinds[k] === 'pumpkin' || kinds[k] === 'sea_pickle') ? s03_s04_PUMPKINS[(k * 7 + 3) % s03_s04_PUMPKINS.length] : null });
   }
   return out;
 })();
@@ -424,7 +425,7 @@ function s03_s04_flyingItems(ctx, t, slot) {
     const ctrl = [Math.max(a[0], b[0]) + 190, lerp(a[1], b[1], 0.30) - 150];
     const q = s03_s04_bez(E.inOutQuad(p), a, ctrl, b);
     const sc = lerp(0.5, 0.95, E.outBack(clamp(p * 3))) * lerp(1, 0.55, clamp(remap(p, 0.80, 1)));
-    const gc = it.kind === 'emerald' ? '#22DD77' : it.kind === 'spawner' ? TOKENS.violetHot : s03_s04_C.pumpkin;
+    const gc = it.kind === 'sea_pickle' ? '#8FBF4A' : (it.kind === 'rotten_flesh' || it.kind === 'bone' || it.kind === 'string' || it.kind === 'gunpowder') ? TOKENS.violetHot : s03_s04_C.pumpkin;
     const dim = lerp(1, 0.40, win(q[1], 500, 570, 920, 985));   // pass behind the copy band
     ctx.save(); ctx.globalAlpha *= dim;
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, q[0], q[1], 52 * sc, gc, 0.42 * (1 - p * 0.35)); ctx.restore();

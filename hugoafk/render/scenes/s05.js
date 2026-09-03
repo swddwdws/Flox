@@ -63,7 +63,7 @@ function s05_icon(ctx, name, x, y, px, o) {
   const sp = SPRITES[name]; if (!sp) return;
   itemIcon(ctx, name, x, y, px / sp.rows.length, o);
 }
-const s05_GLOWC = { pumpkin: '#E08020', emerald: '#22DD77', spawner: '#8B5CF6', coin: TOKENS.gold };
+const s05_GLOWC = { pumpkin: '#E08020', sea_pickle: '#8FBF4A', rotten_flesh: '#8A4433', bone: '#E9E5D2', string: '#E9E5D2', gunpowder: '#767676', emerald: '#19C46B', gold_ingot: TOKENS.gold, coin: TOKENS.gold };
 
 /* ------------------------------------------------------------------ item tables */
 // 27 slots fill in six bursts on the sixteenths 12.00 … 12.625 (4–5 slots per burst,
@@ -75,7 +75,7 @@ const s05_ITEMS = (() => {
   for (let g = 0; g < s05_BURSTS.length; g++) {
     for (let j = 0; j < s05_BURSTS[g]; j++, i++) {
       const v = r();
-      const kind = v < 0.62 ? 'pumpkin' : v < 0.85 ? 'emerald' : 'spawner';
+      const kind = v < 0.42 ? 'pumpkin' : v < 0.64 ? 'sea_pickle' : v < 0.78 ? 'rotten_flesh' : v < 0.88 ? 'bone' : v < 0.95 ? 'gunpowder' : 'string';
       const p = s05_slotXY(i);
       out.push({
         i: i, kind: kind, x: p.x, y: p.y, row: p.r, col: p.c,
@@ -96,7 +96,7 @@ const s05_HOTITEMS = (() => {
   const out = [], r = rng(77);
   for (let k = 0; k < 9; k++) {
     const v = r();
-    out.push({ k: k, kind: v < 0.5 ? 'pumpkin' : v < 0.82 ? 'emerald' : 'spawner', t0: 12.01 + k * 0.012, tOut: 13.20 + 0.045 + k * 0.010 });
+    out.push({ k: k, kind: v < 0.38 ? 'pumpkin' : v < 0.62 ? 'sea_pickle' : v < 0.78 ? 'rotten_flesh' : v < 0.88 ? 'bone' : v < 0.95 ? 'gunpowder' : 'string', t0: 12.01 + k * 0.012, tOut: 13.20 + 0.045 + k * 0.010 });
   }
   return out;
 })();
@@ -107,6 +107,7 @@ const s05_COINS = (() => {
   for (let n = 0; n < 24; n++) {
     const src = s05_slotXY(Math.floor(r() * 27));
     out.push({
+      i: n,
       x: src.x + (r() - 0.5) * 60, y: src.y + (r() - 0.5) * 40,
       t0: 13.20 + r() * 0.34, dur: 0.52 + r() * 0.24,
       dx: (r() - 0.5) * 190, rise: 250 + r() * 190,
@@ -118,9 +119,9 @@ const s05_COINS = (() => {
 
 // the macro keeps running: items drop back in during the tail (Achtel-Raster)
 const s05_REFILL = [
-  { i: 0, kind: 'pumpkin', t0: 13.875 }, { i: 1, kind: 'pumpkin', t0: 14.125 },
-  { i: 2, kind: 'emerald', t0: 14.375 }, { i: 3, kind: 'pumpkin', t0: 14.50 },
-  { i: 4, kind: 'pumpkin', t0: 14.625 }, { i: 5, kind: 'spawner', t0: 14.75 },
+  { i: 0, kind: 'pumpkin', t0: 13.875 }, { i: 1, kind: 'sea_pickle', t0: 14.125 },
+  { i: 2, kind: 'pumpkin', t0: 14.375 }, { i: 3, kind: 'rotten_flesh', t0: 14.50 },
+  { i: 4, kind: 'sea_pickle', t0: 14.625 }, { i: 5, kind: 'bone', t0: 14.75 },
   { i: 6, kind: 'pumpkin', t0: 14.875 },
 ];
 
@@ -324,7 +325,7 @@ function s05_coins(ctx, t) {
     if (a <= 0.01) continue;
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * 0.5;
     dot(ctx, x, y, c.sz * 1.1, TOKENS.gold, 0.6); ctx.restore();
-    s05_icon(ctx, 'coin', x, y, c.sz * (1 + 0.12 * Math.sin(q * 12 + c.ph)), { alpha: a });
+    s05_icon(ctx, c.i % 3 === 0 ? 'emerald' : 'gold_ingot', x, y, c.sz * (1 + 0.12 * Math.sin(q * 12 + c.ph)), { alpha: a });
   }
   ctx.restore();
 }

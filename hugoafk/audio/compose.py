@@ -230,6 +230,13 @@ a, b = S.n_of(26.35), S.n_of(26.5); r = S.n_of(0.003)
 gate = np.ones(n_total); gate[a:b] = 0; gate[a - r:a] = np.linspace(1, 0, r); gate[b:b + r] = np.linspace(0, 1, r)
 mix *= gate[:, None]
 fo = np.interp(tt, [0, 28.6, 29.6, 30], [1, 1, 0, 0]); mix *= fo[:, None]
+if os.environ.get('NOMUSIC') == '1':
+    # SFX-only variant: no score, no drums — for laying a licensed track over the video
+    # inside the TikTok editor (the cuts sit on a 120 BPM grid).
+    m2 = fx * 0.85
+    m2 = m2 + 0.5 * S.highpass(m2, 3500, 1)
+    m2 *= gate[:, None]; m2 *= fo[:, None]
+    mix = m2
 out = S.master(mix, target_tp=S.db(-1.5)) * fo[:, None]
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
 S.write_wav(OUT, out)
