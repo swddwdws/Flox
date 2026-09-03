@@ -1,0 +1,127 @@
+{
+  "title": "HugoAFK — Bleib online. Auch offline.",
+  "product": {
+    "name": "HugoAFK",
+    "site": "HugoAFK.com",
+    "launch": "20.09.2026",
+    "what": "Browserbasierter AFK-Client für den Minecraft-Server HugoSMP. Der Bot läuft in der Cloud, der eigene PC kann aus sein.",
+    "claim": "Bleib online. Auch offline.",
+    "features": [
+      "24/7 AFK an Pickle- und Pumpkin-Farmen oder am Spawner",
+      "Sell-Makro: öffnet /sell, zahlt das Inventar ein und bestätigt, wenn es voll ist",
+      "Spawner-Loot wird automatisch geleert und über das Ordersystem verkauft",
+      "World-Reset-Erkennung: trennt rechtzeitig und verbindet danach an derselben Stelle",
+      "Live-Konsole im Browser: Chat, Systemmeldungen, ausgeführte Befehle",
+      "Session-Statistiken (Laufzeit, Leistung)",
+      "Deutsche dedizierte IPs statt geteilter Rechenzentrums-IPs",
+      "Steuerung von Handy, Tablet oder PC — Bot per Klick stoppen"
+    ],
+    "trust": "Vom HugoSMP-Team erlaubt & empfohlen. (Vom Auftraggeber schriftlich bestätigt.)",
+    "no_go": [
+      "Keine erfundenen Zahlen, Preise, Nutzerzahlen oder Benchmarks",
+      "Keine Behauptung, HugoAFK sei offiziell von Mojang/Microsoft/Minecraft",
+      "Kein Cheat-Vokabular (keine Reichweiten-Tricks, keine Bewegungs-Cheats)"
+    ]
+  },
+  "format": {
+    "aspect": "9:16 vertical (TikTok)",
+    "resolution": "1080x1920",
+    "fps": 30,
+    "duration": 30.0,
+    "frames": 900,
+    "safe_area": "Kritischer Text in x 90..900, y 300..1420 (TikTok blendet rechte Leiste und unteren Caption-Block ein). Headlines >= 96 px, Sublines >= 42 px.",
+    "audio": "48 kHz Stereo, AAC-LC; True Peak <= -1 dBTP"
+  },
+  "look": {
+    "palette": "Near-black #08060E, HUGO-Rot #FF2E2E, AFK-Violett #A855F7 (hot #C77DFF), Text #F4F1F8, Muted #9C94AE. Signalfarben nur funktional und sparsam: #4ADE80 (verifiziert/online), #FFD24A (Münzen/Zahlen).",
+    "typography": "Headlines Inter 800 (tracking -0.04em, 96-150 px). Sublines Space Grotesk 500 (42-52 px, Text 85%). Konsole/Chat VT323 (36-44 px). Pixel-Labels Silkscreen 700 oder Press Start 2P (18-30 px, nur kurze Strings wie '24/7', 'PRO', 'ONLINE'). Zahlen JetBrains Mono 600.",
+    "motion": "Blocky, beat-synchron, viel Bewegung: Voxel-Würfel, isometrische Farmen, Minecraft-HUD (Hotbar, Chat), Partikel, Glitch-Cuts, Zoom-Punches. Kein Slideshow-Gefühl: in jeder Szene bewegt sich das Bild kontinuierlich.",
+    "logo_assets": "IMG.logo (1401x888, volles Lockup), IMG.logoHugo (oberer roter Teil, 1401x474), IMG.logoAfk (unterer violetter Teil, 1401x414, offsetY 474 im vollen Lockup). Immer über drawImage einsetzen, niemals nachbauen. Das Lockup nie verzerren (Seitenverhältnis 1401:888 halten)."
+  },
+  "music": {
+    "bpm": 120,
+    "beat": 0.5,
+    "bar": 2.0,
+    "description": "Erst nostalgisch-ruhig (weiche Sinus-Melodie, Nacht-Atmosphäre), ab dem Logo ein treibender elektronischer Beat mit Sub-Bass, Arpeggio und Pixel-Blips; Break bei der Vertrauensszene, danach Build-up mit Riser und Stutter, Drop auf die Endkarte.",
+    "structure": [
+      { "start": 0.0, "end": 3.0, "kind": "intro", "description": "Nacht-Atmosphäre, tiefe Drone, drei weiche Melodietöne, ein 'Power-Off'-Sound bei 1.0, Stille-Atem 2.6-3.0" },
+      { "start": 3.0, "end": 6.0, "kind": "drop", "description": "Impact + Sub-Drop auf das Logo bei 3.0, Beat setzt ein (Kick auf jeder Zählzeit, Hats auf Achteln)" },
+      { "start": 6.0, "end": 20.5, "kind": "drive", "description": "Durchgehender Beat, Arpeggio, Pixel-Blips auf jedem Feature-Beat, Whoosh vor jedem Schnitt, Braam auf jedem Szenenanfang" },
+      { "start": 20.5, "end": 23.5, "kind": "break", "description": "Drums raus, warmer Pad-Akkord, ein Bestätigungs-Ping auf den Haken" },
+      { "start": 23.5, "end": 26.5, "kind": "build", "description": "Kick auf Achteln, dann Sechzehnteln, Riser, Stutter-Glitches, 0.15 s Stille vor 26.5" },
+      { "start": 26.5, "end": 30.0, "kind": "outro", "description": "Finaler Impact auf die Endkarte, Halbzeit-Kicks, Shimmer, sauberes Ausblenden bis 29.6" }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "s01", "name": "Hook: PC aus", "start": 0.0, "end": 3.0,
+      "headline": "PC AUS.", "subline": "FARM LÄUFT WEITER.",
+      "visual": "Nacht auf dem HugoSMP: isometrisches Voxel-Feld (Kürbis-/Pickle-Farm, 3-4 Blockreihen) unten im Bild, Sternenhimmel, ein Spieler-Voxel steht an der Farm. 0.0-0.9: sanfte Kamerafahrt über die Farm, Chat-Zeilen links oben laufen mit. 0.9: ein roter Power-Button-Puls, dann CRT-Power-Off (crtCollapse) — das gesamte Bild kollabiert in 0.25 s auf eine Leuchtlinie und geht aus. 1.2-1.6: Schwarz, nur die violette Bot-Silhouette (Voxel-Umriss) glimmt auf und die Farm erscheint in Violett-Wireframe zurück: der Bot spielt weiter. Headline 'PC AUS.' 1.25-1.55 (Inter 800, 150 px, weiß, y 760); Subline 'FARM LÄUFT WEITER.' 1.75-2.1 (Inter 800, 110 px, violett #C77DFF, y 920). 2.3-3.0: Kamera zoomt langsam auf die violette Farm, Items poppen weiter aus den Kürbissen, Vorfreude auf den Cut.",
+      "effects": ["isometrisches Voxel-Feld", "CRT-Power-Off", "Chat-Overlay", "Sternenhimmel", "Partikel", "Zoom"],
+      "audio_cues": [ { "time": 0.0, "type": "drone" }, { "time": 0.4, "type": "melody" }, { "time": 1.0, "type": "power_off" }, { "time": 1.75, "type": "sub" }, { "time": 2.6, "type": "riser" } ]
+    },
+    {
+      "id": "s02", "name": "Logo-Reveal", "start": 3.0, "end": 6.0,
+      "headline": "", "subline": "Bleib online. Auch offline.", "extra_text": ["AFK-Client für den HugoSMP"],
+      "visual": "3.0: Impact — das Logo schlägt ein: IMG.logoHugo kommt von oben, IMG.logoAfk von unten, beide treffen sich bei 3.12 im Lockup (Breite ~860 px, zentriert um y 780), 3-Frame-RGB-Split, Shockwave-Ring, 600 Voxel-Partikel fliegen nach außen, kurzer Weißblitz. 3.3-4.0: das Lockup atmet (Scale 1.0 -> 1.02), roter und violetter Glow pulsieren auf den Kicks. Subline 'Bleib online. Auch offline.' 3.6-4.0 (Space Grotesk 500, 52 px, y 1120). Kicker 'AFK-Client für den HugoSMP' 4.3-4.6 (Silkscreen 700, 30 px, tracking +0.15em, muted, y 1220). 4.6-6.0: hinter dem Logo baut sich langsam ein violettes Voxel-Gitter auf, ein Lichtstreifen wischt einmal über das Lockup, leichte Kamerafahrt.",
+      "effects": ["Logo-Slam mit Shockwave", "Voxel-Partikelburst", "RGB-Split", "Glow-Puls auf Beats", "Lichtwischer"],
+      "audio_cues": [ { "time": 3.0, "type": "impact" }, { "time": 3.0, "type": "sub_drop" }, { "time": 3.5, "type": "beat_in" }, { "time": 4.3, "type": "blip" } ]
+    },
+    {
+      "id": "s03", "name": "Cloud", "start": 6.0, "end": 9.0,
+      "headline": "Läuft in der Cloud.", "subline": "Dein PC kann aus sein.", "extra_text": ["24/7", "ONLINE"],
+      "visual": "Isometrische Server-Voxel-Türme (3 Stück, unterschiedliche Höhe) mit blinkenden violetten LED-Blöcken, dazwischen Datenlinien mit wandernden Punkten. Links unten ein dunkler, ausgeschalteter PC-Voxel (grau, kein Glow) — die Linie führt von dort weg zu den Servern: die Arbeit ist ausgelagert. Headline zweizeilig 'Läuft in der' / 'Cloud.' (Inter 800, 116 px, y 640/760) mit Slam bei 6.0 und Legibility-Band. Subline 'Dein PC kann aus sein.' 6.5-6.9 (y 880). Rechts oben ein HUD-Chip: grüner Punkt + 'ONLINE' (Silkscreen 24 px) und darunter ein Laufzeitzähler, der sichtbar hochzählt (JetBrains Mono 600, Format '132:04:51'). Bei 8.4 poppt ein '24/7'-Pixel-Badge (Press Start 2P) auf. Ab 8.6 beschleunigen die Datenpunkte in Richtung Schnitt.",
+      "effects": ["isometrische Servertürme", "Datenlinien mit Punkten", "HUD-Chip mit Zähler", "Slam + Band"],
+      "audio_cues": [ { "time": 6.0, "type": "braam" }, { "time": 6.5, "type": "tick" }, { "time": 8.4, "type": "blip" }, { "time": 8.65, "type": "whoosh" } ]
+    },
+    {
+      "id": "s04", "name": "24/7 an der Farm", "start": 9.0, "end": 12.0,
+      "headline": "24/7 an deiner Farm.", "subline": "Pickle · Pumpkin · Spawner.",
+      "visual": "Große isometrische Farm-Plattform (Kürbisreihen als Voxel + ein Spawner-Käfig rechts), der violette Bot-Voxel steht mittig und dreht sich minimal. Alle 0.25 s (Sechzehntel) poppt ein Item-Icon (pumpkin/emerald/spawner-Icons via itemIcon) aus dem Boden, fliegt in einem Bogen nach oben rechts und verschwindet in einem Inventar-Slot am oberen Rand — ein Zähler daneben zählt sichtbar hoch (JetBrains Mono, kein erfundener Endwert, nur laufende Zahl). Headline 'Rund um die Uhr' ist zu lang: nutze '24/7 an deiner Farm.' zweizeilig ('24/7 an' / 'deiner Farm.', Inter 800, 120 px, y 640/760) mit Slam bei 9.0. Subline bei 9.5 (y 880). Die drei Wörter der Subline leuchten nacheinander auf den Achteln 9.5/9.75/10.0 kurz auf. 11.6-12.0: die Kamera fährt hinunter ins Inventar — Übergabe an s05.",
+      "effects": ["isometrische Farm", "Item-Pop-Bögen auf 16teln", "Zähler", "Spawner-Käfig", "Kamerafahrt nach unten"],
+      "audio_cues": [ { "time": 9.0, "type": "braam" }, { "time": 9.25, "type": "item_pop_series" }, { "time": 11.7, "type": "whoosh" } ]
+    },
+    {
+      "id": "s05", "name": "Sell-Makro", "start": 12.0, "end": 15.0,
+      "headline": "Inventar voll?", "subline": "Verkauft sich selbst.", "extra_text": ["/sell", "Sell-Makro"],
+      "visual": "Minecraft-Inventar: 3x9-Raster aus mcSlot (Slotgröße ~84 px, zentriert um y 780) plus Hotbar darunter. 12.0-12.7: die Slots füllen sich sichtbar mit Item-Icons (pro Sechzehntel ein Slot), der letzte Slot füllt sich bei 12.7 -> alle voll, kurzer roter Rahmenblitz mit Pixel-Label 'VOLL'. 12.8-13.2: unten tippt sich in einer Chat-Zeile '/sell' (VT323, Cursor blinkt), bei 13.2 Enter -> alle Item-Icons fliegen in einem Sog nach unten aus dem Raster, Münz-Icons (coin) fliegen nach oben, ein Guthaben-Zähler springt hoch. 13.4: grüner Haken (itemIcon 'check') mit kurzem Puls und Chat-Zeile 'Verkauft.' 13.6-15.0: Headline 'Inventar voll?' (Inter 800, 120 px, y 400) steht bereits seit 12.1, Subline 'Verkauft sich selbst.' erscheint bei 13.4 (y 520), darunter das Pixel-Label 'Sell-Makro' (Silkscreen, muted). Kein Preis, keine Währungssumme erfinden — der Zähler zeigt nur Bewegung, keine konkrete Behauptung.",
+      "effects": ["Inventarraster", "Slot-Füllung auf 16teln", "Typewriter /sell", "Item-Sog + Münzflug", "grüner Haken"],
+      "audio_cues": [ { "time": 12.0, "type": "braam" }, { "time": 12.1, "type": "slot_series" }, { "time": 12.8, "type": "keys" }, { "time": 13.2, "type": "sell" }, { "time": 13.4, "type": "ping_ok" } ]
+    },
+    {
+      "id": "s06", "name": "World-Reset", "start": 15.0, "end": 17.5,
+      "headline": "World-Reset erkannt.", "subline": "Trennt sich. Kommt zurück. Gleiche Stelle.",
+      "visual": "15.0: Warnung — ein rot pulsierender HUD-Rahmen (brackets), Pixel-Label 'WORLD RESET' (Press Start 2P, rot) und eine Chat-Warnzeile. Das Bild flackert 2 Frames (Glitch). 15.4: der Bot-Voxel trennt sich sichtbar — er löst sich in aufsteigende Voxel-Partikel auf, die Farm bleibt als Wireframe stehen; Chat: 'Verbindung getrennt.' 15.9-16.4: schwarze Pause mit einem Ladebalken (progressBar, violett) und drei Punkten, Chat: 'Warte auf Server...'. 16.4: der Bot materialisiert exakt an derselben Position zurück (Partikel fliegen zusammen), grüner Haken, Chat 'Wieder verbunden. Gleiche Stelle.'. Headline bei 15.05 (Inter 800, 104 px, zweizeilig 'World-Reset' / 'erkannt.', y 620/730), Subline dreiteilig, die drei Sätze erscheinen bei 15.5 / 16.4 / 16.9 nacheinander (y 900, Space Grotesk 46 px).",
+      "effects": ["Warn-HUD", "Glitch", "Bot-Auflösung in Voxel", "Ladebalken", "Rematerialisierung", "Haken"],
+      "audio_cues": [ { "time": 15.0, "type": "alarm" }, { "time": 15.4, "type": "disconnect" }, { "time": 16.4, "type": "reconnect" }, { "time": 16.9, "type": "ping_ok" } ]
+    },
+    {
+      "id": "s07", "name": "Steuerung vom Handy", "start": 17.5, "end": 20.5,
+      "headline": "Steuerung vom Handy.", "subline": "Live-Konsole · Statistiken · 1-Klick-Stopp.",
+      "visual": "Ein Handy (phoneFrame, Breite ~440 px, zentriert um y 900) fliegt bei 17.5 mit leichtem 3D-Kippen ins Bild. Im Display: die Live-Konsole — VT323-Zeilen scrollen von unten nach oben (Chat, Systemmeldungen, ausgeführte Befehle; realistische, aber nicht erfundene Inhalte: '[System] Bot gestartet', '[Chat] <Spieler> hi', '/sell', '[System] Inventar verkauft', '[System] Laufzeit 04:12:33'), oben eine kleine Statuszeile mit grünem Punkt 'ONLINE' und einem Laufzeitzähler. Bei 19.0 tippt ein Finger-Kreis auf einen roten 'STOPP'-Button -> der Button drückt sich, die Konsole zeigt '[System] Bot gestoppt.', der grüne Punkt wird grau. Bei 19.6 startet er wieder (grün). Headline bei 17.55 (Inter 800, 104 px, zweizeilig, y 470/580), Subline bei 18.1 (y 700, ggf. zweizeilig damit sie in die Safe Area passt).",
+      "effects": ["Handy-Frame mit 3D-Kippen", "scrollende Live-Konsole", "Tap-Interaktion", "Statuspunkt"],
+      "audio_cues": [ { "time": 17.5, "type": "braam" }, { "time": 17.6, "type": "console_ticks" }, { "time": 19.0, "type": "tap" }, { "time": 19.6, "type": "ping_ok" } ]
+    },
+    {
+      "id": "s08", "name": "Erlaubt & empfohlen", "start": 20.5, "end": 23.5,
+      "headline": "Vom HugoSMP-Team erlaubt & empfohlen.", "subline": "Kein Cheat. Nur AFK.",
+      "visual": "Ruhe-Moment (Drums raus): dunkler Hintergrund, ein großes Voxel-Schild/Siegel baut sich bei 20.5-20.9 aus einzelnen Würfeln auf (cubeField, violett mit rotem Rand), in der Mitte ein grüner Haken, der sich in 0.25 s zeichnet. Ein weicher Puls-Ring geht einmal nach außen. Headline dreizeilig, ruhig aufsteigend: 'Vom HugoSMP-Team' (20.8) / 'erlaubt' (21.2) / '& empfohlen.' (21.6) — Inter 800, 96 px, y 780/890/1000, das Wort 'erlaubt' in Grün #4ADE80, der Rest weiß. Subline 'Kein Cheat. Nur AFK.' bei 22.2 (y 1140). Ab 22.8 zieht sich das Siegel zusammen und die Energie steigt wieder (Vorbereitung auf den Build).",
+      "effects": ["Voxel-Siegel", "Haken-Pfadanimation", "Pulsring", "ruhige Typo-Staffelung"],
+      "audio_cues": [ { "time": 20.5, "type": "break_pad" }, { "time": 20.9, "type": "ping_ok" }, { "time": 22.8, "type": "riser" } ]
+    },
+    {
+      "id": "s09", "name": "Build: Countdown", "start": 23.5, "end": 26.5,
+      "headline": "20.09.2026", "subline": "HugoAFK.com",
+      "visual": "Build-up: der Bildschirm füllt sich mit einem violett-roten Voxel-Tunnel, der auf die Kamera zurast; auf jedem Kick ein Zoom-Punch und ein Shockwave-Ring. Ein senkrechter Ladebalken am rechten Rand füllt sich von 23.5 bis 26.35. Das Datum '20.09.2026' setzt sich bei 23.6-24.0 aus einzelnen Voxel-Ziffern zusammen (Inter 800, 130 px, y 800) und bekommt ab 25.0 immer stärkere Glitch-Bursts (25.0, 25.5, 25.75, 26.0, 26.125, 26.25). 'HugoAFK.com' erscheint bei 24.4 (Silkscreen 700, 44 px, tracking +0.1em, y 940). Ab 26.0 entsättigt das Bild Richtung Weiß, 26.35-26.5 harter schwarzer Schnitt mit nur einem roten Voxel in der Mitte, Stille.",
+      "effects": ["Voxel-Tunnel", "Kick-Zoom-Punches", "Shockwaves", "Ladebalken", "eskalierende Glitch-Bursts", "Weiß-Wash", "Schwarz-Pause"],
+      "audio_cues": [ { "time": 23.5, "type": "kick_8ths" }, { "time": 25.0, "type": "kick_16ths" }, { "time": 25.0, "type": "stutter_series" }, { "time": 26.35, "type": "silence" } ]
+    },
+    {
+      "id": "s10", "name": "Endkarte", "start": 26.5, "end": 30.0,
+      "headline": "HugoAFK.com", "subline": "Ab 20.09.2026", "extra_text": ["Bleib online. Auch offline."],
+      "visual": "26.5: Detonation — Weißblitz, 2000 Voxel-Partikel nach außen, das volle Logo (IMG.logo, Breite ~880 px, y 700) steht sofort scharf da, Scale-Punch 1.25 -> 1.0, danach ruhiges Atmen und ein Glow-Puls auf den Halbzeit-Kicks (27.5, 28.5). Darunter: 'HugoAFK.com' (Inter 800, 92 px, y 1090) mit einem roten Unterstrich, der von der Mitte nach außen zeichnet (26.9-27.3); 'Ab 20.09.2026' (Space Grotesk 500, 48 px, muted, y 1190) bei 27.4; ein violetter CTA-Pill 'Jetzt vormerken.' (pill, 52 px, dunkler Text) skaliert bei 27.9 ein und bekommt bei 28.6-29.0 einen Specular-Sweep. Ganz unten der Claim 'Bleib online. Auch offline.' (Silkscreen, 30 px, muted, y 1380). Hintergrund: langsam treibende Voxel-Partikel und ein violetter Glow-Atem. Ab 29.2 steht alles ruhig, letztes Bild bleibt vollständig lesbar (kein Ausblenden ins Schwarz).",
+      "effects": ["Logo-Detonation", "Voxel-Partikel", "Unterstrich-Animation", "CTA-Pill mit Sweep", "Glow-Atem"],
+      "audio_cues": [ { "time": 26.5, "type": "impact_final" }, { "time": 27.5, "type": "kick_half" }, { "time": 27.9, "type": "pill" }, { "time": 29.0, "type": "fade" } ]
+    }
+  ]
+}
