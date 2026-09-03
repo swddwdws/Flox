@@ -122,3 +122,9 @@ over the destination window `[start, end]`. The engine maps the time linearly an
 its ORIGINAL time base, so scene code keeps using the absolute seconds it was written with.
 Prefer pure shifts (same duration) — a different duration also stretches the scene's internal
 beat timing.
+
+## Textured cubes inside cubeField
+`cube()` / `cubeField()` accept `tex` (a texture name or `{top, side}`) per cell and draw a real
+textured Minecraft block instead of flat shaded faces; `dark: 0..1` dims it for night scenes.
+Available textures: grass_top, grass_side, dirt, farmland, pumpkin_top, pumpkin_side, spawner,
+oak_planks, stone, chest, iron_block, violet_block, red_block.

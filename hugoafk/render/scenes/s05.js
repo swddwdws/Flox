@@ -2,19 +2,21 @@
    s05  12.0–15.0  "Inventar voll?" / "Verkauft sich selbst."  — Sell-Makro.
    Minecraft-Inventar (3x9 mcSlot + Hotbar), Slots füllen sich auf Sechzehnteln,
    VOLL-Blitz bei 12.70, '/sell' tippt sich 12.82–13.14, Enter 13.20 (Item-Sog nach
-   unten + Münzflug nach oben + Guthaben-Zähler in Bewegung), grüner Haken 13.40.
+   unten + Münzflug nach oben + Guthaben-Anzeige in Bewegung), grüner Haken 13.40,
+   danach läuft das Makro sichtbar weiter (Nachschub auf Achteln → Sechzehnteln →
+   Zweiunddreißigsteln, Kamera-Push-in bis zum Schnitt bei 15.0).
    Alles ist eine reine Funktion von t. Alle Modul-Helfer sind mit s05_ präfixiert.
 
    Geometrie ist bewusst identisch zur Übergabe aus s04 (Slot 84, Pitch 90,
    Raster-Mitten CX + (c-4)*90 / 690,780,870, Panel x120..960 y633..933),
    damit der Schnitt bei 12.0 nahtlos sitzt; das Panel wächst danach nach unten
-   und gibt die Hotbar frei. */
+   und gibt die Hotbar frei. Damit der Schnitt nicht in ein dunkles Loch fällt,
+   ist das Raster bei 12.000 bereits zu einem Drittel gefüllt. */
 
 /* ------------------------------------------------------------------ palette */
 const s05_C = {
   panel: 'rgba(26,22,40,0.92)',
   slot: 'rgba(46,42,62,0.94)',
-  slotEmpty: 'rgba(34,30,48,0.94)',
   bar: 'rgba(8,6,14,0.72)',
   chat: 'rgba(6,5,11,0.60)',
 };
@@ -22,7 +24,7 @@ const s05_C = {
 /* ------------------------------------------------------------------ geometry */
 const s05_G = { s: 84, gap: 6, pitch: 90, cx: CX, y0: 690, cols: 9, rows: 3 };
 const s05_PANEL = { x: 120, y: 633, w: 840, hFrom: 300, hTo: 407 };  // 633..933 -> 633..1040
-const s05_HOT = { y: 936, s: 84, gap: 6, sel: 4 };
+const s05_HOT = { y: 936, s: 84, gap: 6 };
 const s05_CHIP = { y: 1092, w: 462, h: 76 };
 const s05_LOG = { x: 140, y: 1136, w: 540, h: 140 };
 const s05_INP = { x: 140, y: 1296, w: 760, h: 72 };
@@ -58,28 +60,37 @@ function s05_slam(ctx, str, x, y, o, t, t0, dur) {
   drawText(ctx, str, 0, 0, Object.assign({}, o, { alpha: (o.alpha != null ? o.alpha : 1) * clamp(p * 6) }));
   ctx.restore();
 }
-// item icon at a target pixel height (sprites are 8 or 10 rows high)
-function s05_icon(ctx, name, x, y, px, o) {
-  const sp = SPRITES[name]; if (!sp) return;
-  itemIcon(ctx, name, x, y, px / sp.rows.length, o);
+// item icon — the 16x16 sprites want a cell size, 5 px cell ≈ 50 px sichtbares Item im 84er Slot
+function s05_icon(ctx, name, x, y, cell, o) {
+  if (!SPRITES[name]) return;
+  itemIcon(ctx, name, x, y, cell, o);
 }
-const s05_GLOWC = { pumpkin: '#E08020', sea_pickle: '#8FBF4A', rotten_flesh: '#8A4433', bone: '#E9E5D2', string: '#E9E5D2', gunpowder: '#767676', emerald: '#19C46B', gold_ingot: TOKENS.gold, coin: TOKENS.gold };
 
 /* ------------------------------------------------------------------ item tables */
-// 27 slots fill in six bursts on the sixteenths 12.00 … 12.625 (4–5 slots per burst,
-// 18 ms micro-stagger inside a burst) — full at ~12.70.
-const s05_BURSTS = [5, 5, 5, 4, 4, 4];
+/* 27 Rasterslots: 10 sind beim Schnitt (12.000) schon gefüllt — s04 fährt in ein
+   bereits angefülltes Inventar hinein, der erste Frame ist damit hell und detailliert.
+   Die restlichen 17 landen auf den Sechzehnteln 12.000…12.625, voll bei 12.70.
+   Die Hotbar füllt sich dazwischen (32stel-Versatz), also NICHT vorweg. */
+const s05_KINDS = ['pumpkin', 'sea_pickle', 'rotten_flesh', 'bone', 'gunpowder', 'string'];
+function s05_kind(r) {
+  const v = r();
+  return v < 0.42 ? 'pumpkin' : v < 0.64 ? 'sea_pickle' : v < 0.78 ? 'rotten_flesh' : v < 0.88 ? 'bone' : v < 0.95 ? 'gunpowder' : 'string';
+}
+const s05_PREFILL = 10;
+const s05_BURSTS = [3, 3, 3, 3, 3, 2];        // 17 Slots auf 6 Sechzehnteln
 const s05_ITEMS = (() => {
   const out = [], r = rng(505);
   let i = 0;
+  for (; i < s05_PREFILL; i++) {               // schon da, wenn die Szene aufmacht
+    const p = s05_slotXY(i);
+    out.push({ i: i, kind: s05_kind(r), x: p.x, y: p.y, row: p.r, col: p.c, t0: 11.80 + i * 0.012, tOut: 13.20 + (2 - p.r) * 0.022 + p.c * 0.009, wob: r() * 6.283 });
+  }
   for (let g = 0; g < s05_BURSTS.length; g++) {
     for (let j = 0; j < s05_BURSTS[g]; j++, i++) {
-      const v = r();
-      const kind = v < 0.42 ? 'pumpkin' : v < 0.64 ? 'sea_pickle' : v < 0.78 ? 'rotten_flesh' : v < 0.88 ? 'bone' : v < 0.95 ? 'gunpowder' : 'string';
       const p = s05_slotXY(i);
       out.push({
-        i: i, kind: kind, x: p.x, y: p.y, row: p.r, col: p.c,
-        t0: (g === 0 ? 11.955 : 12.0 + g * 0.125) + j * 0.018,
+        i: i, kind: s05_kind(r), x: p.x, y: p.y, row: p.r, col: p.c,
+        t0: 12.0 + g * 0.125 + j * 0.020,
         // Sog nach unten: untere Reihe zuerst, von links nach rechts
         tOut: 13.20 + (2 - p.r) * 0.022 + p.c * 0.009,
         wob: r() * 6.283,
@@ -91,39 +102,54 @@ const s05_ITEMS = (() => {
 const s05_FULL_T = 12.70;
 const s05_ENTER_T = 13.20;
 
-// hotbar loot: pops in over the first three frames, leaves with the sale
+// Hotbar-Beute: füllt sich auf den 32stel-Zwischenschlägen mit dem Raster,
+// der letzte Slot landet 12.6875 — direkt vor dem VOLL-Blitz.
 const s05_HOTITEMS = (() => {
   const out = [], r = rng(77);
+  const times = [12.0625, 12.1875, 12.1875, 12.3125, 12.4375, 12.4375, 12.5625, 12.6875, 12.6875];
   for (let k = 0; k < 9; k++) {
-    const v = r();
-    out.push({ k: k, kind: v < 0.38 ? 'pumpkin' : v < 0.62 ? 'sea_pickle' : v < 0.78 ? 'rotten_flesh' : v < 0.88 ? 'bone' : v < 0.95 ? 'gunpowder' : 'string', t0: 12.01 + k * 0.012, tOut: 13.20 + 0.045 + k * 0.010 });
+    out.push({ k: k, kind: s05_kind(r), t0: times[k] + (k % 2) * 0.022, tOut: 13.20 + 0.045 + k * 0.010 });
   }
   return out;
 })();
 
-// coins: rise out of the grid after the sale
+// coins: rise out of the grid after the sale — außen herum, damit sie den
+// Textblock (Subline y 520 / Label y 588) nicht durchqueren
 const s05_COINS = (() => {
   const out = [], r = rng(9051);
-  for (let n = 0; n < 24; n++) {
+  for (let n = 0; n < 26; n++) {
     const src = s05_slotXY(Math.floor(r() * 27));
+    const side = src.x >= CX ? 1 : -1;
     out.push({
       i: n,
-      x: src.x + (r() - 0.5) * 60, y: src.y + (r() - 0.5) * 40,
-      t0: 13.20 + r() * 0.34, dur: 0.52 + r() * 0.24,
-      dx: (r() - 0.5) * 190, rise: 250 + r() * 190,
-      sz: 30 + r() * 16, ph: r() * 6.283,
+      x: src.x + (r() - 0.5) * 50, y: src.y + (r() - 0.5) * 40,
+      t0: 13.20 + r() * 0.34, dur: 0.50 + r() * 0.22,
+      dx: side * (110 + r() * 165), rise: 150 + r() * 170,
+      cell: 3.0 + r() * 1.5, ph: r() * 6.283,
     });
   }
   return out;
 })();
 
-// the macro keeps running: items drop back in during the tail (Achtel-Raster)
-const s05_REFILL = [
-  { i: 0, kind: 'pumpkin', t0: 13.875 }, { i: 1, kind: 'sea_pickle', t0: 14.125 },
-  { i: 2, kind: 'pumpkin', t0: 14.375 }, { i: 3, kind: 'rotten_flesh', t0: 14.50 },
-  { i: 4, kind: 'sea_pickle', t0: 14.625 }, { i: 5, kind: 'bone', t0: 14.75 },
-  { i: 6, kind: 'pumpkin', t0: 14.875 },
-];
+/* Nachschub im Tail: das Makro sammelt weiter. Kadenz zieht an
+   (Achtel → Sechzehntel → Zweiunddreißigstel), Ziele wandern über alle drei
+   Reihen UND die Hotbar, damit das Bild bis zum Schnitt bei 15.0 lebt. */
+const s05_REFILL = (() => {
+  const out = [], r = rng(707);
+  const times = [13.75, 14.00, 14.25, 14.375, 14.50, 14.625, 14.75, 14.8125, 14.875, 14.9375];
+  const colOrder = [0, 5, 2, 7, 4, 1, 6, 3, 8];
+  const targets = [];
+  for (const c of colOrder) { targets.push({ g: c }, { g: 9 + c }, { g: 18 + c }, { h: c }); }
+  let n = 0;
+  for (let ti = 0; ti < times.length; ti++) {
+    const many = ti >= 6 ? 2 : 1;                       // zum Schluss zwei gleichzeitig
+    for (let m = 0; m < many; m++, n++) {
+      const tg = targets[n % targets.length];
+      out.push({ g: tg.g, h: tg.h, kind: s05_kind(r), t0: times[ti] + m * 0.030 });
+    }
+  }
+  return out;
+})();
 
 /* ------------------------------------------------------------------ Tiefe: dunkle Voxel-Ebene unter dem Panel (reine Deko, unterhalb der Safe-Area) */
 const s05_FLOORCELLS = (() => {
@@ -152,14 +178,14 @@ function s05_floor(ctx, t) {
 
 /* ------------------------------------------------------------------ panel + grid */
 function s05_panelRect(t) {
-  const h = lerp(s05_PANEL.hFrom, s05_PANEL.hTo, ez(t, 12.0, 12.30, E.outCubic));
+  const h = lerp(s05_PANEL.hFrom, s05_PANEL.hTo, ez(t, 12.0, 12.14, E.outCubic));
   return { x: s05_PANEL.x, y: s05_PANEL.y, w: s05_PANEL.w, h: h };
 }
 function s05_panel(ctx, t) {
   const R = s05_panelRect(t);
-  // soft violet bed (cached sprite, no filter)
+  // soft violet bed
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  dot(ctx, CX, R.y + R.h * 0.5, 560, TOKENS.secondary, 0.13);
+  dot(ctx, CX, R.y + R.h * 0.5, 560, TOKENS.secondary, 0.13 + 0.02 * Math.sin((t - 12) * 2.2));
   const red = win(t, s05_FULL_T, s05_FULL_T + 0.05, 13.05, s05_ENTER_T + 0.06);
   if (red > 0.01) dot(ctx, CX, R.y + R.h * 0.5, 520, TOKENS.primary, 0.16 * red);
   const grn = win(t, 13.40, 13.50, 13.9, 14.4);
@@ -168,10 +194,10 @@ function s05_panel(ctx, t) {
 
   ctx.save();
   ctx.fillStyle = s05_C.panel; roundRect(ctx, R.x, R.y, R.w, R.h, 12); ctx.fill();
-  // border: violet -> rot (voll) -> grün (verkauft)
-  const flash = impulse(t, s05_FULL_T, 9), pulseFull = red * (0.45 + 0.55 * pulse(t, 0.5, 5, s05_FULL_T));
+  // border: violett -> rot (voll) -> grün (verkauft), im Tail atmend
+  const flash = impulse(t, s05_FULL_T, 9), pulseFull = red * (0.45 + 0.55 * pulse(t, 0.25, 6, s05_FULL_T));
   const ok = win(t, 13.40, 13.48, 13.75, 14.15);
-  let col = TOKENS.secondary, a = 0.30;
+  let col = TOKENS.secondary, a = 0.30 + 0.10 * Math.sin((t - 12) * 3.1);
   if (pulseFull > 0.02) { col = TOKENS.primary; a = lerp(0.30, 0.95, clamp(pulseFull + flash)); }
   if (ok > 0.02) { col = mixColor(TOKENS.secondary, TOKENS.ok, ok); a = lerp(0.30, 0.8, ok); }
   ctx.strokeStyle = rgba(col, a); ctx.lineWidth = 2 + 3 * Math.max(flash, ok * 0.5);
@@ -179,7 +205,7 @@ function s05_panel(ctx, t) {
   ctx.restore();
 
   // separator above the hotbar
-  const hb = ez(t, 12.05, 12.32, E.outCubic);
+  const hb = ez(t, 12.0, 12.16, E.outCubic);
   if (hb > 0.01) {
     ctx.save(); ctx.globalAlpha *= hb * 0.5;
     ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(R.x + 22, 926, R.w - 44, 2);
@@ -192,7 +218,7 @@ function s05_grid(ctx, t) {
   const s = s05_G.s;
   for (let i = 0; i < 27; i++) {
     const p = s05_slotXY(i);
-    mcSlot(ctx, Math.round(p.x - s / 2), Math.round(p.y - s / 2), s, { fill: t > s05_ENTER_T + 0.5 ? s05_C.slotEmpty : s05_C.slot });
+    mcSlot(ctx, Math.round(p.x - s / 2), Math.round(p.y - s / 2), s, { fill: s05_C.slot });
   }
   // slot flash when an item lands
   ctx.save();
@@ -204,19 +230,30 @@ function s05_grid(ctx, t) {
     ctx.strokeRect(Math.round(it.x - s / 2) + 1.5, Math.round(it.y - s / 2) + 1.5, s - 3, s - 3);
   }
   ctx.restore();
+
+  // "voll" Warnrahmen: pulsiert auf den Achteln, solange /sell getippt wird
+  const warn = win(t, s05_FULL_T, s05_FULL_T + 0.04, s05_ENTER_T - 0.02, s05_ENTER_T + 0.05);
+  if (warn > 0.01) {
+    const beat = 0.45 + 0.55 * pulse(t, 0.25, 7, s05_FULL_T);
+    ctx.save();
+    ctx.globalAlpha *= warn * (0.30 + 0.55 * beat);
+    ctx.strokeStyle = TOKENS.primary; ctx.lineWidth = 3 + 3 * beat;
+    ctx.strokeRect(s05_G.cx - 4.5 * s05_G.pitch + 2, s05_G.y0 - 46, 9 * s05_G.pitch - 4, 3 * s05_G.pitch - 4);
+    ctx.restore();
+  }
 }
 
-// nach dem Verkauf: violetter Suchbalken läuft über das leere Raster (das Makro arbeitet weiter)
+// nach dem Verkauf: violetter Suchbalken läuft über das Raster (das Makro arbeitet weiter)
 function s05_scan(ctx, t) {
-  const a = ez(t, 13.55, 13.85, E.outCubic);
+  const a = ez(t, 13.45, 13.70, E.outCubic);
   if (a <= 0.01) return;
   const gx0 = s05_G.cx - 4.5 * s05_G.pitch, gw = 9 * s05_G.pitch;
-  const q = ((t - 13.55) / 1.15) % 1, x = gx0 - 120 + q * (gw + 240);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= a * 0.5;
+  const q = ((t - 13.45) / 0.75) % 1, x = gx0 - 130 + q * (gw + 260);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= a * 0.85;
   ctx.beginPath(); ctx.rect(gx0, s05_G.y0 - 45, gw, 3 * s05_G.pitch); ctx.clip();
-  linearFill(ctx, x - 110, 0, x + 110, 0,
-    [[0, rgba(TOKENS.secondary, 0)], [0.5, rgba(TOKENS.violetHot, 0.22)], [1, rgba(TOKENS.secondary, 0)]],
-    [x - 110, s05_G.y0 - 45, 220, 3 * s05_G.pitch]);
+  linearFill(ctx, x - 120, 0, x + 120, 0,
+    [[0, rgba(TOKENS.secondary, 0)], [0.5, rgba(TOKENS.violetHot, 0.30)], [1, rgba(TOKENS.secondary, 0)]],
+    [x - 120, s05_G.y0 - 45, 240, 3 * s05_G.pitch]);
   ctx.restore();
 }
 
@@ -225,6 +262,8 @@ function s05_gridItems(ctx, t) {
   const R = s05_panelRect(t);
   ctx.save();
   ctx.beginPath(); ctx.rect(R.x + 2, R.y + 2, R.w - 4, 924 - R.y); ctx.clip();
+  // Druckwelle: solange das Inventar voll ist, wippen die Items sichtbar (links -> rechts)
+  const press = win(t, s05_FULL_T - 0.1, s05_FULL_T + 0.06, s05_ENTER_T - 0.02, s05_ENTER_T + 0.04);
   for (const it of s05_ITEMS) {
     if (t < it.t0) continue;
     const pop = E.outBack(clamp((t - it.t0) / 0.13));
@@ -235,19 +274,22 @@ function s05_gridItems(ctx, t) {
       x = lerp(it.x, CX + (it.x - CX) * 0.22, E.inQuad(q));
       sc *= 1 - 0.4 * q; a *= 1 - remap(q, 0.5, 1);
     } else {
-      y += Math.sin(t * 2.1 + it.wob) * 2.2;
+      y += Math.sin(t * 2.4 + it.wob) * 2.6;
+      const wv = Math.sin((t - s05_FULL_T) * 13 - it.col * 0.62 - it.row * 0.9);
+      y -= press * 6 * Math.max(0, wv);
+      sc *= 1 + press * 0.06 * wv;
     }
     if (a <= 0.01) continue;
-    s05_icon(ctx, it.kind, x, y, 58 * sc, { alpha: a });
+    s05_icon(ctx, it.kind, x, y, 5 * sc, { alpha: a });
   }
-  // Nachschub im Tail: das Makro läuft weiter
+  // Nachschub im Tail: das Makro läuft weiter (Raster + Hotbar)
   for (const rf of s05_REFILL) {
-    if (t < rf.t0) continue;
-    const p = s05_slotXY(rf.i), pop = E.outBack(clamp((t - rf.t0) / 0.14));
-    s05_icon(ctx, rf.kind, p.x, p.y - (1 - pop) * 26, 58 * lerp(1.4, 1, pop), { alpha: clamp((t - rf.t0) / 0.05) });
+    if (t < rf.t0 || rf.g == null) continue;
+    const p = s05_slotXY(rf.g), pop = E.outBack(clamp((t - rf.t0) / 0.14));
+    s05_icon(ctx, rf.kind, p.x, p.y - (1 - pop) * 28 + Math.sin(t * 2.4 + rf.g) * 2.2, 5 * lerp(1.4, 1, pop), { alpha: clamp((t - rf.t0) / 0.05) });
     const f = impulse(t, rf.t0, 16);
     if (f > 0.03) {
-      ctx.save(); ctx.globalAlpha = f * 0.7; ctx.strokeStyle = rgba(TOKENS.gold, 1); ctx.lineWidth = 3;
+      ctx.save(); ctx.globalAlpha = f * 0.8; ctx.strokeStyle = rgba(TOKENS.gold, 1); ctx.lineWidth = 3;
       ctx.strokeRect(Math.round(p.x - 42) + 1.5, Math.round(p.y - 42) + 1.5, 81, 81); ctx.restore();
     }
   }
@@ -261,55 +303,66 @@ function s05_gridItems(ctx, t) {
   ctx.restore();
 }
 
+// die ausgewählte Hotbar-Zelle wandert im Tail auf den Achteln weiter
+function s05_hotSel(t) {
+  if (t < 13.5) return 4;
+  return (4 + Math.floor((t - 13.5) / 0.25)) % 9;
+}
 function s05_hotbar(ctx, t) {
-  const a = ez(t, 12.03, 12.30, E.outCubic);
-  if (a <= 0.01) return;
-  const dy = (1 - a) * 46;
-  ctx.save(); ctx.globalAlpha *= a; ctx.translate(0, dy);
+  const dy = (1 - ez(t, 12.0, 12.18, E.outCubic)) * 34;
+  ctx.save(); ctx.translate(0, dy);
   // Trägerplatte: hebt die Hotbar optisch vom 3x9-Raster ab
   ctx.fillStyle = 'rgba(255,255,255,0.045)';
   roundRect(ctx, 132, s05_HOT.y - 10, 816, s05_HOT.s + 20, 8); ctx.fill();
   ctx.save();
-  ctx.beginPath(); ctx.rect(120, s05_HOT.y - 14, 840, s05_HOT.s + 28); ctx.clip();
-  mcHotbar(ctx, CX, s05_HOT.y,{ slot: s05_HOT.s, gap: s05_HOT.gap, count: 9, selected: s05_HOT.sel, selColor: rgba(TOKENS.text, 0.9) });
+  ctx.beginPath(); ctx.rect(120, s05_HOT.y - 16, 840, s05_HOT.s + 32); ctx.clip();
+  mcHotbar(ctx, CX, s05_HOT.y, { slot: s05_HOT.s, gap: s05_HOT.gap, count: 9, selected: s05_hotSel(t), selColor: rgba(TOKENS.text, 0.9) });
   for (const h of s05_HOTITEMS) {
     if (t < h.t0) continue;
     const p = s05_hotXY(h.k), pop = E.outBack(clamp((t - h.t0) / 0.13));
-    let x = p.x, y = p.y, sc = lerp(1.5, 1, pop), al = 1;
+    let x = p.x, y = p.y + Math.sin(t * 2.4 + h.k * 1.7) * 2.0, sc = lerp(1.5, 1, pop), al = 1;
     if (t >= h.tOut) {
       const q = clamp((t - h.tOut) / 0.34);
       y += 260 * q * q; sc *= 1 - 0.4 * q; al = 1 - remap(q, 0.45, 1);
     }
     if (al <= 0.01) continue;
-    s05_icon(ctx, h.kind, x, y, 56 * sc, { alpha: al });
+    s05_icon(ctx, h.kind, x, y, 4.8 * sc, { alpha: al });
+  }
+  // Nachschub in der Hotbar
+  for (const rf of s05_REFILL) {
+    if (t < rf.t0 || rf.h == null) continue;
+    const p = s05_hotXY(rf.h), pop = E.outBack(clamp((t - rf.t0) / 0.14));
+    s05_icon(ctx, rf.kind, p.x, p.y - (1 - pop) * 26, 4.8 * lerp(1.4, 1, pop), { alpha: clamp((t - rf.t0) / 0.05) });
+    const f = impulse(t, rf.t0, 16);
+    if (f > 0.03) {
+      ctx.save(); ctx.globalAlpha = f * 0.8; ctx.strokeStyle = rgba(TOKENS.gold, 1); ctx.lineWidth = 3;
+      ctx.strokeRect(Math.round(p.x - 42) + 1.5, Math.round(p.y - 42) + 1.5, 81, 81); ctx.restore();
+    }
   }
   ctx.restore();
   ctx.restore();
 }
 
-/* ------------------------------------------------------------------ VOLL */
+/* ------------------------------------------------------------------ VOLL
+   sitzt als Plakette AUF der Panel-Oberkante, nicht im Raster — so wird keine
+   Item-Reihe abgedunkelt und keine Pixel-Letter liegt auf einem Sprite. */
 function s05_voll(ctx, t) {
   const a = win(t, s05_FULL_T - 0.005, s05_FULL_T + 0.03, 12.96, 13.12);
   if (a <= 0.01) return;
-  // 2-Frame-Flacker direkt nach dem Blitz
-  const fl = (t - s05_FULL_T) < 0.12 && Math.floor((t - s05_FULL_T) * 30) % 2 === 1 ? 0.35 : 1;
+  const fl = (t - s05_FULL_T) < 0.12 && Math.floor((t - s05_FULL_T) * 30) % 2 === 1 ? 0.4 : 1;
   const pop = E.outBack(clamp((t - s05_FULL_T) / 0.14));
-  const sz = 76 * lerp(1.35, 1, pop);
-  ctx.save(); ctx.globalAlpha *= a * fl;
-  band(ctx, 780, 152, 0.66);
+  const sz = 72 * lerp(1.28, 1, pop), y = 598;
   const o = { size: sz, family: FONTS.pixel, weight: 400, color: TOKENS.primary, align: 'center' };
-  drawText(ctx, 'VOLL', CX, 780, Object.assign({}, o, { stroke: { color: '#0A0610', width: 10 }, strokeOnly: true }));
-  glow(ctx, 26, 0.55, c => drawText(c, 'VOLL', CX, 780, o));
-  drawText(ctx, 'VOLL', CX, 780, o);
+  const w = measureText(ctx, 'VOLL', o);
+  ctx.save(); ctx.globalAlpha *= a * fl;
+  // eigene Plakette statt Vollbild-Band
+  ctx.fillStyle = 'rgba(10,6,16,0.88)';
+  roundRect(ctx, CX - w / 2 - 30, y - 52, w + 60, 104, 10); ctx.fill();
+  ctx.strokeStyle = rgba(TOKENS.primary, 0.55 + 0.45 * impulse(t, s05_FULL_T, 8)); ctx.lineWidth = 3;
+  roundRect(ctx, CX - w / 2 - 30, y - 52, w + 60, 104, 10); ctx.stroke();
+  glow(ctx, 26, 0.55, c => drawText(c, 'VOLL', CX, y, o));
+  drawText(ctx, 'VOLL', CX, y, o);
   ctx.restore();
-  // roter Rahmenblitz am Raster
-  const f = impulse(t, s05_FULL_T, 11);
-  if (f > 0.02) {
-    ctx.save(); ctx.globalAlpha *= f;
-    ctx.strokeStyle = TOKENS.primary; ctx.lineWidth = 5;
-    ctx.strokeRect(s05_G.cx - 4.5 * s05_G.pitch + 1, s05_G.y0 - 45, 9 * s05_G.pitch - 6, 3 * s05_G.pitch - 6);
-    ctx.restore();
-  }
 }
 
 /* ------------------------------------------------------------------ Münzflug */
@@ -321,73 +374,63 @@ function s05_coins(ctx, t) {
     const e = E.outCubic(q);
     const x = c.x + c.dx * e + Math.sin(q * 7 + c.ph) * 10;
     const y = c.y - c.rise * e;
-    const a = clamp(q * 6) * (1 - remap(q, 0.55, 1)) * (1 - remap(y, 660, 500));
+    // Flugbahn endet deutlich unter dem Textblock (Subline y 520 / Label y 588)
+    const a = clamp(q * 6) * (1 - remap(q, 0.6, 1)) * (1 - remap(y, 700, 640));
     if (a <= 0.01) continue;
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * 0.5;
-    dot(ctx, x, y, c.sz * 1.1, TOKENS.gold, 0.6); ctx.restore();
-    s05_icon(ctx, c.i % 3 === 0 ? 'emerald' : 'gold_ingot', x, y, c.sz * (1 + 0.12 * Math.sin(q * 12 + c.ph)), { alpha: a });
+    dot(ctx, x, y, c.cell * 14, TOKENS.gold, 0.6); ctx.restore();
+    s05_icon(ctx, c.i % 3 === 0 ? 'emerald' : 'gold_ingot', x, y, c.cell * (1 + 0.12 * Math.sin(q * 12 + c.ph)), { alpha: a });
   }
   ctx.restore();
 }
 
-/* ------------------------------------------------------------------ Guthaben-Zähler
-   Zeigt ausschließlich Bewegung: die Ziffernwalzen laufen durchgehend weiter,
-   es wird nie ein konkreter Betrag behauptet. */
-function s05_reelSpeed(t) {           // Ziffern pro Sekunde (Walze ganz rechts)
+/* ------------------------------------------------------------------ Guthaben-Anzeige
+   Zeigt ausschließlich Bewegung: ein Segmentbalken füllt sich immer wieder neu
+   (jede Füllung = eine Auszahlung), es wird nie ein Betrag behauptet.
+   Bewusst keine Ziffern — der Betrag wäre eine erfundene Zahl. */
+function s05_meterU(t) {                     // Füllungen seit dem Verkauf (monoton)
   const d = Math.max(0, t - s05_ENTER_T);
-  return 30 * Math.exp(-2.0 * d) + 2.2;
+  return 2.6 * (1 - Math.exp(-3.4 * d)) + 1.25 * d;
 }
-function s05_reelPhase(t, f) {        // Integral der Geschwindigkeit
-  const d = Math.max(0, t - s05_ENTER_T);
-  return f * (30 / 2.0 * (1 - Math.exp(-2.0 * d)) + 2.2 * d);
-}
-const s05_REELF = [0.10, 0.19, 0.35, 0.62, 1.0];
 function s05_balance(ctx, t) {
   const a = ez(t, s05_ENTER_T, s05_ENTER_T + 0.16, E.outCubic);
   if (a <= 0.01) return;
   const pop = E.outBack(clamp((t - s05_ENTER_T) / 0.24));
   const w = s05_CHIP.w, h = s05_CHIP.h, y = s05_CHIP.y, x = CX - w / 2;
   const jump = impulse(t, s05_ENTER_T, 7);
+  const u = s05_meterU(t), frac = u - Math.floor(u), wrap = Math.max(0, 1 - frac * 7);
   ctx.save(); ctx.globalAlpha *= a;
   ctx.translate(CX, y); ctx.scale(lerp(0.86, 1, pop), lerp(0.86, 1, pop)); ctx.translate(-CX, -y + jump * -8);
 
   ctx.fillStyle = 'rgba(14,11,22,0.88)'; roundRect(ctx, x, y - h / 2, w, h, 10); ctx.fill();
-  ctx.strokeStyle = rgba(TOKENS.gold, 0.28 + 0.45 * jump); ctx.lineWidth = 2; roundRect(ctx, x, y - h / 2, w, h, 10); ctx.stroke();
+  ctx.strokeStyle = rgba(TOKENS.gold, 0.28 + 0.45 * Math.max(jump, wrap * 0.8)); ctx.lineWidth = 2;
+  roundRect(ctx, x, y - h / 2, w, h, 10); ctx.stroke();
 
   drawText(ctx, 'GUTHABEN', x + 26, y, { size: 22, family: FONTS.silk, weight: 700, color: TOKENS.muted, align: 'left', tracking: 2 });
 
-  // Aufwärts-Pfeil
-  const ax = x + 206, ay = y - 1 + Math.sin(t * 6) * 1.5;
-  ctx.save(); ctx.globalAlpha *= 0.85 + 0.15 * jump; ctx.fillStyle = TOKENS.gold;
-  ctx.beginPath(); ctx.moveTo(ax, ay - 14); ctx.lineTo(ax + 13, ay + 8); ctx.lineTo(ax - 13, ay + 8); ctx.closePath(); ctx.fill();
+  // Aufwärts-Pfeil, hüpft bei jeder Füllung
+  const ax = x + 200, ay = y - 1 - wrap * 6 + Math.sin(t * 6) * 1.5;
+  ctx.save(); ctx.globalAlpha *= 0.75 + 0.25 * Math.max(jump, wrap); ctx.fillStyle = TOKENS.gold;
+  ctx.beginPath(); ctx.moveTo(ax, ay - 15); ctx.lineTo(ax + 13, ay + 8); ctx.lineTo(ax - 13, ay + 8); ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  // Ziffernwalzen — laufen durchgehend weiter, es steht nie ein Betrag still
-  const n = s05_REELF.length, dw = 40, rh = 60, rx0 = x + w - 26 - n * dw;
-  const v = s05_reelSpeed(t);
-  ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(ctx, rx0 - 10, y - rh / 2, n * dw + 20, rh, 6); ctx.fill();
-  ctx.save();
-  ctx.beginPath(); ctx.rect(rx0 - 10, y - rh / 2, n * dw + 20, rh); ctx.clip();
+  // Segmentbalken: läuft durchgehend voll und beginnt von vorn
+  const n = 14, mx0 = x + 232, mw = w - 26 - 232, sw = (mw - (n - 1) * 4) / n, sh = 30;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(ctx, mx0 - 8, y - sh / 2 - 7, mw + 16, sh + 14, 6); ctx.fill();
+  const lit = frac * n;
   for (let k = 0; k < n; k++) {
-    const base = s05_reelPhase(t, s05_REELF[k]), frac = base - Math.floor(base), fl = Math.floor(base);
-    const blur = clamp(v * s05_REELF[k] * 2.0, 0, 15);
-    const cxk = rx0 + k * dw + dw / 2;
-    for (let m = -1; m <= 1; m++) {
-      const d = ((fl + m) % 10 + 10) % 10;
-      const yy = y + (m - frac) * rh;
-      const fade = 1;
-      for (let b = -1; b <= 1; b++) {
-        drawText(ctx, String(d), cxk, yy + b * blur * 0.5, {
-          size: 40, family: FONTS.mono, weight: 600, color: TOKENS.gold, align: 'center',
-          alpha: (b === 0 ? 0.95 : 0.24) * fade,
-        });
-      }
-    }
+    const on = clamp(lit - k), head = clamp(1 - Math.abs(lit - 0.5 - k));
+    const sx = mx0 + k * (sw + 4);
+    ctx.fillStyle = rgba(TOKENS.gold, 0.10 + 0.72 * on + 0.28 * head);
+    ctx.fillRect(sx, y - sh / 2, sw, sh);
   }
-  // obere/untere Abdunklung der Walzenfenster
-  linearFill(ctx, 0, y - rh / 2, 0, y - rh / 2 + 22, [[0, 'rgba(12,9,19,0.98)'], [1, 'rgba(12,9,19,0)']], [rx0 - 10, y - rh / 2, n * dw + 20, 22]);
-  linearFill(ctx, 0, y + rh / 2 - 22, 0, y + rh / 2, [[0, 'rgba(12,9,19,0)'], [1, 'rgba(12,9,19,0.98)']], [rx0 - 10, y + rh / 2 - 22, n * dw + 20, 22]);
-  ctx.restore();
+  // Auszahlungs-Blitz am rechten Ende
+  if (wrap > 0.02) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= wrap;
+    dot(ctx, mx0 + mw - sw / 2, y, 54, TOKENS.gold, 0.55);
+    ctx.restore();
+    s05_icon(ctx, 'gold_ingot', mx0 + mw - sw / 2, y, 2.6 * (1 + 0.5 * wrap), { alpha: wrap });
+  }
   ctx.restore();
 }
 
@@ -395,15 +438,18 @@ function s05_balance(ctx, t) {
 const s05_TYPE_T = [12.82, 12.90, 12.98, 13.06, 13.14];
 function s05_chat(ctx, t) {
   // Eingabezeile (Live-Konsole: liegt die ganze Szene an)
-  const inA = ez(t, 11.98, 12.22, E.outCubic);
+  const inA = ez(t, 11.90, 12.06, E.outCubic);
   if (inA > 0.01) {
     const I = s05_INP, active = t >= 12.78 && t < s05_ENTER_T;
+    // Tastenanschlag: jeder getippte Buchstabe blitzt die Zeile an
+    let key = 0; for (const tt of s05_TYPE_T) key = Math.max(key, impulse(t, tt, 22));
     ctx.save(); ctx.globalAlpha *= inA * (active ? 1 : 0.8);
     ctx.fillStyle = s05_C.bar; ctx.fillRect(I.x, I.y, I.w, I.h);
-    ctx.fillStyle = rgba(TOKENS.text, active ? 0.16 : 0.08); ctx.fillRect(I.x, I.y, I.w, 2); ctx.fillRect(I.x, I.y + I.h - 2, I.w, 2);
-    ctx.fillStyle = rgba(TOKENS.secondary, active ? 0.55 : 0.25); ctx.fillRect(I.x, I.y, 3, I.h);
+    ctx.fillStyle = rgba(TOKENS.text, (active ? 0.16 : 0.08) + 0.35 * key); ctx.fillRect(I.x, I.y, I.w, 2); ctx.fillRect(I.x, I.y + I.h - 2, I.w, 2);
+    ctx.fillStyle = rgba(TOKENS.secondary, (active ? 0.55 : 0.25) + 0.45 * key); ctx.fillRect(I.x, I.y, 3 + 3 * key, I.h);
+    if (key > 0.02) { ctx.save(); ctx.globalAlpha *= key * 0.16; ctx.fillStyle = TOKENS.violetHot; ctx.fillRect(I.x, I.y, I.w, I.h); ctx.restore(); }
     const enter = impulse(t, s05_ENTER_T, 16);
-    if (enter > 0.02) { ctx.save(); ctx.globalAlpha *= enter * 0.13; ctx.fillStyle = TOKENS.text; ctx.fillRect(I.x, I.y, I.w, I.h); ctx.restore(); }
+    if (enter > 0.02) { ctx.save(); ctx.globalAlpha *= enter * 0.16; ctx.fillStyle = TOKENS.text; ctx.fillRect(I.x, I.y, I.w, I.h); ctx.restore(); }
     let n = 0; for (const tt of s05_TYPE_T) if (t >= tt) n++;
     if (t >= s05_ENTER_T + 0.07) n = 0;
     const txt = '/sell'.slice(0, n);
@@ -412,7 +458,7 @@ function s05_chat(ctx, t) {
     drawText(ctx, '>', I.x + 24, ty, { size: 40, family: FONTS.term, weight: 400, color: rgba(TOKENS.muted, 0.85), align: 'left' });
     if (txt) drawText(ctx, txt, tx, ty, o);
     const cw = measureText(ctx, txt, o);
-    const blink = active ? (t - (s05_TYPE_T[Math.max(0, n - 1)] || 12.8)) < 0.10 || Math.floor(t * 3.2) % 2 === 0 : Math.floor(t * 2.2) % 2 === 0;
+    const blink = active ? (t - (s05_TYPE_T[Math.max(0, n - 1)] || 12.8)) < 0.10 || Math.floor(t * 4) % 2 === 0 : Math.floor(t * 3) % 2 === 0;
     if (blink) { ctx.fillStyle = rgba(TOKENS.text, active ? 0.9 : 0.55); ctx.fillRect(tx + cw + 4, ty - 22, 20, 44); }
     ctx.restore();
   }
@@ -435,25 +481,23 @@ function s05_chat(ctx, t) {
   if (l2 > 0.01) {
     const ping = impulse(t, 13.40, 6);
     ctx.save(); ctx.globalAlpha *= l2;
-    s05_icon(ctx, 'check', L.x + 48, L.y + 100, 46 * (1 + 0.28 * ping));
+    s05_icon(ctx, 'check', L.x + 52, L.y + 100, 5 * (1 + 0.28 * ping));
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    dot(ctx, L.x + 48, L.y + 100, 60 * (1 + ping), TOKENS.ok, 0.30 + 0.4 * ping);
+    dot(ctx, L.x + 52, L.y + 100, 60 * (1 + ping), TOKENS.ok, 0.30 + 0.4 * ping);
     ctx.restore();
-    drawText(ctx, 'Verkauft.', L.x + 86 - (1 - l2) * 20, L.y + 100, { size: 42, family: FONTS.term, weight: 400, color: TOKENS.ok, align: 'left' });
+    drawText(ctx, 'Verkauft.', L.x + 100 - (1 - l2) * 20, L.y + 100, { size: 42, family: FONTS.term, weight: 400, color: TOKENS.ok, align: 'left' });
     ctx.restore();
-    if (ping > 0.02) shockwave(ctx, L.x + 48, L.y + 100, clamp((t - 13.40) / 0.5), { radius: 240, color: TOKENS.ok, width: 8, alpha: 0.5 });
+    if (ping > 0.02) shockwave(ctx, L.x + 52, L.y + 100, clamp((t - 13.40) / 0.5), { radius: 240, color: TOKENS.ok, width: 8, alpha: 0.5 });
   }
 }
 
 /* ------------------------------------------------------------------ Text-Block */
 function s05_text(ctx, t) {
-  // Headline 'Inventar voll?' — Slam bei 12.10, steht bis zum Schnitt
+  // Headline 'Inventar voll?' — Slam direkt auf dem Schnitt, steht bis 15.0
   const hOpt = { size: 120, family: FONTS.body, weight: 800, color: TOKENS.text, align: 'center' };
   const hs = s05_fit(ctx, 'Inventar voll?', hOpt, 800);
-  if (t >= 12.08) {
-    band(ctx, 402, 190, 0.5);
-    s05_slam(ctx, 'Inventar voll?', CX, 400, Object.assign({}, hOpt, { size: hs, tracking: -0.04 * hs }), t, 12.10);
-  }
+  band(ctx, 402, 190, 0.5);
+  s05_slam(ctx, 'Inventar voll?', CX, 400, Object.assign({}, hOpt, { size: hs, tracking: -0.04 * hs }), t, 12.0, 0.16);
   // Subline 'Verkauft sich selbst.' ab 13.40
   const sp = ez(t, 13.40, 13.78, E.outExpo);
   if (sp > 0.005) {
@@ -463,8 +507,8 @@ function s05_text(ctx, t) {
       color: rgba(TOKENS.text, 0.85), align: 'center', ease: E.outExpo, stagger: 0.5,
     }, sp, 'rise');
   }
-  // Pixel-Label 'Sell-Makro' ab 12.85
-  const lp = ez(t, 12.85, 13.15, E.outCubic);
+  // Pixel-Label 'Sell-Makro' auf dem Schlag 13.5 (VOLL ist da längst weg)
+  const lp = ez(t, 13.50, 13.80, E.outCubic);
   if (lp > 0.005) {
     const o = { size: 26, family: FONTS.silk, weight: 700, color: TOKENS.muted, align: 'center', tracking: 3, alpha: lp * 0.95 };
     const w = measureText(ctx, 'Sell-Makro', o);
@@ -483,11 +527,14 @@ SCENES.s05 = {
     nightSky(ctx, t, { count: 60, seed: 33, color: '#CFC6E8', alpha: 0.16, hMul: 0.55, drift: true });
     radialFill(ctx, CX, 860, 760, [[0, rgba(TOKENS.deepViolet, 0.16)], [0.55, rgba(TOKENS.deepViolet, 0.05)], [1, 'rgba(0,0,0,0)']], 'lighter');
 
-    // Kamera: setzt die Abwärtsfahrt aus s04 weich ab, atmet, Punch beim Enter
+    // Kamera: setzt die Abwärtsfahrt aus s04 weich ab, atmet spürbar,
+    // Punch beim Enter, danach ein langsamer Push-in bis zum Schnitt.
     const settle = 1 - ez(t, 12.0, 12.42, E.outCubic);
+    const push = ez(t, 13.70, 15.00, E.inOutCubic);
     withCamera(ctx, {
-      zoom: 1 + 0.035 * settle + 0.006 * Math.sin((t - 12) * 1.15) + 0.028 * impulse(t, s05_ENTER_T, 10) + 0.02 * impulse(t, s05_FULL_T, 12),
-      y: -20 * settle + 3 * Math.sin((t - 12) * 0.8),
+      zoom: 1 + 0.030 * settle + 0.013 * Math.sin((t - 12) * 1.7) + 0.022 * push
+        + 0.028 * impulse(t, s05_ENTER_T, 10) + 0.02 * impulse(t, s05_FULL_T, 12),
+      y: -18 * settle + 7 * Math.sin((t - 12) * 0.95) - 12 * push,
       ox: CX, oy: 840,
     }, c => {
       s05_floor(c, t);

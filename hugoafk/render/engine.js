@@ -443,6 +443,15 @@ function shade(hex, f) {  // f<1 darkens, f>1 lightens (clamped)
 function cube(ctx, ix, iy, iz, o = {}) {
   const s = o.size ?? 60, p = isoPos(ix, iy, iz, o), w = s * ISO.w, h = s * ISO.h, col = o.color || T().primary;
   const a = o.alpha ?? 1; if (a <= 0.004) return;
+  // textured variant: o.tex = 'name' or {top, side} (see blockIcon). o.dark 0..1 dims it for night scenes.
+  if (o.tex && IMG.tex) {
+    blockIcon(ctx, o.tex, p.x, p.y, s, { alpha: a, height: o.height, outline: o.outline, outlineAlpha: o.outlineAlpha, outlineWidth: o.outlineWidth, composite: o.composite });
+    if (o.dark) {
+      ctx.save(); ctx.globalAlpha *= a * o.dark; ctx.fillStyle = o.darkColor || '#000000';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x + w, p.y); ctx.lineTo(p.x + w, p.y + s); ctx.lineTo(p.x, p.y + h + s); ctx.lineTo(p.x - w, p.y + s); ctx.lineTo(p.x - w, p.y); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    return p;
+  }
   ctx.save(); ctx.globalAlpha *= a;
   if (o.composite) ctx.globalCompositeOperation = o.composite;
   const top = o.top || shade(col, o.topF ?? 1.25), left = o.left || shade(col, o.leftF ?? 0.78), right = o.right || shade(col, o.rightF ?? 0.5);

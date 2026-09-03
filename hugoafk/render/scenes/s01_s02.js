@@ -274,7 +274,7 @@ SCENES.s01 = {
 // The TikTok safe box is x 90..900 — centred on x 495, only 810 px wide. A CX-centred
 // lockup would push the last "O" under the right rail once the kick scale hits, so the
 // whole s02 block is centred on x 500 and the lockup is 720 px wide:
-// max ink = 500 + 360 * 1.06 (breathe + kick + punch) ≈ 882 px.
+// measured max red ink = x 881 with breathe + kick punch + sway all at maximum.
 const s01_s02_SCX = 500, s01_s02_LOCKW = 720, s01_s02_LOCKY = 780;
 function s01_s02_lock() {
   const M = IMG.meta, s = s01_s02_LOCKW / M.full.w, h = M.full.h * s;
@@ -351,7 +351,7 @@ const s01_s02_MOTES = (() => {
   const r = rng(2609), out = [];
   for (let i = 0; i < 44; i++) out.push({
     x: 40 + r() * (W - 80), sz: 9 + r() * 20, sp: 62 + r() * 110, ph: r() * 2400,
-    sway: 14 + r() * 30, swf: 0.5 + r() * 0.9, spin: (r() - 0.5) * 0.5,
+    sway: 14 + r() * 30, swf: 0.5 + r() * 0.9,
     col: r() < 0.72 ? '#A855F7' : '#C77DFF', a: 0.16 + r() * 0.22,
   });
   return out;
@@ -397,7 +397,7 @@ SCENES.s02 = {
 
     /* -------- backdrop */
     const SCX = s01_s02_SCX;
-    const bgp = 0.16 + 0.09 * k;
+    const bgp = 0.16 + 0.07 * k;
     radialFill(ctx, SCX, s01_s02_LOCKY, 900,
       [[0, rgba(TOKENS.deepViolet, bgp)], [0.55, rgba(TOKENS.deepViolet, bgp * 0.35)], [1, 'rgba(0,0,0,0)']], 'lighter');
     radialFill(ctx, SCX, s01_s02_LOCKY - 190, 620,
@@ -434,12 +434,12 @@ SCENES.s02 = {
     const dyH = -(1 - eH) * 1000 - bnc;
     const dyA = (1 - eA) * 1000 + bnc;
     const breathe = t > 3.3 ? 0.010 * (1 - Math.cos((t - 3.3) * TAU / 1.6)) : 0;
-    const sc = 1 + breathe + 0.022 * k + 0.05 * Math.exp(-16 * Math.max(0, t - HIT)) + 0.03 * ez(t, 5.75, 6.0, E.inQuad);
+    const sc = 1 + breathe + 0.028 * k + 0.05 * Math.exp(-16 * Math.max(0, t - HIT)) + 0.03 * ez(t, 5.75, 6.0, E.inQuad);
     const hy = L.y + dyH, ay = L.y + L.M.afk.offsetY * L.s + dyA;
 
     // slow sway on top of the breathe — the biggest bright object in frame keeps moving
     // between the kicks (amplitude budgeted into the safe-area maths above)
-    const swx = t > 3.2 ? 5.0 * Math.sin((t - 3.2) * 1.05) : 0;
+    const swx = t > 3.2 ? 4.0 * Math.sin((t - 3.2) * 1.05) : 0;
     const swy = t > 3.2 ? 6.5 * Math.sin((t - 3.2) * 1.55) : 0;
 
     ctx.save();
@@ -450,7 +450,7 @@ SCENES.s02 = {
       // halo first — already masked to the outside of the letterforms …
       const G = s01_s02_glowCache();
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = (0.24 + 0.16 * k + 0.18 * Math.exp(-9 * Math.max(0, t - HIT))) * app;
+      ctx.globalAlpha = (0.24 + 0.10 * k + 0.18 * Math.exp(-9 * Math.max(0, t - HIT))) * app;
       ctx.drawImage(G.c, L.x - G.pad, L.y - G.pad);
       ctx.restore();
       // … then a tight near-black plate ON TOP of it: the halo can only survive outside
