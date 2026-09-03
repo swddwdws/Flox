@@ -16,9 +16,11 @@ canvas{display:block;}
 <body>
 <canvas id="main" width="1080" height="1920"></canvas>
 <script src="assets/logo_meta.js"></script>
+<script src="assets/tex_meta.js"></script>
 <script src="engine.js"></script>
 <script src="tokens.js"></script>
 <script src="scenes/index.js"></script>
+<script src="scenes/__texdemo.js"></script>
 <script src="scenes/s01_s02.js"></script>
 <script src="scenes/s03_s04.js"></script>
 <script src="scenes/s05.js"></script>
@@ -35,11 +37,13 @@ window.__ready = (async () => {
   for (const f of fams) for (const w of [300,400,500,600,700,800,900]) loads.push(document.fonts.load(`${w} 100px "${f}"`).catch(()=>null));
   await Promise.all(loads);
   await document.fonts.ready;
-  const assets = { logo: 'assets/logo.png', logoHugo: 'assets/logo_hugo.png', logoAfk: 'assets/logo_afk.png' };
+  const assets = { logo: 'assets/logo.png', logoHugo: 'assets/logo_hugo.png', logoAfk: 'assets/logo_afk.png', tex: 'assets/tex.png' };
   await Promise.all(Object.entries(assets).map(([k, src]) => new Promise((res, rej) => {
     const im = new Image(); im.onload = () => { IMG[k] = im; res(); }; im.onerror = () => rej(new Error('asset failed: ' + src)); im.src = src;
   })));
   IMG.meta = window.LOGO_META;
+  IMG.texMeta = window.TEX_META;
+  Engine.initTextures();
   Engine.init(document.getElementById('main'));
   return fams.map(f => f + ':' + document.fonts.check(`700 100px "${f}"`)).join(',') + ' | assets:' + Object.keys(IMG).join('/');
 })();

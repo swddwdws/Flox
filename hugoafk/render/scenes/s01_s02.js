@@ -16,7 +16,11 @@ const s01_s02_PAL = {   // night-dimmed Minecraft palette (inside the voxel worl
   pumpkin: { color: '#6E3A08', top: '#8A4A0B', left: '#552C05', right: '#351A02',
              outline: '#1A0C01', outlineAlpha: 0.9, outlineWidth: 2 },
 };
-const s01_s02_PUMPPAL_V = { o: '#C77DFF', k: '#2B1247', g: '#7C3AED' };  // violet pumpkin
+// violet re-paint of SPRITES.pumpkin — every palette key of the icon must be covered
+const s01_s02_PUMPPAL_V = {
+  O: '#A855F7', l: '#D7A6FF', o: '#7C3AED', k: '#2B1247',   // body / highlight / shadow / outline
+  G: '#C77DFF', g: '#6D28D9',                               // stem
+};
 
 const s01_s02_CELLS = (() => {
   const out = [], R = s01_s02_R;
@@ -32,6 +36,8 @@ const s01_s02_CELLS = (() => {
   return out;
 })();
 const s01_s02_PUMPKINS = s01_s02_CELLS.filter(c => c.kind === 'pumpkin');
+// front rows only — used once the copy is up so the pops stay in the lower third
+const s01_s02_PUMPKINS_FRONT = s01_s02_PUMPKINS.filter(c => c.ix + c.iy >= 0);
 const s01_s02_TORCHES  = [{ ix: -4, iy: -2 }, { ix: 2, iy: 4 }, { ix: 4, iy: -4 }, { ix: -2, iy: -4 }];
 
 /* ------------------------------------------------------------- utilities */
@@ -56,7 +62,7 @@ function s01_s02_fit(ctx, str, o, maxW) {
 }
 function s01_s02_head(ctx, str, x, y, size, color, p, mode) {
   const o = { size, family: FONTS.body, weight: 800, tracking: -0.04 * size, color, align: 'center' };
-  o.size = s01_s02_fit(ctx, str, o, 800); o.tracking = -0.04 * o.size;
+  o.size = s01_s02_fit(ctx, str, o, 700); o.tracking = -0.04 * o.size;   // 700 + slam scale stays inside x 90..900
   drawKinetic(ctx, str, x, y, o, p, mode || 'rise');
 }
 
@@ -111,26 +117,31 @@ function s01_s02_bot(ctx, t, wire, alpha) {
   ctx.restore();
 }
 
-// items popping out of the pumpkins every 16th note
-function s01_s02_items(ctx, t, wire, alpha) {
+// items popping out of the pumpkins every 16th note.
+// cullY (scene-local y): once the copy is up, keep the pops under the text — items
+// spawn only from the front rows and fade out before they reach the headline block.
+function s01_s02_items(ctx, t, wire, alpha, cullY) {
   const t0 = 0.12, step = 0.25, k1 = Math.floor((t - t0) / step);
+  const src = cullY ? s01_s02_PUMPKINS_FRONT : s01_s02_PUMPKINS;
   for (let k = Math.max(0, k1 - 3); k <= k1; k++) {
     const st = t0 + k * step, life = (t - st) / 0.9;
     if (life <= 0 || life >= 1) continue;
-    const cell = s01_s02_PUMPKINS[Math.floor(hash1(k * 13 + 5) * s01_s02_PUMPKINS.length)];
+    const cell = src[Math.floor(hash1(k * 13 + 5) * src.length)];
     const p = isoPos(cell.ix, cell.iy, 2.05, s01_s02_ISO);
     const e = E.outCubic(life);
     const x = p.x + (hash2(k, 3) - 0.5) * 54, y = p.y - 14 - e * 120;
-    const a = clamp((1 - life) * 1.5) * (life < 0.12 ? life / 0.12 : 1) * alpha;
+    let a = clamp((1 - life) * 1.5) * (life < 0.12 ? life / 0.12 : 1) * alpha;
+    if (cullY) a *= clamp((y - cullY) / 130);
+    if (a <= 0.01) continue;
     dot(ctx, x, y, 50, wire ? TOKENS.violetHot : '#FFB25A', a * 0.40);
-    pixelSprite(ctx, x, y, 5.4, SPRITES.pumpkin.rows, wire ? s01_s02_PUMPPAL_V : SPRITES.pumpkin.pal,
+    pixelSprite(ctx, x, y, 4.4, SPRITES.pumpkin.rows, wire ? s01_s02_PUMPPAL_V : SPRITES.pumpkin.pal,
       { alpha: a, rotate: (hash2(k, 9) - 0.5) * 0.7 });
   }
 }
 
 /* ------------------------------------------------------------ s01 pieces */
 const s01_s02_CHAT = [
-  { t: 0.00, s: '<Nico> so, ich mach den pc aus', c: '#FFFFFF' },
+  { t: -0.45, s: '<Nico> so, ich mach den pc aus', c: '#FFFFFF' },   // already typing at f0 → cover frame carries the hook
   { t: 0.28, s: '<Mira> und deine kürbisfarm?', c: '#FFFFFF' },
   { t: 0.50, s: '<Nico> läuft weiter :)', c: '#FFFFFF' },
   { t: 0.68, s: '[HugoAFK] Bot bleibt online.', c: TOKENS.violetHot },
@@ -224,28 +235,32 @@ SCENES.s01 = {
 
     const revealP = ez(t, 1.44, 2.1, E.outCubic);
     const botA = ez(t, 1.30, 1.56, E.outCubic) * (0.82 + 0.18 * Math.sin(t * 7));
-    const zoom = 1 + 0.16 * ez(t, 2.3, 3.0, E.inOutCubic);
-    withCamera(ctx, { zoom, y: -22 * ez(t, 2.3, 3.0, E.inOutCubic), ox: CX, oy: 1500 }, c => {
+    // continuous camera: a slow creep out of the reveal, then the push into the cut —
+    // no frame between 1.3 and 3.0 sits still.
+    const creep = remap(t, 1.26, 2.05), push = ez(t, 2.05, 3.0, E.inOutCubic);
+    const zoom = 1 + 0.05 * creep + 0.16 * push;
+    withCamera(ctx, { zoom, x: 7 * Math.sin((t - 1.3) * 1.15), y: -9 * creep - 22 * push, ox: CX, oy: 1500 }, c => {
       // ground glow so the wireframe does not float in nothing
       radialFill(c, CX, 1520, 700, [[0, rgba(TOKENS.deepViolet, 0.34 * revealP)], [1, 'rgba(0,0,0,0)']], 'lighter');
       s01_s02_worldCubes(c, t, true, revealP);
       s01_s02_bot(c, t, true, botA);
-      s01_s02_items(c, t, true, revealP);
+      s01_s02_items(c, t, true, revealP, t > 1.42 ? 1200 : 0);
     });
 
     // headlines
     const hp = ez(t, 1.25, 1.55, E.outExpo), sp = ez(t, 1.75, 2.10, E.outExpo);
+    const flt = 3.2 * Math.sin((t - 1.3) * 1.7);          // slow float so the copy never freezes
     if (hp > 0) {
       band(ctx, 880, 460, 0.42 * Math.max(hp, sp));
-      const slam = 1 + 0.2 * (1 - E.outExpo(remap(t, 1.25, 1.40)));
+      const slam = 1 + 0.12 * (1 - E.outExpo(remap(t, 1.25, 1.40)));
       ctx.save(); ctx.translate(CX, 740); ctx.scale(slam, slam); ctx.translate(-CX, -740);
-      s01_s02_head(ctx, 'PC AUS.', CX, 740, 150, T().text, hp, 'rise');
+      s01_s02_head(ctx, 'PC AUS.', CX, 740 - flt * 0.6, 150, T().text, hp, 'rise');
       ctx.restore();
       if (t < 1.40) FX.rgb = Math.max(FX.rgb, 9 * (1 - remap(t, 1.25, 1.40)));
     }
     if (sp > 0) {
-      s01_s02_head(ctx, 'FARM LÄUFT', CX, 905, 110, TOKENS.violetHot, sp, 'rise');
-      s01_s02_head(ctx, 'WEITER.', CX, 1020, 110, TOKENS.violetHot, ez(t, 1.86, 2.20, E.outExpo), 'rise');
+      s01_s02_head(ctx, 'FARM LÄUFT', CX, 905 + flt, 110, TOKENS.violetHot, sp, 'rise');
+      s01_s02_head(ctx, 'WEITER.', CX, 1020 + flt * 1.25, 110, TOKENS.violetHot, ez(t, 1.86, 2.20, E.outExpo), 'rise');
     }
 
     FX.bloom = Math.max(FX.bloom, 0.30);
@@ -254,19 +269,45 @@ SCENES.s01 = {
 };
 
 /* ------------------------------------------------------------ s02 pieces */
-const s01_s02_LOCKW = 800, s01_s02_LOCKY = 780;   // 800 px keeps the lockup inside the TikTok safe box
+// The TikTok safe box is x 90..900 — centred on x 495, only 810 px wide. A CX-centred
+// lockup would push the last "O" under the right rail once the kick scale hits, so the
+// whole s02 block is centred on x 500 and the lockup is 720 px wide:
+// max ink = 500 + 360 * 1.06 (breathe + kick + punch) ≈ 882 px.
+const s01_s02_SCX = 500, s01_s02_LOCKW = 720, s01_s02_LOCKY = 780;
 function s01_s02_lock() {
   const M = IMG.meta, s = s01_s02_LOCKW / M.full.w, h = M.full.h * s;
-  return { s, w: s01_s02_LOCKW, h, x: CX - s01_s02_LOCKW / 2, y: s01_s02_LOCKY - h / 2, M };
+  return { s, w: s01_s02_LOCKW, h, x: s01_s02_SCX - s01_s02_LOCKW / 2, y: s01_s02_LOCKY - h / 2, M };
 }
+// Outer halo only: the logo PNGs carry the letter counters and the gaps between the
+// letters as transparent alpha, so a blurred copy sitting behind the sharp logo shines
+// straight through them and the wordmark reads as one slab. Punch the silhouette out of
+// the blur so the glow can only ever live outside the letterforms.
 let s01_s02_glowC = null;
 function s01_s02_glowCache() {
   if (s01_s02_glowC) return s01_s02_glowC;
   const L = s01_s02_lock(), pad = 110;
   const c = makeCanvas(Math.ceil(L.w + pad * 2), Math.ceil(L.h + pad * 2)), x = c.getContext('2d');
   x.filter = 'blur(34px)'; x.drawImage(IMG.logo, pad, pad, L.w, L.h);
+  x.filter = 'none';
+  x.globalCompositeOperation = 'destination-out';
+  x.drawImage(IMG.logo, pad, pad, L.w, L.h);
+  x.drawImage(IMG.logo, pad, pad, L.w, L.h);          // twice: also clears the antialiased rim
   s01_s02_glowC = { c, pad, w: L.w, h: L.h };
   return s01_s02_glowC;
+}
+// soft near-black plate in the shape of the lockup — keeps the counters and the seams
+// between the letters dark, whatever the backdrop is doing
+let s01_s02_matteC = null;
+function s01_s02_matteCache() {
+  if (s01_s02_matteC) return s01_s02_matteC;
+  const L = s01_s02_lock(), pad = 70;
+  const c = makeCanvas(Math.ceil(L.w + pad * 2), Math.ceil(L.h + pad * 2)), x = c.getContext('2d');
+  x.filter = 'blur(18px)'; x.drawImage(IMG.logo, pad, pad, L.w, L.h);
+  x.filter = 'none';
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = '#05040A'; x.fillRect(0, 0, c.width, c.height);
+  s01_s02_matteC = { c, pad };
+  return s01_s02_matteC;
 }
 let s01_s02_shineC = null;
 function s01_s02_shine(ctx, L, pos, alpha) {
@@ -305,11 +346,11 @@ const s01_s02_kick = t => t < 3.46 ? 0 : pulse(t, 0.5, 7, 3.5);
 function s01_s02_grid(ctx, t) {
   const p = ez(t, 4.6, 5.8, E.outCubic);
   if (p <= 0) return;
-  const cell = 78, cols = 15, rows = 17, x0 = CX - cols * cell / 2, y0 = 300;
+  const cell = 78, cols = 15, rows = 17, x0 = s01_s02_SCX - cols * cell / 2, y0 = 300;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.4;
   for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
     const cx = x0 + i * cell + cell / 2, cy = y0 + j * cell + cell / 2;
-    const d = Math.hypot(cx - CX, (cy - s01_s02_LOCKY) * 0.8) / 900;
+    const d = Math.hypot(cx - s01_s02_SCX, (cy - s01_s02_LOCKY) * 0.8) / 900;
     const a = clamp((p - d * 0.75) / 0.35);
     if (a <= 0.02) continue;
     const tw = 0.45 + 0.55 * Math.sin(t * 2.6 + i * 0.7 + j * 0.9);
@@ -329,10 +370,11 @@ SCENES.s02 = {
     const L = s01_s02_lock(), k = s01_s02_kick(t), HIT = 3.12;
 
     /* -------- backdrop */
+    const SCX = s01_s02_SCX;
     const bgp = 0.16 + 0.14 * k;
-    radialFill(ctx, CX, s01_s02_LOCKY, 900,
+    radialFill(ctx, SCX, s01_s02_LOCKY, 900,
       [[0, rgba(TOKENS.deepViolet, bgp)], [0.55, rgba(TOKENS.deepViolet, bgp * 0.35)], [1, 'rgba(0,0,0,0)']], 'lighter');
-    radialFill(ctx, CX, s01_s02_LOCKY - 190, 620,
+    radialFill(ctx, SCX, s01_s02_LOCKY - 190, 620,
       [[0, rgba(T().primary, 0.10 + 0.10 * k)], [1, 'rgba(0,0,0,0)']], 'lighter');
     nightSky(ctx, t, { count: 70, seed: 21, alpha: 0.22, hMul: 0.6, drift: true });
 
@@ -352,27 +394,33 @@ SCENES.s02 = {
     /* -------- shockwave rings */
     const swl = remap(t, HIT, HIT + 0.55);
     if (swl > 0 && swl < 1) {
-      shockwave(ctx, CX, s01_s02_LOCKY, swl, { radius: 1150, color: T().primary, width: 20, alpha: 0.85 });
-      shockwave(ctx, CX, s01_s02_LOCKY, remap(t, HIT + 0.05, HIT + 0.7), { radius: 1300, color: T().secondary, width: 12, alpha: 0.7 });
+      shockwave(ctx, SCX, s01_s02_LOCKY, swl, { radius: 1150, color: T().primary, width: 20, alpha: 0.85 });
+      shockwave(ctx, SCX, s01_s02_LOCKY, remap(t, HIT + 0.05, HIT + 0.7), { radius: 1300, color: T().secondary, width: 12, alpha: 0.7 });
     }
 
     /* -------- logo lockup */
     const eH = ez(t, 3.0, HIT, E.outQuint), eA = ez(t, 3.0, HIT, E.outQuint);
     const bnc = t >= HIT ? Math.exp(-13 * (t - HIT)) * Math.sin((t - HIT) * 40) * 11 : 0;
-    const dyH = -(1 - eH) * 1200 - bnc;
-    const dyA = (1 - eA) * 1200 + bnc;
+    const dyH = -(1 - eH) * 1000 - bnc;
+    const dyA = (1 - eA) * 1000 + bnc;
     const breathe = t > 3.3 ? 0.010 * (1 - Math.cos((t - 3.3) * TAU / 1.6)) : 0;
     const sc = 1 + breathe + 0.022 * k + 0.05 * Math.exp(-16 * Math.max(0, t - HIT)) + 0.03 * ez(t, 5.75, 6.0, E.inQuad);
     const hy = L.y + dyH, ay = L.y + L.M.afk.offsetY * L.s + dyA;
 
     ctx.save();
-    ctx.translate(CX, s01_s02_LOCKY); ctx.scale(sc, sc); ctx.translate(-CX, -s01_s02_LOCKY);
+    ctx.translate(SCX, s01_s02_LOCKY); ctx.scale(sc, sc); ctx.translate(-SCX, -s01_s02_LOCKY);
 
-    // glow (cached blur), pulsing on the kicks
     if (t > 3.04) {
+      const app = clamp(remap(t, 3.04, 3.16));
+      // dark plate first: keeps the counters and the letter gaps black
+      const Mt = s01_s02_matteCache();
+      ctx.save(); ctx.globalAlpha = 0.62 * app;
+      ctx.drawImage(Mt.c, L.x - Mt.pad, L.y - Mt.pad);
+      ctx.restore();
+      // then the halo — masked to the outside of the letterforms, capped so the seams survive
       const G = s01_s02_glowCache();
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = (0.30 + 0.30 * k + 0.24 * Math.exp(-9 * Math.max(0, t - HIT))) * clamp(remap(t, 3.04, 3.16));
+      ctx.globalAlpha = (0.20 + 0.18 * k + 0.16 * Math.exp(-9 * Math.max(0, t - HIT))) * app;
       ctx.drawImage(G.c, L.x - G.pad, L.y - G.pad);
       ctx.restore();
     }
@@ -401,7 +449,7 @@ SCENES.s02 = {
         const b = s01_s02_BURST[i], p = (t - HIT) / b.life;
         if (p >= 1) continue;
         const e = E.outQuint(p), r = b.r0 + b.sp * e;
-        const x = CX + Math.cos(b.ang) * r;
+        const x = SCX + Math.cos(b.ang) * r;
         const y = s01_s02_LOCKY + Math.sin(b.ang) * r * 0.82 - b.rise * 120 * e + 820 * p * p;
         const s = b.sz * (1 - p * 0.55);
         ctx.save(); ctx.globalAlpha = 0.9 * Math.pow(1 - p, 1.3);
@@ -415,29 +463,30 @@ SCENES.s02 = {
     /* -------- copy */
     const sub = ez(t, 3.6, 4.0, E.outExpo);
     if (sub > 0) {
-      drawKinetic(ctx, 'Bleib online. Auch offline.', CX, 1120,
+      drawKinetic(ctx, 'Bleib online. Auch offline.', SCX, 1120,
         { size: 52, family: FONTS.head, weight: 500, tracking: 0.02 * 52, color: rgba(T().text, 0.88), align: 'center' },
         sub, 'rise');
     }
     const kick = ez(t, 4.3, 4.6, E.outExpo);
     if (kick > 0) {
       const str = 'AFK-Client für den HugoSMP';
-      let ks = 32;                                     // fit inside the TikTok-safe 810 px
+      const tr = 0.07;                                 // tighter tracking buys size, not width
+      let ks = 42;                                     // fit inside the TikTok-safe box (SCX ± 390)
       for (let i = 0; i < 10; i++) {
-        const o = { size: ks, family: FONTS.silk, weight: 700, tracking: 0.15 * ks };
+        const o = { size: ks, family: FONTS.silk, weight: 700, tracking: tr * ks };
         const w = measureText(ctx, str, o);
-        if (w <= 700) break;
-        ks *= (700 / w) * 0.995;
+        if (w <= 770) break;
+        ks *= (770 / w) * 0.995;
       }
-      drawKinetic(ctx, str, CX, 1220,
-        { size: ks, family: FONTS.silk, weight: 700, tracking: 0.15 * ks, color: T().muted, align: 'center' },
+      drawKinetic(ctx, str, SCX, 1220,
+        { size: ks, family: FONTS.silk, weight: 700, tracking: tr * ks, color: rgba(T().text, 0.72), align: 'center' },
         kick, 'type');
     }
 
-    /* -------- post fx */
+    /* -------- post fx (the timeline already flashes at the 3.0 cut — never stack a
+       second flash on top of it, that is what caused the white wash + flicker) */
     if (t < HIT + 0.12) FX.rgb = Math.max(FX.rgb, 9 * (1 - remap(t, HIT, HIT + 0.10)));
-    FX.flash = Math.max(FX.flash, 0.5 * impulse(t, HIT, 26));
     FX.shake = Math.max(FX.shake, 5 * k * (t < 5.9 ? 1 : 0));
-    FX.bloom = Math.max(FX.bloom, 0.28 + 0.10 * k);
+    FX.bloom = Math.max(FX.bloom, 0.28);
   },
 };

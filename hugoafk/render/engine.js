@@ -571,6 +571,60 @@ function nightSky(ctx, t, o = {}) {
   ctx.restore();
 }
 
+
+/* ---------------------------------------------- textured Minecraft blocks
+   A 16x16 texture atlas (assets/tex.png) is sliced into per-face canvases at three
+   brightness levels, so a block can be drawn as a real isometric cube with textured
+   top / left / right faces — the way Minecraft renders a block in the inventory. */
+const _tex = { ready: false, faces: new Map() };
+function texFace(name, level) {           // level 0 = top (bright), 1 = left, 2 = right (darkest)
+  const key = name + level; let c = _tex.faces.get(key); if (c) return c;
+  const M = IMG.texMeta, i = M.index[name]; if (i == null) return null;
+  const T = M.tile, sx = (i % M.cols) * T, sy = Math.floor(i / M.cols) * T;
+  c = makeCanvas(T, T); const x = c.getContext('2d');
+  x.imageSmoothingEnabled = false; x.drawImage(IMG.tex, sx, sy, T, T, 0, 0, T, T);
+  const dim = [0, 0.20, 0.42][level];
+  if (dim) { x.globalCompositeOperation = 'source-atop'; x.fillStyle = `rgba(0,0,0,${dim})`; x.fillRect(0, 0, T, T); }
+  if (level === 0) { x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(255,255,255,0.10)'; x.fillRect(0, 0, T, T); }
+  _tex.faces.set(key, c); return c;
+}
+// draw one textured parallelogram: unit square -> (origin, uVec, vVec)
+function _face(ctx, img, ox, oy, ux, uy, vx, vy) {
+  if (!img) return;
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.transform(ux / img.width, uy / img.width, vx / img.height, vy / img.height, ox, oy);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+}
+/* textured isometric block. names: a single texture, or {top, side} / {top, left, right}.
+   (x, y) is the centre of the top face. size = block edge in px. */
+function blockIcon(ctx, names, x, y, size, o = {}) {
+  if (!IMG.tex || !IMG.texMeta) return;
+  const n = typeof names === 'string' ? { top: names, side: names } : names;
+  const top = n.top, left = n.left || n.side || n.top, right = n.right || n.side || n.top;
+  const w = size * ISO.w, h = size * ISO.h, s = size * (o.height ?? 1);
+  ctx.save(); if (o.alpha != null) ctx.globalAlpha *= o.alpha; if (o.composite) ctx.globalCompositeOperation = o.composite;
+  if (o.rotate) { ctx.translate(x, y); ctx.rotate(o.rotate); ctx.translate(-x, -y); }
+  // top rhombus: back corner (x, y-h), u -> right, v -> left
+  _face(ctx, texFace(top, 0), x, y - h, w, h, -w, h);
+  _face(ctx, texFace(left, 1), x - w, y, w, h, 0, s);      // left face from the left corner
+  _face(ctx, texFace(right, 2), x + w, y, -w, h, 0, s);    // right face from the right corner
+  if (o.outline) { ctx.strokeStyle = rgba(o.outline, o.outlineAlpha ?? 0.5); ctx.lineWidth = o.outlineWidth ?? 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + s); ctx.lineTo(x, y + h + s); ctx.lineTo(x - w, y + s); ctx.lineTo(x - w, y); ctx.closePath(); ctx.stroke(); }
+  ctx.restore();
+}
+// textured cube in isometric block coordinates (drop-in companion to cube())
+function texCube(ctx, ix, iy, iz, o = {}) {
+  const size = o.size ?? 60, p = isoPos(ix, iy, iz, o);
+  blockIcon(ctx, o.tex || 'stone', p.x, p.y, size, o);
+  return p;
+}
+// a field of textured blocks, drawn back-to-front
+function texField(ctx, cells, o = {}) {
+  const sorted = cells.slice().sort((a, b) => (a.ix + a.iy - (a.iz || 0)) - (b.ix + b.iy - (b.iz || 0)));
+  for (const c of sorted) texCube(ctx, c.ix, c.iy, c.iz || 0, Object.assign({}, o, c));
+}
+
 /* --------------------------------------------------------- post chain */
 let _mainCanvas, _mctx, _scene, _sctx, _scene2, _sctx2, _chan = [], _noise = [], _scanPat = null, _tmp;
 function ensureChannels(src) {
@@ -610,6 +664,12 @@ function vignette(ctx, strength = 0.55) {
 }
 function flash(ctx, alpha, color = '#ffffff') { ctx.save(); ctx.globalAlpha = clamp(alpha); ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); ctx.restore(); }
 
+function mapSceneTime(sc, t) {
+  if (!sc.src) return { lt: t - sc.start, u: t, dur: sc.end - sc.start };
+  const dd = sc.end - sc.start, sd = sc.src[1] - sc.src[0];
+  const u = sc.src[0] + (t - sc.start) * (sd / dd);
+  return { lt: u - sc.src[0], u, dur: sd };
+}
 const FX = {};
 function resetFX() {
   Object.assign(FX, { zoom: 1, x: 0, y: 0, rot: 0, rgb: 0, rgbAngle: 0, glitch: 0, glitchSeed: 1, bloom: 0.22, bloomBlur: 26, flash: 0, flashColor: '#ffffff', whip: 0, whipDir: 1, grain: 0.05, vignette: 0.5, scan: 0.045, blur: 0, fade: 0, invert: 0, shake: 0 });
@@ -653,6 +713,7 @@ function composite(ctx, src, fx, frame) {
 
 /* ------------------------------------------------------------- engine */
 const Engine = {
+  initTextures() { _tex.ready = !!(IMG.tex && IMG.texMeta); },
   init(canvas) {
     _mainCanvas = canvas; _mctx = canvas.getContext('2d', { alpha: false });
     _scene = makeCanvas(); _sctx = _scene.getContext('2d', { alpha: false });
@@ -677,14 +738,14 @@ const Engine = {
     const TLx = (typeof TL !== "undefined") ? TL : window.TL;
     if (TLx) {
       const sc = TLx.sceneAt(t);
-      if (sc) { s.save(); try { sc.draw(s, t - sc.start, t, sc.end - sc.start, sc); } finally { s.restore(); } }
+      if (sc) { const m = mapSceneTime(sc, t); s.save(); try { sc.draw(s, m.lt, m.u, m.dur, sc); } finally { s.restore(); } }
       // crossfade into the next scene: draw it on a second canvas and blend
       for (const tr of TLx.transitions || []) {
         const types = Array.isArray(tr.type) ? tr.type : [tr.type]; if (!types.includes('xfade')) continue;
         const dur = tr.dur ?? 0.4; if (t < tr.at - dur || t >= tr.at) continue;
         const next = TLx.sceneAt(tr.at); if (!next || next === sc) continue;
         const s2 = _sctx2; s2.setTransform(1, 0, 0, 1, 0, 0); s2.globalAlpha = 1; s2.globalCompositeOperation = 'source-over'; s2.filter = 'none'; s2.shadowBlur = 0;
-        fillBg(s2, T().bg); s2.save(); try { next.draw(s2, 0, t, next.end - next.start, next); } finally { s2.restore(); }
+        fillBg(s2, T().bg); const mn = mapSceneTime(next, tr.at); s2.save(); try { next.draw(s2, mn.lt, mn.u, mn.dur, next); } finally { s2.restore(); }
         s.save(); s.globalAlpha = ez(t, tr.at - dur, tr.at, E.inOutQuad); s.drawImage(_scene2, 0, 0); s.restore();
       }
       if (TLx.overlay) { s.save(); TLx.overlay(s, t); s.restore(); }

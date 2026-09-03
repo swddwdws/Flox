@@ -42,7 +42,7 @@ function s06_s07_isoSort(cells) {
 }
 
 /* ================================================================== s06 world */
-const s06_s07_ISO = { size: 60, cx: CX, cy: 1520 };   // farm anchor (bot tile 0/0 sits at cy)
+const s06_s07_ISO = { size: 50, cx: CX, cy: 1125 };   // farm anchor (bot tile 0/0 sits at cy)
 const s06_s07_R = 4;                                  // farm half size in blocks
 const s06_s07_PROWS = [-3, -1, 1, 3];                 // pumpkin rows
 const s06_s07_C = {
@@ -91,7 +91,7 @@ const s06_s07_BOTVOX = (() => {
   }
   return o;                                   // drawn bottom-up, left-to-right
 })();
-const s06_s07_U = s06_s07_ISO.size * 0.37;    // voxel edge of the bot (~22 px)
+const s06_s07_U = s06_s07_ISO.size * 0.40;    // voxel edge of the bot (~20 px)
 const s06_s07_BOTX = s06_s07_ISO.cx;          // bot stands on tile 0/0
 const s06_s07_BOTY = s06_s07_ISO.cy;          // ground surface under the bot
 
@@ -180,8 +180,8 @@ function s06_s07_farm(ctx, t, wire) {
 
 /* pumpkin items popping out of the farm — before the reset and again once the bot is back */
 const s06_s07_POPS = [15.00, 15.25, 16.98, 17.23, 17.48];
-// only front-row pumpkins pop, so the item never flies through the chat plate or the bot
-const s06_s07_POPCELLS = (() => s06_s07_PUMPS.filter(c => c.ix + c.iy >= 2))();
+// only the outer front-edge pumpkins pop, so the item never lands on another block
+const s06_s07_POPCELLS = (() => s06_s07_PUMPS.filter(c => c.ix + c.iy >= 5))();
 function s06_s07_items(ctx, t, wire) {
   if (wire > 0.4) return;
   const O = s06_s07_ISO;
@@ -191,11 +191,21 @@ function s06_s07_items(ctx, t, wire) {
     const cell = s06_s07_POPCELLS[Math.floor(hash1(k * 17 + 5) * s06_s07_POPCELLS.length)];
     if (!cell) continue;
     const g = isoPos(cell.ix, cell.iy, 0, O), e = E.outCubic(life);
-    const x = g.x + (hash2(k, 3) - 0.5) * 40, y = g.y - O.size * 1.1 - e * 84;
-    const a = clamp((1 - life) * 1.6) * clamp(life / 0.12) * (1 - wire);
+    const dx = (hash2(k, 3) - 0.5) * 96 + 40;                       // drift out to the free front-right
+    const x0 = g.x, y0 = g.y - O.size * 1.9;                        // start above the block top
+    const x = x0 + dx * e, y = y0 - e * 168 + life * life * 34;     // rise, then a touch of gravity
+    const a = clamp((1 - life) * 1.8) * clamp(life / 0.10) * (1 - wire);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    dot(ctx, x, y, 44, s06_s07_C.torch, a * 0.32); ctx.restore();
-    itemIcon(ctx, 'pumpkin', x, y, 4.6, { alpha: a, rotate: (hash2(k, 9) - 0.5) * 0.6 });
+    // short gold trail behind the item
+    for (let t2 = 1; t2 <= 4; t2++) {
+      const e2 = E.outCubic(Math.max(0, life - t2 * 0.055));
+      dot(ctx, x0 + dx * e2, y0 - e2 * 168, 30 - t2 * 4, TOKENS.gold, a * 0.16 / t2);
+    }
+    dot(ctx, x, y, 56, TOKENS.gold, a * 0.30);
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha *= a;
+    itemIcon(ctx, 'pumpkin', x, y, 5.4, { rotate: (hash2(k, 9) - 0.5) * 0.5 + life * 0.5 });
+    ctx.restore();
   }
 }
 
@@ -208,7 +218,11 @@ function s06_s07_spot(ctx, t) {
   ctx.strokeStyle = TOKENS.violetHot; ctx.lineWidth = 3; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -t * 26;
   ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x + w, p.y); ctx.lineTo(p.x, p.y + h); ctx.lineTo(p.x - w, p.y); ctx.closePath(); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.globalCompositeOperation = 'lighter'; dot(ctx, p.x, p.y, O.size * 1.1, TOKENS.secondary, 0.20);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, p.x, p.y, O.size * 1.1, TOKENS.secondary, 0.20); ctx.restore();
+  // a small pixel label so "same spot" is readable, not just implied
+  const ly = p.y - O.size * 1.5 - 8 * Math.sin((t - 15.5) * 2.4);
+  ctx.fillStyle = 'rgba(8,4,16,0.72)'; ctx.fillRect(p.x - 92, ly - 20, 184, 40);
+  drawText(ctx, 'RESERVIERT', p.x, ly, { size: 24, family: FONTS.silk, weight: 700, color: TOKENS.violetHot, align: 'center', tracking: 2 });
   ctx.restore();
 }
 
@@ -268,7 +282,7 @@ function s06_s07_chat(ctx, t) {
   if (!lines.length) return;
   const slide = (1 - E.outCubic(clamp((t - s06_s07_CHAT[lines.length - 1].t) / 0.16))) * 16;
   ctx.save(); ctx.translate(0, slide);
-  mcChat(ctx, 150, 1096, lines, { size: 36, lineHeight: 48, family: FONTS.term, bgColor: 'rgba(5,3,12,0.62)', pad: 14, extraW: 12 });
+  mcChat(ctx, 132, 1198, lines, { size: 36, lineHeight: 48, family: FONTS.term, bgColor: 'rgba(5,3,12,0.68)', pad: 14, extraW: 12 });
   ctx.restore();
 }
 
@@ -276,13 +290,27 @@ function s06_s07_chat(ctx, t) {
 function s06_s07_loading(ctx, t) {
   const a = win(t, 15.92, 16.06, 16.40, 16.52);
   if (a <= 0.01) return;
-  const p = E.outCubic(remap(t, 15.95, 16.40)) * 0.94 + remap(t, 16.36, 16.44) * 0.06;
+  const p = clamp(remap(t, 15.94, 16.42) * 1.03);        // linear: the bar must visibly travel
+  const len = 460, x0 = CX - len / 2, by = 1318, th = 14;
   ctx.save(); ctx.globalAlpha *= a;
-  progressBar(ctx, CX, 1356, 460, p, { color: TOKENS.secondary, thickness: 9, track: '#FFFFFF' });
+  progressBar(ctx, CX, by, len, p, { color: TOKENS.secondary, thickness: th, track: '#FFFFFF' });
+  // specular highlight running along the filled part
+  if (p > 0.02) {
+    const hx = x0 - 110 + ((t - 15.94) * 720) % (len + 220);
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, by - th / 2, len * p, th); ctx.clip();
+    const g = ctx.createLinearGradient(hx - 90, 0, hx + 90, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(x0, by - th / 2, len, th); ctx.restore();
+  }
+  // leading edge spark
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  dot(ctx, x0 + len * p, by, 40, TOKENS.violetHot, 0.45 + 0.2 * Math.sin(t * 20));
+  ctx.restore();
   for (let k = 0; k < 3; k++) {
-    const on = 0.25 + 0.75 * Math.max(0, Math.sin((t - 15.95) * 6.4 - k * 0.9));
+    const on = 0.25 + 0.75 * Math.max(0, Math.sin((t - 15.95) * 7.4 - k * 0.9));
     ctx.fillStyle = rgba(TOKENS.violetHot, 0.25 + 0.7 * on);
-    ctx.fillRect(CX - 28 + k * 28 - 6, 1408 - 6, 12, 12);
+    const s = 12 + 4 * on;
+    ctx.fillRect(CX - 30 + k * 30 - s / 2, 1372 - s / 2, s, s);
   }
   ctx.restore();
 }
@@ -291,13 +319,13 @@ function s06_s07_loading(ctx, t) {
 function s06_s07_check(ctx, t) {
   const p = remap(t, 16.88, 17.12);
   if (p <= 0) return;
-  const x = 772, y = 1352, sc = E.outBack(p) * (1 + 0.06 * Math.sin((t - 16.9) * 9) * (1 - p));
+  const x = 792, y = 1038, sc = E.outBack(p) * (1 + 0.06 * Math.sin((t - 16.9) * 9) * (1 - p));
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter'; dot(ctx, x, y, 104 * sc, TOKENS.ok, 0.30 + 0.16 * pulse(t, 0.5, 6, 16.9));
+  ctx.globalCompositeOperation = 'lighter'; dot(ctx, x, y, 94 * sc, TOKENS.ok, 0.30 + 0.16 * pulse(t, 0.5, 6, 16.9));
   ctx.restore();
-  shockwave(ctx, x, y, remap(t, 16.90, 17.30), { radius: 210, color: TOKENS.ok, width: 8, alpha: 0.7 });
+  shockwave(ctx, x, y, remap(t, 16.90, 17.30), { radius: 160, color: TOKENS.ok, width: 8, alpha: 0.7 });
   ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
-  itemIcon(ctx, 'check', 0, 0, 12);
+  itemIcon(ctx, 'check', 0, 0, 9);
   ctx.restore();
 }
 
@@ -315,8 +343,8 @@ SCENES.s06 = {
     const worldA = 1 - 0.74 * dark;
 
     nightSky(ctx, t, { count: 70, seed: 33, color: '#CFC6E8', alpha: 0.22 * (1 - dark * 0.8), hMul: 0.62, drift: true });
-    radialFill(ctx, CX, 1480, 760,
-      [[0, rgba(TOKENS.secondary, 0.13 * worldA)], [0.55, rgba(TOKENS.deepViolet, 0.05 * worldA)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    radialFill(ctx, CX, 1150, 800,
+      [[0, rgba(TOKENS.secondary, (0.13 + 0.05 * pulse(t, 0.5, 6, 15.0)) * worldA)], [0.55, rgba(TOKENS.deepViolet, 0.05 * worldA)], [1, 'rgba(0,0,0,0)']], 'lighter');
     // red alarm wash on the beats of the warning
     const al = (1 - remap(t, 15.30, 15.70)) * (0.35 + 0.65 * pulse(t, 0.5, 5.5, 15.0));
     if (al > 0.01) {
@@ -328,9 +356,11 @@ SCENES.s06 = {
     ctx.save();
     ctx.globalAlpha *= worldA;
     withCamera(ctx, {
-      zoom: 1 + 0.014 * Math.sin((t - 15) * 0.9) + 0.03 * impulse(t, 15.40, 6) + 0.02 * impulse(t, 16.42, 5),
-      y: -6 * Math.sin((t - 15) * 0.6),
-      ox: CX, oy: 1420,
+      zoom: 1 + 0.026 * Math.sin((t - 15) * 0.85) + 0.035 * impulse(t, 15.40, 6) + 0.022 * impulse(t, 16.42, 5),
+      y: -13 * Math.sin((t - 15) * 0.62),
+      x: 9 * Math.sin((t - 15) * 0.41 + 1.1),
+      rot: 0.004 * Math.sin((t - 15) * 0.5),
+      ox: CX, oy: 1130,
     }, c => {
       s06_s07_farm(c, t, wire);
       c.save(); c.globalAlpha = Math.min(1, worldA * 3.4); s06_s07_spot(c, t); c.restore();
@@ -339,28 +369,39 @@ SCENES.s06 = {
     });
     ctx.restore();
 
+    // violet scanline sweep so the black pause never stands still
+    if (dark > 0.05) {
+      const sw = ((t - 15.90) * 0.9) % 1, yy = lerp(340, 1400, sw);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= dark * 0.5;
+      const g = ctx.createLinearGradient(0, yy - 110, 0, yy + 110);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.5, rgba(TOKENS.secondary, 0.30)); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, yy - 110, W, 220);
+      ctx.fillStyle = rgba(TOKENS.violetHot, 0.22); ctx.fillRect(0, yy - 1, W, 2);
+      ctx.restore();
+    }
+
     s06_s07_loading(ctx, t);
     s06_s07_check(ctx, t);
     s06_s07_warnHud(ctx, t);
 
     /* headline — two lines, slam at 15.05 / 15.17 */
-    band(ctx, 690, 300, 0.5);
+    band(ctx, 700, 400, 0.5);
     const hOpt = { size: 104, family: FONTS.body, weight: 800, color: T().text, align: 'center' };
-    const s1 = s06_s07_fit(ctx, 'World-Reset', hOpt, 790), s2 = s06_s07_fit(ctx, 'erkannt.', hOpt, 790);
-    s06_s07_slam(ctx, 'World-Reset', CX, 620, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 15.05);
-    s06_s07_slam(ctx, 'erkannt.', CX, 730, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 15.17);
+    const s1 = s06_s07_fit(ctx, 'World-Reset', hOpt, 700), s2 = s06_s07_fit(ctx, 'erkannt.', hOpt, 700);
+    s06_s07_slam(ctx, 'World-Reset', CX, 548, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 15.05);
+    s06_s07_slam(ctx, 'erkannt.', CX, 656, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 15.17);
 
     /* subline — three sentences, 15.5 / 16.4 / 16.9 */
     const subs = [
-      { s: 'Trennt sich.', t0: 15.50, y: 900, c: rgba(T().text, 0.85) },
-      { s: 'Kommt zurück.', t0: 16.40, y: 958, c: rgba(T().text, 0.85) },
-      { s: 'Gleiche Stelle.', t0: 16.90, y: 1016, c: TOKENS.violetHot },
+      { s: 'Trennt sich.', t0: 15.50, y: 778, c: rgba(T().text, 0.85) },
+      { s: 'Kommt zurück.', t0: 16.40, y: 834, c: rgba(T().text, 0.85) },
+      { s: 'Gleiche Stelle.', t0: 16.90, y: 890, c: TOKENS.violetHot },
     ];
     for (const s of subs) {
       const p = ez(t, s.t0, s.t0 + 0.34, E.outExpo);
       if (p <= 0) continue;
       const o = { size: 46, family: FONTS.head, weight: 500, color: s.c, align: 'center', tracking: 0.02 * 46, stagger: 0.5, ease: E.outExpo };
-      o.size = s06_s07_fit(ctx, s.s, Object.assign({}, o, { trackF: 0.02 }), 790); o.tracking = 0.02 * o.size;
+      o.size = s06_s07_fit(ctx, s.s, Object.assign({}, o, { trackF: 0.02 }), 700); o.tracking = 0.02 * o.size;
       drawKinetic(ctx, s.s, CX, s.y, o, p, 'rise');
     }
 
@@ -369,9 +410,9 @@ SCENES.s06 = {
 };
 
 /* ================================================================== s07 phone */
-const s06_s07_PW = 470, s06_s07_PH = 760;               // phone body in px
+const s06_s07_PW = 480, s06_s07_PH = 700;               // phone body in px
 const s06_s07_OW = 620, s06_s07_OH = 900;               // offscreen size
-const s06_s07_PCY = 1140;                               // phone centre on screen
+const s06_s07_PCY = 1072;                               // phone centre on screen (button lands ~y 1279)
 let s06_s07_pc = null, s06_s07_px = null;
 function s06_s07_poff() {
   if (!s06_s07_pc) { s06_s07_pc = makeCanvas(s06_s07_OW, s06_s07_OH); s06_s07_px = s06_s07_pc.getContext('2d'); }
@@ -384,16 +425,17 @@ function s06_s07_poff() {
 /* slow drifting voxel dust in the background */
 const s06_s07_DUST = (() => {
   const r = rng(4711), o = [];
-  for (let i = 0; i < 14; i++) o.push({ x: 60 + r() * 960, y: 200 + r() * 1500, s: 12 + r() * 18, sp: 0.15 + r() * 0.35, ph: r() * TAU });
+  for (let i = 0; i < 18; i++) o.push({ x: 40 + r() * 1000, y: 200 + r() * 1500, s: 12 + r() * 18, sp: 0.4 + r() * 0.7, ph: r() * TAU });
   return o;
 })();
 function s06_s07_dust(ctx, t, alpha, tint) {
   ctx.save(); ctx.globalAlpha *= alpha;
   for (let i = 0; i < s06_s07_DUST.length; i++) {
     const d = s06_s07_DUST[i];
-    const x = d.x + Math.sin(t * d.sp + d.ph) * 40, y = d.y - ((t * d.sp * 26) % 1900) + 950;
+    const x = d.x + Math.sin(t * d.sp * 0.8 + d.ph) * 58, y = d.y - t * d.sp * 46 + 950;
     const yy = ((y - 100) % 1900 + 1900) % 1900 + 100;
-    s06_s07_blk(ctx, x, yy, d.s, tint || TOKENS.secondary, { alpha: 0.16 + 0.1 * Math.sin(t + d.ph), topF: 1.4, leftF: 0.8, rightF: 0.5 });
+    const sz = d.s * (1 + 0.16 * Math.sin(t * 1.6 + d.ph));
+    s06_s07_blk(ctx, x, yy, sz, tint || TOKENS.secondary, { alpha: 0.16 + 0.12 * Math.sin(t * 1.4 + d.ph), topF: 1.4, leftF: 0.8, rightF: 0.5 });
   }
   ctx.restore();
 }
@@ -406,26 +448,28 @@ const s06_s07_LOG = [
   { t: 17.50, s: '[System] Inventar voll.' },
   { t: 17.50, s: '/sell' },
   { t: 17.50, s: '[System] Inventar verkauft.' },
-  { t: 17.86, s: '[System] Laufzeit 04:12:33' },
-  { t: 18.22, s: '[Chat] <Mira> alles gut?' },
-  { t: 18.58, s: '[System] Spawner geleert.' },
-  { t: 18.86, s: '/sell' },
+  { t: 17.74, s: '[System] Laufzeit 04:12:33' },
+  { t: 17.99, s: '[Chat] <Mira> alles gut?' },
+  { t: 18.24, s: '[System] Spawner geleert.' },
+  { t: 18.49, s: '/sell' },
+  { t: 18.74, s: '[System] Inventar verkauft.' },
   { t: 19.06, s: '[System] Bot gestoppt.' },
   { t: 19.60, s: '[System] Bot gestartet.' },
-  { t: 19.94, s: '[System] AFK aktiv.' },
-  { t: 20.28, s: '[Chat] <Nico> nice' },
+  { t: 19.84, s: '[System] AFK aktiv.' },
+  { t: 20.08, s: '[Chat] <Nico> nice' },
+  { t: 20.32, s: '[System] Spawner geleert.' },
 ];
 const s06_s07_STOP = 19.06, s06_s07_START = 19.60;
-// session runtime: ticks once a second, freezes while the bot is stopped, resumes after the restart
+// session runtime: runs in tenths so the counter visibly ticks, freezes while the bot is stopped
 function s06_s07_uptime(t) {
   const base = 4 * 3600 + 12 * 60 + 33;
   const run = Math.min(t, s06_s07_STOP) - 17.50 + Math.max(0, t - s06_s07_START);
-  return base + Math.floor(clamp(run, 0, 99));
+  return base + clamp(run, 0, 99);
 }
 function s06_s07_hms(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = Math.floor(sec) % 60;
   const p = n => (n < 10 ? '0' : '') + n;
-  return p(h) + ':' + p(m) + ':' + p(s);
+  return p(h) + ':' + p(m) + ':' + p(s) + '.' + Math.floor(sec * 10) % 10;
 }
 // colour split for one console line: {tag, rest, tagC, restC}
 function s06_s07_logColor(s) {
@@ -441,7 +485,7 @@ function s06_s07_logColor(s) {
 /* the phone screen (drawn into the offscreen, in phone-local pixels) */
 function s06_s07_screen(ctx, x, y, w, h, t) {
   const stopped = t >= s06_s07_STOP && t < s06_s07_START;
-  const pad = 17, left = x + pad, right = x + w - pad;
+  const pad = 12, left = x + pad, right = x + w - pad;
 
   // screen wash
   linearFill(ctx, x, y, x, y + h, [[0, 'rgba(28,16,52,0.55)'], [0.5, 'rgba(10,7,20,0.2)'], [1, 'rgba(24,10,34,0.5)']], [x, y, w, h]);
@@ -461,17 +505,21 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
 
   /* console feed: newest line at the bottom, older ones scroll up */
   const btnTop = y + h - 172, bh = 92;
-  const top = sy + 46, bot = btnTop - 22, size = 34, lh = 44;
+  const top = sy + 46, bot = btnTop - 22, lh = 48;
+  // VT323 advances at 0.4 em — keep the longest line inside the screen, never below the 36 px floor
+  let size = 38;
+  while (size > 36 && 27 * 0.4 * size > w - pad * 2) size -= 0.5;
   ctx.save();
   ctx.beginPath(); ctx.rect(left - 4, top, w - pad * 2 + 8, bot - top); ctx.clip();
   const shown = [];
   for (const l of s06_s07_LOG) if (t >= l.t) shown.push(l);
   const newest = shown.length ? shown[shown.length - 1].t : 0;
-  const slide = (1 - E.outCubic(clamp((t - newest) / 0.14))) * lh;
+  // sub-pixel scroll: the feed eases in the new line and keeps creeping between arrivals
+  const slide = (1 - E.outCubic(clamp((t - newest) / 0.22))) * lh - Math.min(6, (t - newest) * 3.2);
   ctx.font = font(size, FONTS.term, 400); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.letterSpacing = '0px';
   for (let i = shown.length - 1; i >= 0; i--) {
-    const yy = bot - 20 - (shown.length - 1 - i) * lh + slide;
+    const yy = bot - 22 - (shown.length - 1 - i) * lh + slide;
     if (yy < top - lh || yy > bot + lh) continue;
     const fade = clamp((yy - top) / 46) * clamp((bot - yy) / 18);
     const c = s06_s07_logColor(shown[i].s);
@@ -480,9 +528,16 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
     if (c.tag) { ctx.fillStyle = c.tagC; ctx.fillText(c.tag, xx, yy); xx += ctx.measureText(c.tag).width; }
     ctx.fillStyle = c.restC; ctx.fillText(c.rest, xx, yy);
   }
+  // caret — smooth blink so it moves on every frame
+  ctx.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * 9.4));
+  ctx.fillStyle = TOKENS.violetHot; ctx.fillRect(left, bot - 10, 16, 5);
   ctx.globalAlpha = 1;
-  // caret
-  if (Math.floor(t * 3) % 2 === 0) { ctx.fillStyle = rgba(TOKENS.violetHot, 0.7); ctx.fillRect(left, bot - 8, 16, 5); }
+  // a soft violet scan band travelling down the feed keeps the screen alive
+  const sc0 = ((t - 17.5) * 0.42) % 1, syy = lerp(top, bot, sc0);
+  ctx.globalCompositeOperation = 'lighter';
+  const sg = ctx.createLinearGradient(0, syy - 60, 0, syy + 60);
+  sg.addColorStop(0, 'rgba(0,0,0,0)'); sg.addColorStop(0.5, rgba(TOKENS.secondary, 0.16)); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sg; ctx.fillRect(x, syy - 60, w, 120);
   ctx.restore();
 
   /* the one-click control */

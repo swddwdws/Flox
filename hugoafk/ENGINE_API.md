@@ -114,3 +114,11 @@ Keep the aspect ratio (1401:888). For a glow, draw the same image blurred undern
 
 ## Safe area (TikTok)
 `SAFE` = x 90..900, y 300..1420. TikTok covers the right rail and the bottom caption block — nothing that must be read may sit outside this box. Headlines ≥ 96 px, sublines ≥ 42 px.
+
+
+## Scene time remapping
+`TL.add(id, start, end, { src: [a, b] })` plays a scene that was authored for the window `[a, b]`
+over the destination window `[start, end]`. The engine maps the time linearly and hands the scene
+its ORIGINAL time base, so scene code keeps using the absolute seconds it was written with.
+Prefer pure shifts (same duration) — a different duration also stretches the scene's internal
+beat timing.

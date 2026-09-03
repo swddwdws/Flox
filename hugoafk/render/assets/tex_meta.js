@@ -1,0 +1,1 @@
+window.TEX_META = {"tile": 16, "cols": 8, "rows": 2, "index": {"dirt": 0, "grass_top": 1, "grass_side": 2, "farmland": 3, "pumpkin_top": 4, "pumpkin_side": 5, "spawner": 6, "oak_planks": 7, "stone": 8, "chest": 9, "iron_block": 10, "violet_block": 11, "red_block": 12}};
