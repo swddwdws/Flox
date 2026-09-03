@@ -165,7 +165,7 @@ a, b = S.n_of(DROP2 - 0.12), S.n_of(DROP2); r = S.n_of(0.003)
 gate = np.ones(n_total); gate[a:b] = 0; gate[a - r:a] = np.linspace(1, 0, r); gate[b:b + r] = np.linspace(0, 1, r)
 mix *= gate[:, None]
 fo = np.interp(tt, [0, 28.8, 29.7, 30], [1, 1, 0, 0]); mix *= fo[:, None]
-out = S.master(mix, target_tp=S.db(-1.5)) * fo[:, None]
+out = S.master(mix, target_tp=S.db(float(os.environ.get('TP', -4.5)))) * fo[:, None]
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
 S.write_wav(OUT, out)
 prof = [20 * np.log10(np.sqrt(np.mean(out[i * S.SR:(i + 1) * S.SR] ** 2)) + 1e-9) for i in range(int(DUR))]

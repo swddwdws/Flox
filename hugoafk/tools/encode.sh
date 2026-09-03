@@ -10,7 +10,7 @@ OUT="${OUT:-out/Fable_5.1_Promo_iPhone.mp4}"
 PRESET="${PRESET:-slow}"
 CRF="${CRF:-18}"
 DUR="${DUR:-30}"
-if [ -f "$AUDIO" ]; then AIN=(-i "$AUDIO"); AOPT=(-c:a aac -profile:a aac_low -b:a 192k -ar 48000 -ac 2); else AIN=(); AOPT=(-an); fi
+if [ -f "$AUDIO" ]; then AIN=(-i "$AUDIO"); AOPT=(-c:a aac -profile:a aac_low -b:a 256k -ar 48000 -ac 2); else AIN=(); AOPT=(-an); fi
 "$FF" -y -hide_banner -loglevel warning -stats \
   -framerate 30 -start_number "${START:-0}" -i "$FRAMES/f%04d.png" "${AIN[@]}" \
   -map 0:v:0 $( [ -f "$AUDIO" ] && echo "-map 1:a:0" ) \

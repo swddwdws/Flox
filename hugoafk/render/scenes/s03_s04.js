@@ -7,7 +7,7 @@
 /* ------------------------------------------------------------------ palette (voxel world only) */
 const s03_s04_C = {
   slate: '#2C2A3C', rack: '#1E1C2B',
-  slab: '#221D33', slabEdge: '#171325',
+  slab: '#221D33', slabEdge: '#171325', cloud: '#2F2850',
   pc: '#454552', pcDark: '#22222B', pcDead: '#572222',
   grass: '#3F7A30', field: '#6A4A2E', pumpkin: '#E08020', stem: '#2E7D32',
   cage: '#4A515C', cageHi: '#657081',
@@ -17,26 +17,42 @@ const s03_s04_C = {
 // shrink a headline until it fits maxW (keeps the -0.04em tracking of the style guide)
 function s03_s04_fit(ctx, str, o, maxW) {
   let size = o.size;
-  for (let k = 0; k < 30 && size > 88; k++) {
+  for (let k = 0; k < 30 && size > 96; k++) {
     if (measureText(ctx, str, Object.assign({}, o, { size: size, tracking: -0.04 * size })) <= maxW) break;
     size -= 2;
   }
   return size;
 }
-// headline slam: scale 1.18 -> 1.0 (outExpo, 0.15 s) + ~3 frames of RGB split
+// headline slam: scale 1.16 -> 1.0 (outExpo, 0.15 s) + ~3 frames of RGB split.
+// The horizontal punch is clamped so that even at peak scale plus the 8 px RGB split the line
+// stays inside the TikTok safe area (x 90..900); the vertical punch keeps the full impact.
 function s03_s04_slam(ctx, str, x, y, o, t, t0, dur) {
   const p = clamp((t - t0) / (dur || 0.15));
   if (p <= 0) return;
   const e = E.outExpo(p);
   if (t - t0 < 0.1) FX.rgb = Math.max(FX.rgb, 8 * (1 - e));
+  const w = measureText(ctx, str, o);
+  const sx = lerp(Math.min(1.16, 696 / Math.max(1, w)), 1, e), sy = lerp(1.16, 1, e);
   ctx.save();
-  ctx.translate(x, y); ctx.scale(lerp(1.18, 1, e), lerp(1.18, 1, e));
+  ctx.translate(x, y); ctx.scale(sx, sy);
   drawText(ctx, str, 0, 0, Object.assign({}, o, { alpha: (o.alpha != null ? o.alpha : 1) * clamp(p * 6) }));
   ctx.restore();
+}
+// hex-safe colour mix: cube()/shade() re-parse the colour as hex, so mixColor's rgb() string
+// would come back as black. Everything handed to cube() must go through this.
+function s03_s04_mixHex(h1, h2, k) {
+  const a = hexToRgb(h1), b = hexToRgb(h2);
+  const h = v => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0');
+  return '#' + h(lerp(a[0], b[0], k)) + h(lerp(a[1], b[1], k)) + h(lerp(a[2], b[2], k));
 }
 // one cube anchored at a screen point (lets us mix cube sizes inside one iso scene)
 function s03_s04_blk(ctx, x, y, size, color, o) {
   return cube(ctx, 0, 0, 0, Object.assign({ size: size, cx: x, cy: y, color: color }, o || {}));
+}
+// item icon at a given pixel size (the engine sprites are 16x16)
+function s03_s04_icon(ctx, name, x, y, px, o) {
+  const sp = SPRITES[name]; if (!sp) return;
+  itemIcon(ctx, name, x, y, px / sp.rows.length, o);
 }
 // right-hand face polygon of a cube (dead front panel of the PC)
 function s03_s04_faceR(ctx, x, y, s, inset, fill) {
@@ -63,8 +79,12 @@ function s03_s04_poly(ctx, pts, color, width, alpha) {
   ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); ctx.restore();
 }
-// quadratic bezier point
-function s03_s04_bez(p, a, c, b) { const u = 1 - p; return [u * u * a[0] + 2 * u * p * c[0] + p * p * b[0], u * u * a[1] + 2 * u * p * c[1] + p * p * b[1]]; }
+// cubic bezier point (the item arcs hug the right edge so they never sit on the headline)
+function s03_s04_bez3(p, a, c1, c2, b) {
+  const u = 1 - p, u2 = u * u, p2 = p * p;
+  return [u2 * u * a[0] + 3 * u2 * p * c1[0] + 3 * u * p2 * c2[0] + p2 * p * b[0],
+          u2 * u * a[1] + 3 * u2 * p * c1[1] + 3 * u * p2 * c2[1] + p2 * p * b[1]];
+}
 // soft elliptical ground glow under a voxel island
 function s03_s04_groundGlow(ctx, x, y, rx, ry, color, alpha) {
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(x, y); ctx.scale(1, ry / rx);
@@ -72,70 +92,100 @@ function s03_s04_groundGlow(ctx, x, y, rx, ry, color, alpha) {
   ctx.restore();
 }
 
-/* ------------------------------------------------------------------ s03: drifting voxel clouds */
+/* ------------------------------------------------------------------ s03: drifting voxel clouds
+   They live ABOVE the headline (y 250–430) so they never sit under the copy, drift at
+   42–64 px/s so the negative top third of the frame visibly moves, and carry a violet
+   rim so they read as voxel clouds instead of dark noise. */
 const s03_s04_CLOUDS = (() => {
-  const r = rng(4711), out = [];
-  for (let i = 0; i < 3; i++) {
-    const cells = [], n = 10 + Math.floor(r() * 5);
+  const r = rng(4711), out = [], ys = [252, 336, 246, 414];
+  for (let i = 0; i < 4; i++) {
+    const cells = [], n = 9 + Math.floor(r() * 4);
     for (let k = 0; k < n; k++) cells.push({ ix: Math.floor(r() * 5), iy: Math.floor(r() * 4), iz: r() < 0.35 ? 1 : 0 });
-    out.push({ cells: cells, x0: 60 + i * 340 + r() * 90, y: 470 + i * 170, size: 22 + r() * 9, sp: 7 + r() * 9, a: 0.42 + r() * 0.18 });
+    out.push({ cells: cells, x0: i * 410 + r() * 90, y: ys[i], size: 18 + r() * 7, sp: 44 + r() * 22, a: 0.50 + r() * 0.16, px: 0.30 + i * 0.18 });
   }
   return out;
 })();
-function s03_s04_clouds(ctx, t) {
+function s03_s04_clouds(ctx, t, push) {
   for (const c of s03_s04_CLOUDS) {
-    const span = W + 520;
-    const x = ((c.x0 + (t - 6) * c.sp) % span + span) % span - 260;
-    cubeField(ctx, c.cells, { size: c.size, cx: x, cy: c.y, color: s03_s04_C.slab, alpha: c.a, topF: 1.5, leftF: 0.95, rightF: 0.7 });
+    const span = W + 560;
+    const x = ((c.x0 + (t - 6) * c.sp) % span + span) % span - 280;
+    const y = c.y - push * 46 * c.px;                       // parallax against the camera push
+    cubeField(ctx, c.cells, {
+      size: c.size, cx: x, cy: y, color: s03_s04_C.cloud, alpha: c.a,
+      topF: 1.85, leftF: 1.05, rightF: 0.72,
+      outline: TOKENS.secondary, outlineAlpha: 0.34 * c.a, outlineWidth: 1.2,
+    });
   }
 }
 
-/* ------------------------------------------------------------------ s03: server towers */
+/* ------------------------------------------------------------------ s03: server towers
+   Tower A lands with the cut (builds 5.82–6.28), B on the beat at 6.5, C on 7.0 — so the
+   scene keeps arriving on the 0.5 s grid instead of standing still after the slam. */
 const s03_s04_TOWERS = [
-  { bx: 0, by: 0, h: 7, seed: 3 },
-  { bx: 3, by: -1, h: 9, seed: 11 },
-  { bx: -1, by: 3, h: 6, seed: 23 },
+  { bx: 0, by: 0, h: 7, seed: 3, t0: 5.82 },
+  { bx: 3, by: -1, h: 9, seed: 11, t0: 6.50 },
+  { bx: -1, by: 3, h: 6, seed: 23, t0: 7.00 },
 ];
+const s03_s04_BEATS = [6.50, 7.00, 7.50, 8.00, 8.50];       // rack-wide read/write sweeps
+const s03_s04_HITS = [7.00, 7.50, 8.00, 8.50];              // packet release / rings
+function s03_s04_sweepAt(t, l, ti) {
+  // a read/write head rolls up every rack the whole time, so the racks never sit still …
+  const roll = ((t - 6) * 3.8 + ti * 2.3) % 11 - 1.5;
+  let s = 0.48 * Math.exp(-Math.pow(l - roll, 2) * 1.0);
+  // … and a much faster, brighter sweep fires on every beat
+  for (let i = 0; i < s03_s04_BEATS.length; i++) {
+    const dt = t - s03_s04_BEATS[i] - ti * 0.05;
+    if (dt < 0 || dt > 0.80) continue;
+    const pos = dt * 14.0 - 1.2;
+    s = Math.max(s, Math.exp(-Math.pow(l - pos, 2) * 0.70) * (1 - dt / 0.80));
+  }
+  return s;
+}
 function s03_s04_towers(ctx, t, iso) {
-  const leds = [];
+  const leds = [], feet = [], hot = TOKENS.violetHot, flashes = [];
   for (let ti = 0; ti < s03_s04_TOWERS.length; ti++) {
     const TW = s03_s04_TOWERS[ti];
+    const fp = isoPos(TW.bx + 1, TW.by + 1, -1, iso);
+    feet.push([fp.x, fp.y + iso.size * 0.55]);
     for (let l = 0; l < TW.h; l++) {
-      const t0 = 5.84 + ti * 0.04 + l * 0.024;
+      const t0 = TW.t0 + l * 0.034;
       const app = ez(t, t0, t0 + 0.26, E.outBack);
       if (app <= 0.002) continue;
+      const sw = s03_s04_sweepAt(t, l, ti);
       const dz = (1 - app) * 1.1, cells = [];
+      const base = (l % 2 === 0) ? s03_s04_C.slate : s03_s04_C.rack;
+      const col = sw > 0.01 ? s03_s04_mixHex(base, hot, clamp(sw) * 0.52) : base;
       for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-        cells.push({ ix: TW.bx + a, iy: TW.by + b, iz: l + dz, color: (l % 2 === 0) ? s03_s04_C.slate : s03_s04_C.rack, alpha: clamp(app) });
+        cells.push({ ix: TW.bx + a, iy: TW.by + b, iz: l + dz, color: col, alpha: clamp(app) });
       }
       cubeField(ctx, cells, Object.assign({}, iso, { outline: '#0B0912', outlineAlpha: 0.55, outlineWidth: 1.4 }));
       if (app > 0.8) {
         const p = isoPos(TW.bx + 1, TW.by + 1, l, iso), w = iso.size * 0.866;
-        // a read/write sweep runs up each rack twice per bar
-        const sp = ((t - 6) * 3.4 + ti * 1.7) % (TW.h + 2.5), sc = Math.exp(-Math.pow(l - sp, 2) * 1.6);
-        const b1 = clamp(0.18 + 0.82 * pulse(t, 0.5 + hash1(TW.seed * 31 + l) * 1.6, 5, hash1(TW.seed + l * 7) * 2) + sc);
-        const b2 = clamp(0.18 + 0.82 * pulse(t, 0.5 + hash1(TW.seed * 17 + l * 3) * 1.5, 5, hash1(TW.seed * 5 + l) * 2) + sc);
+        const b1 = clamp(0.18 + 0.82 * pulse(t, 0.5 + hash1(TW.seed * 31 + l) * 1.6, 5, hash1(TW.seed + l * 7) * 2) + sw * 1.4);
+        const b2 = clamp(0.18 + 0.82 * pulse(t, 0.5 + hash1(TW.seed * 17 + l * 3) * 1.5, 5, hash1(TW.seed * 5 + l) * 2) + sw * 1.4);
         leds.push([p.x + w * 0.52, p.y + iso.size * 0.46, b1]);
         leds.push([p.x - w * 0.52, p.y + iso.size * 0.46, b2]);
+        if (sw > 0.08) flashes.push([p.x, p.y + iso.size * 0.35, sw]);
       }
     }
   }
-  // LEDs batched on top (cached sprite glows, no ctx.filter)
-  const hot = TOKENS.violetHot;
+  // the sweep lights the whole rack row, batched (cached sprite glows, no ctx.filter)
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (const L of leds) dot(ctx, L[0], L[1], 15 + L[2] * 9, hot, 0.20 + 0.55 * L[2]);
+  for (const f of flashes) dot(ctx, f[0], f[1], 92, hot, 0.30 * f[2]);
+  for (const L of leds) dot(ctx, L[0], L[1], 16 + L[2] * 12, hot, 0.20 + 0.58 * L[2]);
   ctx.restore();
-  for (const L of leds) { ctx.save(); ctx.globalAlpha = 0.45 + 0.55 * L[2]; ctx.fillStyle = hot; ctx.fillRect(Math.round(L[0] - 3), Math.round(L[1] - 3), 7, 7); ctx.restore(); }
+  for (const L of leds) { ctx.save(); ctx.globalAlpha = 0.45 + 0.55 * L[2]; ctx.fillStyle = hot; ctx.fillRect(Math.round(L[0] - 4), Math.round(L[1] - 4), 8, 8); ctx.restore(); }
+  return feet;
 }
 
 /* rising data motes around the racks — keeps the frame alive */
-const s03_s04_MOTES = (() => { const r = rng(88), o = []; for (let i = 0; i < 14; i++) o.push({ x: 320 + r() * 460, y0: r(), sp: 0.10 + r() * 0.13, s: 4 + r() * 5 }); return o; })();
+const s03_s04_MOTES = (() => { const r = rng(88), o = []; for (let i = 0; i < 18; i++) o.push({ x: 300 + r() * 500, y0: r(), sp: 0.16 + r() * 0.20, s: 5 + r() * 6 }); return o; })();
 function s03_s04_motes(ctx, t) {
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const m of s03_s04_MOTES) {
     const ph = (m.y0 + (t - 6) * m.sp) % 1;
-    const y = lerp(1560, 980, ph), a = Math.sin(Math.PI * ph) * 0.6;
-    dot(ctx, m.x, y, m.s * 3.2, TOKENS.secondary, a * 0.5);
+    const y = lerp(1580, 940, ph), a = Math.sin(Math.PI * ph) * 0.65;
+    dot(ctx, m.x, y, m.s * 3.4, TOKENS.secondary, a * 0.5);
     ctx.globalAlpha = a; ctx.fillStyle = TOKENS.violetHot; ctx.fillRect(Math.round(m.x), Math.round(y), m.s, m.s); ctx.globalAlpha = 1;
   }
   ctx.restore();
@@ -163,15 +213,22 @@ function s03_s04_hms(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60;
   return String(h).padStart(3, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
+/* Digit tick: the outgoing digit leaves upward while the incoming one arrives from below,
+   both in plain white JetBrains Mono and with only a 5 px nudge, so a changing digit can
+   never hang below the baseline or read as a rendering fault. */
 function s03_s04_digits(ctx, str, prev, frac, xRight, y, o) {
   const cw = measureText(ctx, '0', o), total = str.length * cw;
+  const roll = 1 - E.outCubic(clamp(frac / 0.16));
+  const co = Object.assign({}, o, { align: 'center' });
   let x = xRight - total;
   for (let i = 0; i < str.length; i++) {
-    const ch = str[i], changed = prev && prev[i] !== ch;
-    const a = changed ? 1 - E.outExpo(clamp(frac / 0.20)) : 0;
-    drawText(ctx, ch, x + cw / 2, y + a * o.size * 0.34, Object.assign({}, o, {
-      align: 'center', alpha: 1 - a * 0.5, color: a > 0.02 ? mixColor(o.color, TOKENS.ok, a) : o.color,
-    }));
+    const ch = str[i], pc = prev ? prev[i] : ch;
+    if (pc === ch || roll <= 0.004) {
+      drawText(ctx, ch, x + cw / 2, y, co);
+    } else {
+      drawText(ctx, pc, x + cw / 2, y - (1 - roll) * 5, Object.assign({}, co, { alpha: roll }));
+      drawText(ctx, ch, x + cw / 2, y + roll * 5, Object.assign({}, co, { alpha: 1 - roll }));
+    }
     x += cw;
   }
 }
@@ -183,7 +240,7 @@ function s03_s04_hud(ctx, t) {
   const w = 336, h = 176, x = 890 - w, y = 318, cx = x + w / 2, cy = y + h / 2, sc = lerp(0.88, 1, p);
   ctx.save(); ctx.globalAlpha *= clamp(p * 2.2);
   ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
-  roundRect(ctx, x, y, w, h, 16); ctx.fillStyle = 'rgba(9,7,17,0.80)'; ctx.fill();
+  roundRect(ctx, x, y, w, h, 16); ctx.fillStyle = 'rgba(9,7,17,0.94)'; ctx.fill();
   ctx.strokeStyle = rgba(TOKENS.secondary, 0.42); ctx.lineWidth = 2; ctx.stroke();
   const bl = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 4.4));
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, x + 38, y + 44, 22, TOKENS.ok, 0.28 + 0.45 * bl); ctx.restore();
@@ -222,73 +279,112 @@ function s03_s04_badge(ctx, t) {
 SCENES.s03 = {
   draw(ctx, lt, t) {
     const iso = { size: 54, cx: CX + 20, cy: 1400 };
+    // a real push-in across the whole hold (1.00 -> 1.10) plus a breath, so nothing ever freezes
+    const push = lerp(clamp(remap(t, 6.06, 8.66)), ez(t, 6.06, 8.66, E.inOutCubic), 0.30);
+    const breath = Math.sin((t - 6) * 1.5);
 
     nightSky(ctx, t, { count: 80, seed: 33, color: '#CFC6E8', alpha: 0.30, hMul: 0.85, drift: true });
-    radialFill(ctx, iso.cx, 1300, 700, [[0, rgba(TOKENS.secondary, 0.16)], [0.45, rgba(TOKENS.deepViolet, 0.08)], [1, 'rgba(0,0,0,0)']], 'lighter');
-    s03_s04_clouds(ctx, t);
+    radialFill(ctx, iso.cx, 1300 - push * 26, 700 + push * 60, [[0, rgba(TOKENS.secondary, 0.16)], [0.45, rgba(TOKENS.deepViolet, 0.08)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    s03_s04_clouds(ctx, t, push);
     s03_s04_groundGlow(ctx, iso.cx, 1585, 430, 130, TOKENS.deepViolet, 0.30 * ez(t, 5.90, 6.25, E.outCubic));
 
-    let pcPort = null;
-    withCamera(ctx, { zoom: 1 + 0.014 * Math.sin((t - 6) * 0.9), y: -7 * Math.sin((t - 6) * 0.7), ox: iso.cx, oy: 1280 }, c => {
-      // floating slab the racks stand on
+    withCamera(ctx, {
+      zoom: lerp(1, 1.135, push) * (1 + 0.013 * breath),
+      x: 22 * push,
+      y: -9 * Math.sin((t - 6) * 0.85) - 40 * push,
+      ox: iso.cx, oy: 1300,
+    }, c => {
+      // floating slab the racks stand on (finishes building just after the cut).
+      // A violet data ripple runs out through it on every sixteenth — big, cheap, always moving.
       const slab = [];
       for (let ix = -3; ix <= 5; ix++) for (let iy = -3; iy <= 5; iy++) {
         const d = Math.abs(ix - 1) + Math.abs(iy - 1); if (d > 4) continue;
-        const a = ez(t, 5.78 + d * 0.020, 5.94 + d * 0.020, E.outCubic);
+        const a = ez(t, 5.86 + d * 0.045, 6.04 + d * 0.045, E.outCubic);
         if (a <= 0.002) continue;
-        slab.push({ ix: ix, iy: iy, iz: -1 - (1 - a) * 0.9, color: d === 4 ? s03_s04_C.slabEdge : s03_s04_C.slab, alpha: a });
+        let wv = 0;
+        for (let k = 0; k < 12; k++) {
+          const dt = t - (6.00 + k * 0.25);
+          if (dt < 0 || dt > 0.62) continue;
+          wv = Math.max(wv, Math.exp(-Math.pow(d - dt * 9.5, 2) * 1.05) * (1 - dt / 0.62));
+        }
+        const base = d === 4 ? s03_s04_C.slabEdge : s03_s04_C.slab;
+        slab.push({
+          ix: ix, iy: iy, iz: -1 - (1 - a) * 0.9 + wv * 0.30,
+          color: wv > 0.01 ? s03_s04_mixHex(base, TOKENS.violetHot, wv * 0.42) : base, alpha: a,
+        });
       }
       cubeField(c, slab, Object.assign({}, iso, { topF: 1.5, leftF: 0.85, rightF: 0.6 }));
 
-      s03_s04_towers(c, t, iso);
+      const feet = s03_s04_towers(c, t, iso);
       s03_s04_motes(c, t);
-      pcPort = s03_s04_pcVoxel(c, t);
+      const pcPort = s03_s04_pcVoxel(c, t);
 
-      /* data lines: PC -> junction -> each rack, with travelling dots */
+      /* data lines: PC -> junction -> each rack, with travelling packets */
       if (pcPort) {
-        const feet = [];
-        for (const TW of s03_s04_TOWERS) { const p = isoPos(TW.bx + 1, TW.by + 1, -1, iso); feet.push([p.x, p.y + iso.size * 0.55]); }
         const J = [pcPort.x + 118, pcPort.y + 78];
-        const draw = ez(t, 6.24, 6.80, E.outCubic);
         const boost = Math.max(0, t - 8.6);
-        const flow = (t - 6) * 0.42 + boost * boost * 2.6;      // integral of the speed ramp -> smooth acceleration
+        const flow = (t - 6) * 0.62 + boost * boost * 3.0;   // integral of the speed ramp -> smooth acceleration
         for (let i = 0; i < feet.length; i++) {
           const path = [[pcPort.x, pcPort.y], J, feet[i]];
-          const seg = clamp(draw * 1.18 - i * 0.06);
+          const t0 = s03_s04_TOWERS[i].t0 + 0.22;
+          const seg = clamp(ez(t, t0, t0 + 0.48, E.outCubic) * 1.16);
           if (seg <= 0.01) continue;
           const end = s03_s04_pathPt(path, seg);
           const shown = seg > 0.34 ? [path[0], J, end] : [path[0], end];
           c.save(); c.globalCompositeOperation = 'lighter';
-          s03_s04_poly(c, shown, rgba(TOKENS.secondary, 0.5), 8, 0.26);
+          s03_s04_poly(c, shown, rgba(TOKENS.secondary, 0.5), 9, 0.28);
           c.restore();
-          s03_s04_poly(c, shown, rgba(TOKENS.violetHot, 0.8), 2.5, 0.8);
+          s03_s04_poly(c, shown, rgba(TOKENS.violetHot, 0.8), 2.6, 0.85);
           if (seg > 0.99) {
             c.save(); c.globalCompositeOperation = 'lighter';
-            for (let k = 0; k < 5; k++) {
-              const s = ((flow + k / 5 + i * 0.17) % 1 + 1) % 1;
+            for (let k = 0; k < 6; k++) {
+              const s = ((flow + k / 6 + i * 0.17) % 1 + 1) % 1;
               const q = s03_s04_pathPt(path, s), fade = Math.sin(Math.PI * clamp(s * 1.05));
-              dot(c, q[0], q[1], 17, TOKENS.violetHot, 0.6 * fade);
+              dot(c, q[0], q[1], 26, TOKENS.violetHot, 0.62 * fade);
               c.globalAlpha = 0.95 * fade; c.fillStyle = '#F3E9FF';
-              c.fillRect(Math.round(q[0] - 3), Math.round(q[1] - 3), 6, 6); c.globalAlpha = 1;
+              c.fillRect(Math.round(q[0] - 5), Math.round(q[1] - 5), 10, 10); c.globalAlpha = 1;
+            }
+            // one fat packet is released on every beat and races up the line
+            for (let bi = 0; bi < s03_s04_HITS.length; bi++) {
+              const dt = t - s03_s04_HITS[bi] - i * 0.05;
+              if (dt < 0 || dt > 0.62) continue;
+              const s = clamp(dt * 1.75), q = s03_s04_pathPt(path, s), fd = 1 - clamp(remap(s, 0.78, 1));
+              dot(c, q[0], q[1], 56, TOKENS.violetHot, 0.55 * fd);
+              c.globalAlpha = fd; c.fillStyle = '#FFFFFF';
+              c.fillRect(Math.round(q[0] - 8), Math.round(q[1] - 8), 16, 16); c.globalAlpha = 1;
             }
             c.restore();
           }
         }
+        // beat events: a ring pops at the junction / at the foot of the tower that just landed
+        for (let bi = 0; bi < s03_s04_HITS.length; bi++) {
+          const tb = s03_s04_HITS[bi], life = (t - tb) / 0.55;
+          if (life <= 0 || life >= 1) continue;
+          const at = bi === 0 ? feet[1] : bi === 1 ? feet[2] : J;
+          shockwave(c, at[0], at[1], life, { radius: 330, color: TOKENS.violetHot, width: 10, alpha: 0.75 });
+        }
       }
     });
 
-    /* copy */
+    /* copy — breathes a couple of pixels against the camera so the block is never frozen */
+    ctx.save();
+    ctx.translate(0, -2.5 * Math.sin((t - 6) * 1.15));
     band(ctx, 748, 430, 0.55);
     const hOpt = { size: 116, family: FONTS.body, weight: 800, color: TOKENS.text, align: 'center' };
-    const s1 = s03_s04_fit(ctx, 'Läuft in der', hOpt, 800), s2 = s03_s04_fit(ctx, 'Cloud.', hOpt, 800);
+    const s1 = s03_s04_fit(ctx, 'Läuft in der', hOpt, 796), s2 = s03_s04_fit(ctx, 'Cloud.', hOpt, 796);
     s03_s04_slam(ctx, 'Läuft in der', CX, 640, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 5.97);
     s03_s04_slam(ctx, 'Cloud.', CX, 760, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 6.09);
     const sp = ez(t, 6.50, 6.92, E.outExpo);
     if (sp > 0) drawKinetic(ctx, 'Dein PC kann aus sein.', CX, 880,
       { size: 48, family: FONTS.head, weight: 500, color: rgba(TOKENS.text, 0.85), align: 'center', tracking: 0.02 * 48, stagger: 0.5, ease: E.outExpo }, sp, 'rise');
+    ctx.restore();
 
     s03_s04_hud(ctx, t);
     s03_s04_badge(ctx, t);
+
+    // the two towers land like blocks — a short kick, nothing more
+    FX.shake = Math.max(FX.shake, 4.5 * impulse(t, 7.00, 13) + 4.5 * impulse(t, 7.50, 13) + 3 * impulse(t, 8.00, 13));
+    FX.bloom = Math.max(FX.bloom, 0.22 + 0.10 * (impulse(t, 7.00, 8) + impulse(t, 7.50, 8) + impulse(t, 8.00, 8)));
   },
 };
 
@@ -299,7 +395,8 @@ const s04_NX = 9, s04_NY = 7;
 const s04_ROWS = [1, 3, 5];                        // farmland rows
 const s04_CAGE = { ix: 6.5, iy: 0.5 };             // spawner cage centre (cells 6..7 / 0..1)
 const s04_SLOT = { x: 820, y: 412, s: 112 };       // inventory slot the items fly into
-const s03_s04_FLIGHT = 0.55;
+// s05 hand-over geometry (identical numbers to s05_G / s05_PANEL)
+const s04_GRID = { s: 84, pitch: 90, cx: CX, y0: 690 };
 
 const s03_s04_PUMPKINS = (() => {
   const out = [];
@@ -307,22 +404,37 @@ const s03_s04_PUMPKINS = (() => {
   return out;
 })();
 
-// one item every 0.25 s
+/* one item every 0.25 s right through to the dive; the last three fly progressively
+   faster so the cadence keeps climbing into the 12.0 cut instead of dying at 11.0 */
 const s03_s04_ITEMS = (() => {
   // real HugoSMP AFK loot: pumpkins, sea pickles and spawner drops
-  const kinds = ['pumpkin', 'sea_pickle', 'pumpkin', 'rotten_flesh', 'sea_pickle', 'bone', 'pumpkin', 'gunpowder', 'sea_pickle', 'string', 'pumpkin', 'rotten_flesh'];
+  const kinds = ['pumpkin', 'sea_pickle', 'pumpkin', 'rotten_flesh', 'sea_pickle', 'bone', 'pumpkin', 'gunpowder', 'sea_pickle', 'string'];
   const out = [];
   for (let k = 0; k < kinds.length; k++) {
-    out.push({ k: k, t0: 9.25 + k * 0.25, kind: kinds[k], src: (kinds[k] === 'pumpkin' || kinds[k] === 'sea_pickle') ? s03_s04_PUMPKINS[(k * 7 + 3) % s03_s04_PUMPKINS.length] : null });
+    const t0 = 9.25 + k * 0.25;
+    const fl = t0 <= 10.75 ? 0.55 : t0 < 11.25 ? 0.45 : t0 < 11.50 ? 0.32 : 0.22;
+    out.push({ k: k, t0: t0, fl: fl, kind: kinds[k], src: (kinds[k] === 'pumpkin' || kinds[k] === 'sea_pickle') ? s03_s04_PUMPKINS[(k * 7 + 3) % s03_s04_PUMPKINS.length] : null });
   }
   return out;
 })();
 
 function s03_s04_dive(t) { return ez(t, 11.60, 12.00, E.inOutCubic); }
-// live anchor slot: it becomes the top-row centre slot of the s05 3x9 grid (84 px, gap 6, grid centred on y 780)
+/* Live anchor slot. The slot itself travels to its s05 place FAST (11.58–11.82) and only then
+   does the 3x9 grid unfold around it (11.72–11.99) — that ordering is what keeps the panel
+   inside the 1080 px frame at every moment of the dive. */
 function s03_s04_slotNow(t) {
   const cp = s03_s04_dive(t);
-  return { x: lerp(s04_SLOT.x, CX, cp), y: lerp(s04_SLOT.y, 690, cp), s: lerp(s04_SLOT.s, 84, cp), gap: lerp(26, 6, cp), cp: cp };
+  const mv = ez(t, 11.58, 11.82, E.outCubic);
+  const uf = ez(t, 11.72, 11.99, E.outCubic);
+  const u2 = uf > 0 ? lerp(0.52, 1, uf) : 0;
+  return {
+    x: lerp(s04_SLOT.x, s04_GRID.cx, mv),
+    y: lerp(s04_SLOT.y, s04_GRID.y0, mv),
+    s: lerp(s04_SLOT.s, s04_GRID.s, mv),
+    cp: cp, mv: mv, uf: uf, u2: u2,
+    pitch: s04_GRID.pitch * u2,
+    ns: Math.min(s04_GRID.s, s04_GRID.pitch * u2 - 6),   // neighbour slots never overlap
+  };
 }
 function s03_s04_pumpTop(c) { const p = isoPos(c.ix, c.iy, 0, s04_ISO); return { x: p.x, y: p.y }; }
 
@@ -332,7 +444,19 @@ function s03_s04_farm(ctx, t) {
   for (let ix = 0; ix < s04_NX; ix++) for (let iy = 0; iy < s04_NY; iy++) {
     const d = ix + iy, a = ez(t, 8.78 + d * 0.014, 8.96 + d * 0.014, E.outCubic);
     if (a <= 0.002) continue;
-    cells.push({ ix: ix, iy: iy, iz: -(1 - a) * 1.2, color: s04_ROWS.indexOf(iy) >= 0 ? s03_s04_C.field : s03_s04_C.grass, alpha: a });
+    // the bot works the field: a light wave rolls across the plot on every sixteenth
+    let wv = 0;
+    for (let k = 0; k < 12; k++) {
+      const dt = t - (9.25 + k * 0.25);
+      if (dt < 0 || dt > 0.70) continue;
+      wv = Math.max(wv, Math.exp(-Math.pow(d - dt * 22, 2) * 0.30) * (1 - dt / 0.70));
+    }
+    const isField = s04_ROWS.indexOf(iy) >= 0;
+    cells.push({
+      ix: ix, iy: iy, iz: -(1 - a) * 1.2 + wv * 0.16, alpha: a,
+      tex: isField ? { top: 'farmland', side: 'dirt' } : { top: 'grass_top', side: 'grass_side' },
+      dark: 0.14, darkColor: wv > 0.01 ? TOKENS.violetHot : '#000000',
+    });
   }
   cubeField(ctx, cells, Object.assign({}, s04_ISO, { outline: '#0C1408', outlineAlpha: 0.35, outlineWidth: 1.2 }));
 
@@ -350,8 +474,7 @@ function s03_s04_farm(ctx, t) {
   }
   list.sort((u, v) => u.depth - v.depth);
   for (const p of list) {
-    s03_s04_blk(ctx, p.x, p.y, m, s03_s04_C.pumpkin, { alpha: p.a, outline: '#3A1E06', outlineAlpha: 0.55, outlineWidth: 1.4 });
-    s03_s04_blk(ctx, p.x, p.y - m * 0.30, m * 0.30, s03_s04_C.stem, { alpha: p.a });
+    s03_s04_blk(ctx, p.x, p.y, m, s03_s04_C.pumpkin, { alpha: p.a, tex: { top: 'pumpkin_top', side: 'pumpkin_side' }, dark: 0.06, outline: '#3A1E06', outlineAlpha: 0.55, outlineWidth: 1.4 });
   }
 }
 
@@ -413,60 +536,86 @@ function s03_s04_bot(ctx, t) {
   return { x: x, y: y - 80 };
 }
 
-/* items popping out of the farm and arcing into the slot */
+/* items popping out of the farm and arcing into the slot.
+   The arc hugs the right edge (control points at x ~1090) so an icon never sits on the
+   right end of the headline, and it is dimmed hard while it passes behind the copy band. */
 function s03_s04_flyingItems(ctx, t, slot) {
-  let count = 0, last = null;
+  let count = 0; const landed = [];
   for (const it of s03_s04_ITEMS) {
-    if (t >= it.t0 + s03_s04_FLIGHT) { count++; last = it; continue; }
-    const p = remap(t, it.t0, it.t0 + s03_s04_FLIGHT);
+    if (t >= it.t0 + it.fl) { count++; landed.push(it); continue; }
+    const p = remap(t, it.t0, it.t0 + it.fl);
     if (p <= 0) continue;
     const s = it.src ? s03_s04_pumpTop(it.src) : isoPos(s04_CAGE.ix, s04_CAGE.iy, 2.1, s04_ISO);
     const a = [s.x, s.y - 30], b = [slot.x, slot.y];
-    const ctrl = [Math.max(a[0], b[0]) + 190, lerp(a[1], b[1], 0.30) - 150];
-    const q = s03_s04_bez(E.inOutQuad(p), a, ctrl, b);
-    const sc = lerp(0.5, 0.95, E.outBack(clamp(p * 3))) * lerp(1, 0.55, clamp(remap(p, 0.80, 1)));
+    const c1 = [a[0] + 340, a[1] - 70], c2 = [1090, 560];
+    const q = s03_s04_bez3(E.inOutQuad(p), a, c1, c2, b);
+    const px = lerp(46, 94, E.outBack(clamp(p * 3.2))) * lerp(1, 0.62, clamp(remap(p, 0.78, 1)));
     const gc = it.kind === 'sea_pickle' ? '#8FBF4A' : (it.kind === 'rotten_flesh' || it.kind === 'bone' || it.kind === 'string' || it.kind === 'gunpowder') ? TOKENS.violetHot : s03_s04_C.pumpkin;
-    const dim = lerp(1, 0.40, win(q[1], 500, 570, 920, 985));   // pass behind the copy band
+    const dim = lerp(1, 0.14, win(q[1], 470, 566, 900, 992));   // vanish behind the copy band
     ctx.save(); ctx.globalAlpha *= dim;
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, q[0], q[1], 52 * sc, gc, 0.42 * (1 - p * 0.35)); ctx.restore();
-    itemIcon(ctx, it.kind, q[0], q[1], 7.5 * sc, { rotate: (p - 0.5) * 0.55 });
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, q[0], q[1], px * 0.62, gc, 0.42 * (1 - p * 0.35)); ctx.restore();
+    s03_s04_icon(ctx, it.kind, q[0], q[1], px, { rotate: (p - 0.5) * 0.55 });
     ctx.restore();
     // pop dust at the source
     const d = impulse(t, it.t0, 14);
     if (d > 0.02) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, a[0], a[1] + 20, 70 * d, gc, 0.4 * d); ctx.restore(); }
   }
-  return { count: count, last: last };
+  return { count: count, last: landed.length ? landed[landed.length - 1] : null, landed: landed };
 }
 
-/* inventory: one slot until 11.6, then it unfolds into the s05 3x9 grid */
-function s03_s04_inventory(ctx, t, slot, last) {
-  const cp = slot.cp, pitch = slot.s + slot.gap;
-  if (cp > 0.02) {
-    // ambient panel behind the grid so the hand-over frame is lit, not pitch black
-    const gw = 9 * pitch + 30, gh = 3 * pitch + 30;
-    ctx.save(); ctx.globalAlpha *= clamp(cp * 1.6);
+/* inventory: one slot until the dive, then it unfolds into the s05 3x9 grid.
+   Final geometry is byte-identical to s05 (slot 84, pitch 90, panel 120..960 / 633..933)
+   and the top row is handed over already filled, exactly like s05's first frame. */
+const s03_s04_FILLORDER = [4, 3, 5, 2, 6, 1, 7, 0, 8];
+function s03_s04_inventory(ctx, t, slot, landed) {
+  const u2 = slot.u2, pitch = slot.pitch, ns = slot.ns;
+  const slotFill = 'rgba(46,42,62,0.94)';
+  const slotA = c => clamp(remap(u2, 0.50 + Math.abs(c - 4) * 0.030, 0.66 + Math.abs(c - 4) * 0.038));
+  if (u2 > 0.01) {
+    // panel: scaled around the anchor slot, so it can never leave the frame while unfolding
+    const pa = ez(t, 11.70, 11.86, E.outCubic);
+    ctx.save(); ctx.globalAlpha *= pa;
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    dot(ctx, slot.x, slot.y + pitch, gw * 0.62, TOKENS.secondary, 0.16);
+    dot(ctx, slot.x, slot.y + pitch, 580 * u2, TOKENS.secondary, 0.24);
     ctx.restore();
     ctx.fillStyle = 'rgba(26,22,40,0.92)';
-    roundRect(ctx, slot.x - 4.5 * pitch - 15, slot.y - slot.s / 2 - 15, gw, gh, 12); ctx.fill();
-    ctx.strokeStyle = rgba(TOKENS.secondary, 0.30); ctx.lineWidth = 2; ctx.stroke();
+    roundRect(ctx, slot.x - 420 * u2, slot.y - 57 * u2, 840 * u2, 300 * u2, 12 * u2); ctx.fill();
+    ctx.strokeStyle = rgba(TOKENS.secondary, 0.34); ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
   }
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) {
-    let a = 1;
-    if (!(r === 0 && c === 4)) {
-      const d = Math.abs(c - 4) + r * 1.15;
-      a = clamp(remap(cp, 0.10 + d * 0.040, 0.42 + d * 0.045));
-      if (a <= 0.002) continue;
+  // the 26 neighbour slots grow out of the anchor
+  if (ns > 4) {
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) {
+      if (r === 0 && c === 4) continue;
+      const a = clamp(remap(u2, 0.50 + (Math.abs(c - 4) + r * 1.15) * 0.030, 0.66 + (Math.abs(c - 4) + r * 1.15) * 0.038));
+      if (a <= 0.004) continue;
+      mcSlot(ctx, Math.round(slot.x + (c - 4) * pitch - ns / 2), Math.round(slot.y + r * pitch - ns / 2), ns, { alpha: a, fill: slotFill });
     }
-    mcSlot(ctx, Math.round(slot.x + (c - 4) * pitch - slot.s / 2), Math.round(slot.y + r * pitch - slot.s / 2), slot.s, { alpha: a, fill: 'rgba(46,42,62,0.94)' });
   }
-  // the last collected item sits in the anchor slot, Minecraft style
-  if (last && cp < 0.92) {
-    const pop = 1 + 0.22 * impulse(t, last.t0 + s03_s04_FLIGHT, 13);
-    ctx.save(); ctx.globalAlpha *= 1 - remap(cp, 0.45, 0.90);
-    itemIcon(ctx, last.kind, slot.x, slot.y, slot.s / 15 * pop);
+  // the anchor slot pops in on the 9.0 slam instead of just being there
+  const ap = ez(t, 8.99, 9.30, E.outBack);
+  if (ap <= 0.004) return;
+  const asz = slot.s * lerp(1.30, 1, E.outExpo(clamp((t - 8.99) / 0.28)));
+  ctx.save(); ctx.globalAlpha *= clamp(ap * 2.4);
+  mcSlot(ctx, Math.round(slot.x - asz / 2), Math.round(slot.y - asz / 2), Math.round(asz), { fill: slotFill });
+  ctx.restore();
+
+  /* Collected loot. Before the dive the newest item sits in the anchor slot; while the grid
+     unfolds the whole haul spills outward into the top row, so s04 hands s05 a filled row
+     instead of an empty panel. */
+  if (!landed.length) return;
+  for (let i = 0; i < s03_s04_FILLORDER.length; i++) {
+    const c = s03_s04_FILLORDER[i], it = landed[landed.length - 1 - i];
+    if (!it) continue;
+    let x = slot.x, y = slot.y, sz = slot.s, al = clamp(ap * 2.4);
+    if (i > 0) {
+      const a = clamp(remap(slotA(c), 0.55, 0.95));
+      if (a <= 0.01) continue;
+      x = slot.x + (c - 4) * pitch; sz = ns; al = a;
+    }
+    const pop = i === 0 ? 1 + 0.22 * impulse(t, it.t0 + it.fl, 13) : lerp(1.25, 1, al);
+    ctx.save(); ctx.globalAlpha *= al;
+    s03_s04_icon(ctx, it.kind, x, y, sz * 0.69 * pop);
     ctx.restore();
   }
 }
@@ -485,7 +634,10 @@ function s03_s04_subline(ctx, t) {
   for (let i = 0; i < s03_s04_SUB.length; i++) {
     const p = s03_s04_SUB[i], a = ez(t, p.t0, p.t0 + 0.22, E.outExpo);
     if (a > 0.004) {
-      const hit = impulse(t, p.t0, 7), isWord = i % 2 === 0;
+      // after the intro the three words keep taking turns on every bar, so the line breathes
+      const isWord = i % 2 === 0;
+      const cyc = isWord ? pulse(t, 2.0, 6, p.t0 + 2.0) : 0;
+      const hit = Math.max(impulse(t, p.t0, 7), cyc * 0.7);
       const opt = {
         size: size, family: FONTS.head, weight: 500, tracking: 0.02 * size, align: 'left',
         color: isWord ? mixColor('#F4F1F8', TOKENS.violetHot, hit * 0.85) : TOKENS.muted,
@@ -505,17 +657,17 @@ function s03_s04_subline(ctx, t) {
 
 /* counter next to the slot */
 function s03_s04_slotCounter(ctx, t, slot, count) {
-  const a = ez(t, 9.18, 9.52, E.outCubic) * (1 - remap(t, 11.60, 11.80));
+  const a = ez(t, 8.99, 9.32, E.outCubic) * (1 - remap(t, 11.60, 11.80));
   if (a <= 0.004) return;
   let hit = 0;
-  for (const it of s03_s04_ITEMS) hit = Math.max(hit, impulse(t, it.t0 + s03_s04_FLIGHT, 12));
+  for (const it of s03_s04_ITEMS) hit = Math.max(hit, impulse(t, it.t0 + it.fl, 12));
   const x = slot.x - slot.s / 2 - 26, y = slot.y;
   ctx.save(); ctx.globalAlpha *= a;
   drawText(ctx, 'ITEMS', x, y - 36, { size: 21, family: FONTS.silk, weight: 700, color: TOKENS.muted, align: 'right', tracking: 3 });
   drawText(ctx, String(count), x, y + 18, { size: 62 * (1 + 0.13 * hit), family: FONTS.mono, weight: 600, color: mixColor(TOKENS.gold, '#FFFFFF', hit * 0.6), align: 'right' });
   ctx.restore();
   if (hit > 0.02) {
-    ctx.save(); ctx.globalAlpha *= hit; ctx.strokeStyle = TOKENS.gold; ctx.lineWidth = 4;
+    ctx.save(); ctx.globalAlpha *= hit * a; ctx.strokeStyle = TOKENS.gold; ctx.lineWidth = 4;
     ctx.strokeRect(Math.round(slot.x - slot.s / 2) - 3, Math.round(slot.y - slot.s / 2) - 3, slot.s + 6, slot.s + 6);
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, slot.x, slot.y, slot.s * 0.8, TOKENS.gold, 0.35 * hit); ctx.restore();
     ctx.restore();
@@ -527,15 +679,17 @@ SCENES.s04 = {
   draw(ctx, lt, t) {
     const slot = s03_s04_slotNow(t), cp = slot.cp;
 
-    nightSky(ctx, t, { count: 70, seed: 57, color: '#CFC6E8', alpha: 0.24 * (1 - cp), hMul: 0.7, drift: true });
-    radialFill(ctx, CX, 1250, 700, [[0, rgba(TOKENS.secondary, 0.15 * (1 - cp))], [0.5, rgba(TOKENS.deepViolet, 0.06 * (1 - cp))], [1, 'rgba(0,0,0,0)']], 'lighter');
+    nightSky(ctx, t, { count: 70, seed: 57, color: '#CFC6E8', alpha: 0.24 * (1 - cp * 0.7), hMul: 0.7, drift: true });
+    radialFill(ctx, CX, 1250, 700, [[0, rgba(TOKENS.secondary, 0.15 * (1 - cp * 0.6))], [0.5, rgba(TOKENS.deepViolet, 0.06)], [1, 'rgba(0,0,0,0)']], 'lighter');
 
-    let items = { count: 0, last: null };
+    let items = { count: 0, last: null, landed: [] };
     ctx.save();
-    ctx.globalAlpha *= clamp(1 - remap(cp, 0.12, 0.86));
+    // the farm never fades to nothing — it stays as a lit bed behind the inventory
+    ctx.globalAlpha *= lerp(1, 0.12, clamp(remap(cp, 0.05, 0.58)));
     withCamera(ctx, {
-      zoom: (1 + 0.016 * Math.sin((t - 9) * 0.85)) * lerp(1, 1.9, cp),
-      y: -5 * Math.sin((t - 9) * 0.6) + lerp(0, 460, cp),
+      zoom: (1 + 0.026 * Math.sin((t - 9) * 0.95 - 0.4)) * lerp(1, 1.9, cp),
+      x: 16 * Math.sin((t - 9) * 0.55),
+      y: -11 * Math.sin((t - 9) * 0.72) + lerp(0, 460, cp),
       ox: CX, oy: 1250,
     }, c => {
       s03_s04_groundGlow(c, s04_ISO.cx + 50, 1520, 420, 120, TOKENS.deepViolet, 0.30 * ez(t, 8.90, 9.25, E.outCubic));
@@ -549,16 +703,17 @@ SCENES.s04 = {
     const ta = 1 - remap(t, 11.45, 11.78);
     if (ta > 0.004) {
       ctx.save(); ctx.globalAlpha *= ta;
+      ctx.translate(0, -2.5 * Math.sin((t - 9) * 1.1));
       band(ctx, 748, 430, 0.55);
       const hOpt = { size: 120, family: FONTS.body, weight: 800, color: TOKENS.text, align: 'center' };
-      const s1 = s03_s04_fit(ctx, '24/7 an', hOpt, 800), s2 = s03_s04_fit(ctx, 'deiner Farm.', hOpt, 800);
+      const s1 = s03_s04_fit(ctx, '24/7 an', hOpt, 796), s2 = s03_s04_fit(ctx, 'deiner Farm.', hOpt, 796);
       s03_s04_slam(ctx, '24/7 an', CX, 640, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 8.97);
       s03_s04_slam(ctx, 'deiner Farm.', CX, 760, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 9.09);
       s03_s04_subline(ctx, t);
       ctx.restore();
     }
 
-    s03_s04_inventory(ctx, t, slot, items.last);
+    s03_s04_inventory(ctx, t, slot, items.landed);
     s03_s04_slotCounter(ctx, t, slot, items.count);
   },
 };

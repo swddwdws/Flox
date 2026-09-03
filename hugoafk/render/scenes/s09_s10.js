@@ -28,7 +28,7 @@ const s09_s10_T = {
   sub10: 27.40,                        // 'Ab 20.09.2026'
   pill: 27.90,                         // CTA-Pill
   sweepA: 28.60, sweepB: 29.00,        // Specular-Sweep
-  claim: 28.35,                        // 'Bleib online. Auch offline.'
+  claim: 28.50,                        // 'Bleib online. Auch offline.' — auf dem Halbzeit-Kick
   still: 29.20,                        // ab hier steht alles
 };
 
@@ -186,15 +186,17 @@ const s09_s10_DATE_STR = '20.09.2026';
 const s09_s10_DATE_Y = 800;
 const s09_s10_PITCH = 12;
 
+const s09_s10_DATE_TRACK = 0.006;      // leicht positiv: die Ziffern bleiben getrennt
+const s09_s10_DATE_MAXW = 620;         // hält das Datum links von der Ladebalken-Schiene
 function s09_s10_dateOpts(ctx) {
   const base = { family: FONTS.body, weight: 800, align: 'center', baseline: 'middle', size: 130 };
-  const size = s09_s10_fit(ctx, s09_s10_DATE_STR, base, 700, -0.04);
-  return Object.assign({}, base, { size: size, tracking: -0.04 * size });
+  const size = s09_s10_fit(ctx, s09_s10_DATE_STR, base, s09_s10_DATE_MAXW, s09_s10_DATE_TRACK);
+  return Object.assign({}, base, { size: size, tracking: s09_s10_DATE_TRACK * size });
 }
 
 // g = Glitch-Stärke 0..1, fr = Framezähler (deterministisch aus t)
 function s09_s10_dateBlocks(ctx, V, cy, t, g, fr, col, dx, dy, alphaMul) {
-  const P = V.pitch, bs = P * 0.94;
+  const P = V.pitch, bs = P * 0.84;     // kleinere Zellen -> die Punzen von 0/6/9 bleiben offen
   ctx.save();
   ctx.fillStyle = col;
   for (const cell of V.cells) {
@@ -206,12 +208,14 @@ function s09_s10_dateBlocks(ctx, V, cy, t, g, fr, col, dx, dy, alphaMul) {
     const ang = cell.h * TAU, dist = (1 - e) * (90 + cell.h2 * 150);
     let x = CX + cell.x + Math.cos(ang) * dist + dx;
     let y = cy + cell.y + Math.sin(ang) * dist - (1 - e) * 40 + dy;
-    // Glitch: zeilenweiser Versatz + einzelne ausgerissene Blöcke
-    if (g > 0.02) {
+    // Glitch versetzt nur die INNEREN Zeilen, rastergenau und um max. 3 Zellen ->
+    // die Silhouette der Ziffern (Ober- und Unterkante) bleibt immer stehen und lesbar.
+    if (g > 0.02 && cell.r > V.r0 + 1 && cell.r < V.r1 - 1) {
       const rowH = hash2(cell.r * 13 + 1, fr * 7 + 3);
-      if (rowH < 0.34 + 0.4 * g) x += (hash2(cell.r * 29 + 5, fr * 11 + 9) - 0.5) * 150 * g;
+      // exakt EINE Zelle Versatz — die Ziffern stottern, zerfallen aber nie
+      if (rowH < 0.10 + 0.16 * g) x += (hash2(cell.r * 29 + 5, fr * 11 + 9) < 0.5 ? -1 : 1) * P;
       const bh = hash2(cell.c * 41 + cell.r * 3, fr * 17 + 21);
-      if (bh < 0.05 * g) { x += (bh * 40 - 10) * 22 * g; y += (hash2(cell.r, fr) - 0.5) * 26 * g; }
+      if (bh < 0.03 * g) { x += (hash2(cell.c * 7 + 5, fr * 19 + 2) < 0.5 ? -1 : 1) * P; y += (hash2(cell.r, fr) < 0.5 ? -1 : 1) * P; }
     }
     const sc = lerp(2.0, 1, e);
     const s = bs * sc;
@@ -223,16 +227,17 @@ function s09_s10_dateBlocks(ctx, V, cy, t, g, fr, col, dx, dy, alphaMul) {
   ctx.restore();
 }
 
-function s09_s10_dateBevel(ctx, V, cy, t) {
+function s09_s10_dateBevel(ctx, V, cy, t, ink) {
   // feine Blockkanten: obere Lichtkante, untere Schattenkante -> Voxel-Anmutung
-  const P = V.pitch, bs = P * 0.94, lw = Math.max(2, Math.round(P * 0.18));
+  const P = V.pitch, bs = P * 0.84, lw = Math.max(2, Math.round(P * 0.16));
   ctx.save();
   for (let pass = 0; pass < 2; pass++) {
-    ctx.fillStyle = pass === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(24,10,34,0.42)';
+    ctx.fillStyle = pass === 0 ? `rgba(255,255,255,${0.45 * (1 - (ink || 0))})` : `rgba(24,10,34,${0.42 + 0.30 * (ink || 0)})`;
     ctx.beginPath();
     for (const cell of V.cells) {
       const t0 = s09_s10_T.dateA + (cell.ci / V.n) * (s09_s10_T.dateB - s09_s10_T.dateA - 0.16) + cell.h * 0.05;
       if (t < t0 + 0.17) continue;                    // erst wenn der Block sitzt
+      if (pass === 0 && cell.r === V.r0) continue;    // keine helle Lichtkante auf der obersten Zellreihe
       const x = CX + cell.x - bs / 2, y = cy + cell.y - bs / 2;
       if (pass === 0) ctx.rect(Math.round(x), Math.round(y), Math.ceil(bs), lw);
       else ctx.rect(Math.round(x), Math.round(y + bs - lw), Math.ceil(bs), lw);
@@ -250,8 +255,9 @@ SCENES.s09 = {
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H); ctx.restore();
       const a = 1;                                  // steht sofort — harter Schnitt, kein Einblenden
-      const sz = 38 * lerp(1.35, 1, E.outExpo(clamp((t - s09_s10_T.black) / 0.09)));
-      radialFill(ctx, CX, CY, 240, [[0, rgba(TOKENS.primary, 0.16 * a)], [1, rgba(TOKENS.primary, 0)]], 'lighter');
+      const bh = t - s09_s10_T.black;
+      const sz = 38 * lerp(1.35, 1, E.outExpo(clamp(bh / 0.09))) * (1 + 0.02 * Math.sin(bh * 26));
+      radialFill(ctx, CX, CY, 240 + 26 * Math.sin(bh * 22), [[0, rgba(TOKENS.primary, (0.16 + 0.05 * Math.sin(bh * 22)) * a)], [1, rgba(TOKENS.primary, 0)]], 'lighter');
       cube(ctx, 0, 0, 0, {
         size: sz, cx: CX, cy: CY - sz * 0.5, color: TOKENS.primary, alpha: a,
         topF: 1.35, leftF: 0.72, rightF: 0.46, outline: '#FFB0A0', outlineAlpha: 0.5, outlineWidth: 1.5,
@@ -300,7 +306,7 @@ SCENES.s09 = {
 
     /* ---- Ladebalken rechts ---- */
     {
-      const bx = 936, blen = 1040, by = CY, p = clamp(remap(t, s09_s10_T.barA, s09_s10_T.barB));
+      const bx = 872, blen = 1060, by = 860, p = clamp(remap(t, s09_s10_T.barA, s09_s10_T.barB));
       const y0 = by - blen / 2, y1 = by + blen / 2, th = 12;
       ctx.save();
       // Schiene: dunkel, schmal, mit violettem Rand — legt sich nicht als Balken über den Tunnel
@@ -309,7 +315,7 @@ SCENES.s09 = {
       ctx.strokeStyle = rgba(TOKENS.secondary, 0.30); ctx.lineWidth = 1.5; ctx.stroke();
       // Teilstriche
       ctx.fillStyle = rgba(TOKENS.violetHot, 0.42);
-      for (let i = 0; i <= 12; i++) ctx.fillRect(bx + th / 2 + 8, y1 - (i / 12) * blen - 1, i % 4 === 0 ? 18 : 9, 2);
+      for (let i = 0; i <= 12; i++) { const tl = i % 4 === 0 ? 12 : 6; ctx.fillRect(bx + th / 2 + 3, y1 - (i / 12) * blen - 1, tl, 2); }
       // Füllung von unten nach oben
       const L = blen * p, hy = y1 - L;   // hy = Kopf der Füllung
       if (L > 2) {
@@ -321,51 +327,11 @@ SCENES.s09 = {
       }
       ctx.restore();
       // Kopf des Balkens
-      dot(ctx, bx, hy, 26 + 12 * punch, TOKENS.primary, 0.9);
+      dot(ctx, bx, hy, 20 + 8 * punch, TOKENS.primary, 0.9);
       ctx.save(); ctx.fillStyle = '#FFFFFF'; ctx.globalAlpha = 0.95; ctx.fillRect(bx - 13, hy - 2.5, 26, 5); ctx.restore();
     }
 
-    /* ---- Datum: Voxel-Ziffern + eskalierende Glitch-Bursts ---- */
-    const o = s09_s10_dateOpts(ctx);
-    const V = s09_s10_voxelText(s09_s10_DATE_STR, o, s09_s10_PITCH);
-    let g = 0;
-    for (const b of s09_s10_GLITCH) { if (t < b.t) break; g = Math.max(g, b.a * Math.exp(-13 * (t - b.t))); }
-    const cy = s09_s10_DATE_Y;
-    // Glühen unter den Ziffern
-    radialFill(ctx, CX, cy, 470, [[0, rgba(TOKENS.secondary, 0.16 + 0.16 * eE + 0.18 * g)], [1, rgba(TOKENS.secondary, 0)]], 'lighter');
-    if (g > 0.02) {
-      const dx = 9 * g + 4;
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      s09_s10_dateBlocks(ctx, V, cy, t, g, fr, TOKENS.primary, -dx, 0, 0.85);
-      s09_s10_dateBlocks(ctx, V, cy, t, g, fr, TOKENS.secondary, dx, 0, 0.85);
-      ctx.restore();
-    }
-    s09_s10_dateBlocks(ctx, V, cy, t, g, fr, T().text, 0, 0, 1);
-    if (g < 0.25) s09_s10_dateBevel(ctx, V, cy, t);
-
-    /* ---- 'HugoAFK.com' ab 24.4 ---- */
-    {
-      const p = clamp((t - s09_s10_T.site09) / 0.42);
-      if (p > 0) {
-        const so = { family: FONTS.silk, weight: 700, align: 'center', baseline: 'middle', size: 44 };
-        so.size = s09_s10_fit(ctx, 'HugoAFK.com', so, 700, 0.10);
-        so.tracking = 0.10 * so.size;
-        so.color = T().text;
-        so.stagger = 0.5; so.ease = E.outExpo; so.rise = so.size * 0.7;
-        so.glow = { color: TOKENS.violetHot, blur: 18 };
-        const jx = g > 0.3 ? (hash2(fr * 3 + 1, 77) - 0.5) * 44 * g : 0;
-        drawKinetic(ctx, 'HugoAFK.com', CX + jx, 940, so, p, 'rise');
-      }
-    }
-
-    /* ---- globale Glitch-Bursts ---- */
-    if (g > 0.02) {
-      FX.glitch = Math.max(FX.glitch, 0.55 * g);
-      FX.rgb = Math.max(FX.rgb, 16 * g);
-      FX.glitchSeed = 4517 + fr * 13;
-    }
-
-    /* ---- ab 26.0 entsättigt das Bild Richtung Weiß ---- */
+    /* ---- ab 26.0 entsättigt die WELT Richtung Weiß (Datum + URL liegen darüber) ---- */
     const wash = remap(t, s09_s10_T.wash, s09_s10_T.black);
     if (wash > 0.001) {
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -378,6 +344,61 @@ SCENES.s09 = {
       ctx.restore();
       FX.vignette = Math.min(FX.vignette, 0.5 * (1 - wash));
     }
+    // Tinte: je heller die Welt wird, desto dunkler werden Datum und URL — sie bleiben immer lesbar
+    const ink = smoothstep(clamp(remap(wash, 0.16, 0.62)));
+    const inkCol = s09_s10_mix(T().text, '#1B0A28', ink);
+
+    /* ---- Datum: Voxel-Ziffern + eskalierende Glitch-Bursts ---- */
+    const o = s09_s10_dateOpts(ctx);
+    const V = s09_s10_voxelText(s09_s10_DATE_STR, o, s09_s10_PITCH);
+    let g = 0;
+    for (const b of s09_s10_GLITCH) { if (t < b.t) break; g = Math.max(g, b.a * Math.exp(-13 * (t - b.t))); }
+    const cy = s09_s10_DATE_Y;
+    // Je weiter die Welt ausbleicht, desto ruhiger wird das Datum: es rastet zum Schluss als
+    // einziges scharfes Element ein, während drumherum alles zerfällt.
+    const gDate = g * (1 - 0.85 * ink);
+    // Ganzwort-Stutter: das Datum springt auf den Bursts rastergenau zur Seite,
+    // bleibt dabei aber als Wort komplett lesbar (statt in Zeilen zu zerfallen).
+    const stut = (gDate > 0.35 && hash2(fr * 23 + 5, 91) < 0.45)
+      ? (hash2(fr * 31 + 7, 13) < 0.5 ? -1 : 1) * s09_s10_PITCH * (1 + Math.floor(gDate * 2)) : 0;
+    // Glühen unter den Ziffern
+    radialFill(ctx, CX, cy, 470, [[0, rgba(TOKENS.secondary, (0.16 + 0.16 * eE + 0.18 * g) * (1 - ink))], [1, rgba(TOKENS.secondary, 0)]], 'lighter');
+    if (gDate > 0.02) {
+      const dx = 7 * gDate + 3;
+      ctx.save();
+      ctx.globalCompositeOperation = ink > 0.5 ? 'source-over' : 'lighter';
+      s09_s10_dateBlocks(ctx, V, cy, t, gDate, fr, s09_s10_mix(TOKENS.primary, '#5A0E14', ink), stut - dx, 0, 0.85 * (1 - 0.7 * ink));
+      s09_s10_dateBlocks(ctx, V, cy, t, gDate, fr, s09_s10_mix(TOKENS.secondary, '#2E1148', ink), stut + dx, 0, 0.85 * (1 - 0.7 * ink));
+      ctx.restore();
+    }
+    s09_s10_dateBlocks(ctx, V, cy, t, gDate, fr, inkCol, stut, 0, 1);
+    if (gDate < 0.25) s09_s10_dateBevel(ctx, V, cy, t, ink);
+
+    /* ---- 'HugoAFK.com' ab 24.4 ---- */
+    {
+      const p = clamp((t - s09_s10_T.site09) / 0.42);
+      if (p > 0) {
+        // Space Grotesk statt Silkscreen: 'HugoAFK.com' behält seine Schreibweise (Silkscreen hat keine Kleinbuchstaben)
+        const so = { family: FONTS.head, weight: 600, align: 'center', baseline: 'middle', size: 56 };
+        so.size = s09_s10_fit(ctx, 'HugoAFK.com', so, 620, 0.05);
+        so.tracking = 0.05 * so.size;
+        so.color = inkCol;
+        so.stagger = 0.5; so.ease = E.outExpo; so.rise = so.size * 0.7;
+        if (ink < 0.5) so.glow = { color: TOKENS.violetHot, blur: 18 };
+        const jx = gDate > 0.3 ? (hash2(fr * 3 + 1, 77) - 0.5) * 34 * gDate : 0;
+        drawKinetic(ctx, 'HugoAFK.com', CX + jx, 940, so, p, 'rise');
+      }
+    }
+
+    /* ---- globale Glitch-Bursts ---- */
+    if (g > 0.02) {
+      // bewusst niedrig: die Engine-Slices dürfen die Ziffern nicht zerschneiden — die Eskalation
+      // tragen RGB-Split, Shake, Zoom-Punch, Tunnel-Tempo und der Weiß-Wash
+      FX.glitch = Math.max(FX.glitch, 0.13 * g);
+      FX.rgb = Math.max(FX.rgb, 16 * g * (1 - 0.6 * ink));
+      FX.glitchSeed = 4517 + fr * 13;
+    }
+
   },
 };
 
@@ -404,9 +425,9 @@ const s09_s10_BURST = (() => {
 /* ruhig treibende Hintergrund-Voxel */
 const s09_s10_MOTES = (() => {
   const r = rng(1010), o = [];
-  for (let i = 0; i < 34; i++) o.push({
-    x: 20 + r() * (W - 40), y: r() * H, s: 8 + r() * 17, v: 9 + r() * 20,
-    a: 0.13 + r() * 0.20, ph: r() * TAU,
+  for (let i = 0; i < 46; i++) o.push({
+    x: 20 + r() * (W - 40), y: r() * H, s: 9 + r() * 19, v: 22 + r() * 46,
+    a: 0.15 + r() * 0.22, ph: r() * TAU,
     col: r() < 0.28 ? TOKENS.primary : (r() < 0.55 ? TOKENS.violetHot : TOKENS.secondary),
   });
   return o;
@@ -454,20 +475,22 @@ SCENES.s10 = {
     const k1 = impulse(t, 27.5, 6.5), k2 = impulse(t, 28.5, 6.5);
     const kick = Math.max(k1, k2) * live;
 
-    /* ---- Hintergrund: violetter Glow-Atem + treibende Voxel ---- */
-    const breath = 0.5 + 0.5 * Math.sin((tm - 26.5) * 1.15);
+    /* ---- Hintergrund: violetter Glow-Atem + treibende Voxel ----
+       läuft mit der ECHTEN Zeit bis 30.0 weiter; nur Typo und Logo kommen ab 29.2 zur Ruhe. */
+    const breath = 0.5 + 0.5 * Math.sin((t - 26.5) * 1.75);      // Hintergrund-Atem, nie eingefroren
+    const breathT = 0.5 + 0.5 * Math.sin((tm - 26.5) * 1.15);    // Logo-Atem, friert mit der Typo ein
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = TOKENS.bg; ctx.fillRect(0, 0, W, H); ctx.restore();
     radialFill(ctx, CX, 700, 900,
-      [[0, rgba(TOKENS.secondary, 0.20 + 0.05 * breath + 0.16 * kick + 0.24 * Math.exp(-5 * Math.max(0, a)))],
+      [[0, rgba(TOKENS.secondary, 0.20 + 0.09 * breath + 0.16 * kick + 0.24 * Math.exp(-5 * Math.max(0, a)))],
        [0.45, rgba(TOKENS.deepViolet, 0.14)], [1, rgba(TOKENS.deepViolet, 0)]], 'lighter');
-    radialFill(ctx, CX, 1520, 820, [[0, rgba(TOKENS.primary, 0.075 + 0.03 * breath)], [1, rgba(TOKENS.primary, 0)]], 'lighter');
-    nightSky(ctx, tm, { count: 70, seed: 51, color: '#D8CFF0', alpha: 0.20, hMul: 1, drift: true });
-    s09_s10_DUST.draw(ctx, tm - 20, { alpha: 0.36, scale: 1.1 });
+    radialFill(ctx, CX + Math.sin((t - 26.5) * 0.55) * 130, 1520, 820 + 60 * breath, [[0, rgba(TOKENS.primary, 0.075 + 0.05 * breath)], [1, rgba(TOKENS.primary, 0)]], 'lighter');
+    nightSky(ctx, t, { count: 70, seed: 51, color: '#D8CFF0', alpha: 0.20, hMul: 1, drift: true });
+    s09_s10_DUST.draw(ctx, t - 20, { alpha: 0.40, scale: 1.1 });
     for (const m of s09_s10_MOTES) {
-      const y = ((m.y - (tm - 24) * m.v) % (H + 140) + H + 140) % (H + 140) - 70;
-      const x = m.x + Math.sin(tm * 0.45 + m.ph) * 14;
-      cube(ctx, 0, 0, 0, { size: m.s, cx: x, cy: y, color: m.col, alpha: m.a * (0.7 + 0.3 * Math.sin(tm * 0.85 + m.ph)) });
+      const y = ((m.y - (t - 24) * m.v) % (H + 140) + H + 140) % (H + 140) - 70;
+      const x = m.x + Math.sin(t * 0.7 + m.ph) * 26;
+      cube(ctx, 0, 0, 0, { size: m.s, cx: x, cy: y, color: m.col, alpha: m.a * (0.7 + 0.3 * Math.sin(t * 0.85 + m.ph)) });
     }
 
     /* ---- Voxel-Detonation ---- */
@@ -505,7 +528,7 @@ SCENES.s10 = {
       ctx.save();
       ctx.translate(CX, cyL); ctx.scale(scl, scl); ctx.translate(-CX, -cyL);
       // Glow (gecached, additiv)
-      const ga = 0.30 + 0.14 * breath * live + 0.45 * kick + 0.34 * Math.exp(-7 * Math.max(0, a));
+      const ga = 0.30 + 0.14 * breathT * live + 0.17 * breath * (0.35 + 0.65 * calm) + 0.45 * kick + 0.34 * Math.exp(-7 * Math.max(0, a));
       ctx.save();
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = clamp(ga);
       ctx.drawImage(gl, CX - s09_s10_LOGO.w / 2 - s09_s10_LOGO.pad, cyL - lh / 2 - s09_s10_LOGO.pad);
@@ -530,7 +553,7 @@ SCENES.s10 = {
       }
       const up = ez(t, s09_s10_T.underA, s09_s10_T.underB, E.outExpo);
       if (up > 0) {
-        const hw = (siteW / 2 + 14) * up, uy = 1148;
+        const hw = (siteW / 2 + 14) * up, uy = 1144;
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = rgba(TOKENS.primary, 0.30);
@@ -550,7 +573,7 @@ SCENES.s10 = {
         oo.tracking = 0.02 * oo.size;
         oo.color = rgba(T().text, 0.85);
         oo.stagger = 0.45; oo.ease = E.outExpo; oo.rise = oo.size * 0.5;
-        drawKinetic(ctx, s09_s10_SUB, CX, 1190, oo, p, 'rise');
+        drawKinetic(ctx, s09_s10_SUB, CX, 1202, oo, p, 'rise');
       }
     }
 
@@ -571,12 +594,13 @@ SCENES.s10 = {
 
     /* ---- Claim ---- */
     {
-      const p = clamp((t - s09_s10_T.claim) / 0.55);
+      const p = clamp((t - s09_s10_T.claim) / 0.45);
       if (p > 0) {
-        const oo = { family: FONTS.silk, weight: 700, align: 'center', baseline: 'middle', size: 30 };
-        oo.size = s09_s10_fit(ctx, s09_s10_CLAIM, oo, 720, 0.04);
-        oo.tracking = 0.04 * oo.size;
-        oo.color = T().muted;
+        // Space Grotesk statt Silkscreen: der Claim behält seine Groß-/Kleinschreibung und bleibt lesbar
+        const oo = { family: FONTS.head, weight: 500, align: 'center', baseline: 'middle', size: 40 };
+        oo.size = s09_s10_fit(ctx, s09_s10_CLAIM, oo, 720, 0.02);
+        oo.tracking = 0.02 * oo.size;
+        oo.color = rgba(T().text, 0.72);
         oo.stagger = 0.5; oo.ease = E.outExpo; oo.rise = oo.size * 0.8;
         drawKinetic(ctx, s09_s10_CLAIM, CX, 1380, oo, p, 'rise');
       }

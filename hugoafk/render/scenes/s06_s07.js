@@ -157,6 +157,9 @@ function s06_s07_farm(ctx, t, wire) {
   for (const c of s06_s07_GROUND) {
     cube(ctx, c.ix, c.iy, c.iz, {
       size: O.size, cx: O.cx, cy: O.cy, color: dead(c.c), topF: 1.12, leftF: 0.74, rightF: 0.48,
+      // real block textures while the world is solid; the wireframe state keeps the flat cast
+      tex: wire < 0.35 ? (c.c === s06_s07_C.soil ? { top: 'farmland', side: 'dirt' } : { top: 'grass_top', side: 'grass_side' }) : null,
+      dark: 0.34 + wire * 0.4,
       outline: wire > 0.05 ? wc : '#101A08', outlineAlpha: wire > 0.05 ? oa : 0.35, outlineWidth: 1.3,
     });
   }
@@ -164,8 +167,9 @@ function s06_s07_farm(ctx, t, wire) {
     if (c.ix === 0 && c.iy === 0) continue;                     // keep the bot's tile free
     const g = isoPos(c.ix, c.iy, 0, O);
     s06_s07_blk(ctx, g.x, g.y - m, m, dead(s06_s07_C.pump),
-      { outline: wire > 0.05 ? wc : '#3A1E06', outlineAlpha: wire > 0.05 ? oa : 0.55, outlineWidth: 1.3 });
-    s06_s07_blk(ctx, g.x, g.y - m * 1.3, m * 0.3, dead(s06_s07_C.stem), { alpha: 1 - wire * 0.3 });
+      { tex: wire < 0.35 ? { top: 'pumpkin_top', side: 'pumpkin_side' } : null, dark: 0.28 + wire * 0.4,
+        outline: wire > 0.05 ? wc : '#3A1E06', outlineAlpha: wire > 0.05 ? oa : 0.55, outlineWidth: 1.3 });
+    if (wire >= 0.35) s06_s07_blk(ctx, g.x, g.y - m * 1.3, m * 0.3, dead(s06_s07_C.stem), { alpha: 1 - wire * 0.3 });
   }
   // torches: the only warm light in the night farm (voxel world, not UI)
   for (let i = 0; i < s06_s07_TORCH.length; i++) {

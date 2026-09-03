@@ -245,7 +245,7 @@ if os.environ.get('NOMUSIC') == '1':
     m2 = m2 + 0.5 * S.highpass(m2, 3500, 1)
     m2 *= gate[:, None]; m2 *= fo[:, None]
     mix = m2
-out = S.master(mix, target_tp=S.db(-1.5)) * fo[:, None]
+out = S.master(mix, target_tp=S.db(float(os.environ.get('TP', -4.5)))) * fo[:, None]
 out *= gate[:, None]        # re-apply after mastering: the master high-pass rings into the gap
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
 S.write_wav(OUT, out)

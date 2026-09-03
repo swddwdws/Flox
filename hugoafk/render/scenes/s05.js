@@ -71,7 +71,6 @@ function s05_icon(ctx, name, x, y, cell, o) {
    bereits angefülltes Inventar hinein, der erste Frame ist damit hell und detailliert.
    Die restlichen 17 landen auf den Sechzehnteln 12.000…12.625, voll bei 12.70.
    Die Hotbar füllt sich dazwischen (32stel-Versatz), also NICHT vorweg. */
-const s05_KINDS = ['pumpkin', 'sea_pickle', 'rotten_flesh', 'bone', 'gunpowder', 'string'];
 function s05_kind(r) {
   const v = r();
   return v < 0.42 ? 'pumpkin' : v < 0.64 ? 'sea_pickle' : v < 0.78 ? 'rotten_flesh' : v < 0.88 ? 'bone' : v < 0.95 ? 'gunpowder' : 'string';
@@ -118,13 +117,13 @@ const s05_HOTITEMS = (() => {
 const s05_COINS = (() => {
   const out = [], r = rng(9051);
   for (let n = 0; n < 26; n++) {
-    const src = s05_slotXY(Math.floor(r() * 27));
+    const src = s05_slotXY(Math.floor(r() * 3) * 9 + 1 + Math.floor(r() * 7));
     const side = src.x >= CX ? 1 : -1;
     out.push({
       i: n,
       x: src.x + (r() - 0.5) * 50, y: src.y + (r() - 0.5) * 40,
       t0: 13.20 + r() * 0.34, dur: 0.50 + r() * 0.22,
-      dx: side * (110 + r() * 165), rise: 150 + r() * 170,
+      dx: side * (80 + r() * 140), rise: 150 + r() * 170,
       cell: 3.0 + r() * 1.5, ph: r() * 6.283,
     });
   }
@@ -136,13 +135,13 @@ const s05_COINS = (() => {
    Reihen UND die Hotbar, damit das Bild bis zum Schnitt bei 15.0 lebt. */
 const s05_REFILL = (() => {
   const out = [], r = rng(707);
-  const times = [13.75, 14.00, 14.25, 14.375, 14.50, 14.625, 14.75, 14.8125, 14.875, 14.9375];
+  const times = [13.75, 14.00, 14.125, 14.25, 14.375, 14.50, 14.625, 14.75, 14.8125, 14.875, 14.9375];
   const colOrder = [0, 5, 2, 7, 4, 1, 6, 3, 8];
   const targets = [];
   for (const c of colOrder) { targets.push({ g: c }, { g: 9 + c }, { g: 18 + c }, { h: c }); }
   let n = 0;
   for (let ti = 0; ti < times.length; ti++) {
-    const many = ti >= 6 ? 2 : 1;                       // zum Schluss zwei gleichzeitig
+    const many = ti >= 5 ? 2 : 1;                       // zum Schluss zwei gleichzeitig
     for (let m = 0; m < many; m++, n++) {
       const tg = targets[n % targets.length];
       out.push({ g: tg.g, h: tg.h, kind: s05_kind(r), t0: times[ti] + m * 0.030 });
@@ -214,6 +213,34 @@ function s05_panel(ctx, t) {
   return R;
 }
 
+/* Füllstands-Schiene über der Panel-Oberkante: 27 Marken, eine pro Slot.
+   Sie laufen mit den Slot-Treffern voll (Bewegung 12.0–12.7), gehen beim Verkauf
+   aus und kommen mit dem Nachschub zurück — und geben dem sonst leeren Streifen
+   zwischen Headline und Panel Struktur (der Schnitt-Glitch bei 12.0 kopiert dort). */
+function s05_rail(ctx, t) {
+  const y = 606, x0 = 152, x1 = 928, n = 27, step = (x1 - x0) / (n - 1);
+  const full = win(t, s05_FULL_T, s05_FULL_T + 0.04, s05_ENTER_T - 0.02, s05_ENTER_T + 0.06);
+  const base = mixColor(TOKENS.secondary, TOKENS.primary, full);
+  ctx.save();
+  ctx.fillStyle = rgba(base, 0.16 + 0.10 * full); ctx.fillRect(x0 - 10, y + 16, x1 - x0 + 20, 2);
+  ctx.fillStyle = rgba(base, 0.30 + 0.30 * full); ctx.fillRect(x0 - 10, y + 16, 26, 2); ctx.fillRect(x1 - 16, y + 16, 26, 2);
+  for (let i = 0; i < n; i++) {
+    const it = s05_ITEMS[i];
+    let on = t >= it.t0 && t < it.tOut ? 1 : 0;
+    let hit = impulse(t, it.t0, 14);
+    for (const rf of s05_REFILL) {
+      if (rf.g !== i || t < rf.t0) continue;
+      on = 1; hit = Math.max(hit, impulse(t, rf.t0, 14));
+    }
+    const a = 0.10 + 0.62 * on + 0.55 * hit;
+    if (a <= 0.02) continue;
+    ctx.fillStyle = rgba(hit > 0.15 ? TOKENS.gold : base, Math.min(1, a));
+    const h = 12 + 5 * hit;
+    ctx.fillRect(Math.round(x0 + i * step) - 4, y + 14 - h, 9, h);
+  }
+  ctx.restore();
+}
+
 function s05_grid(ctx, t) {
   const s = s05_G.s;
   for (let i = 0; i < 27; i++) {
@@ -223,10 +250,10 @@ function s05_grid(ctx, t) {
   // slot flash when an item lands
   ctx.save();
   for (const it of s05_ITEMS) {
-    const f = impulse(t, it.t0, 16);
+    const f = impulse(t, it.t0, 11);
     if (f < 0.03) continue;
-    ctx.globalAlpha = f * 0.85;
-    ctx.strokeStyle = rgba(TOKENS.gold, 1); ctx.lineWidth = 3;
+    ctx.globalAlpha = f * 0.9;
+    ctx.strokeStyle = rgba(TOKENS.gold, 1); ctx.lineWidth = 4;
     ctx.strokeRect(Math.round(it.x - s / 2) + 1.5, Math.round(it.y - s / 2) + 1.5, s - 3, s - 3);
   }
   ctx.restore();
@@ -248,12 +275,18 @@ function s05_scan(ctx, t) {
   const a = ez(t, 13.45, 13.70, E.outCubic);
   if (a <= 0.01) return;
   const gx0 = s05_G.cx - 4.5 * s05_G.pitch, gw = 9 * s05_G.pitch;
-  const q = ((t - 13.45) / 0.75) % 1, x = gx0 - 130 + q * (gw + 260);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= a * 0.85;
+  const q0 = ((t - 13.45) / 0.75) % 1;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
   ctx.beginPath(); ctx.rect(gx0, s05_G.y0 - 45, gw, 3 * s05_G.pitch); ctx.clip();
-  linearFill(ctx, x - 120, 0, x + 120, 0,
-    [[0, rgba(TOKENS.secondary, 0)], [0.5, rgba(TOKENS.violetHot, 0.30)], [1, rgba(TOKENS.secondary, 0)]],
-    [x - 120, s05_G.y0 - 45, 240, 3 * s05_G.pitch]);
+  // zwei versetzte Bahnen: es ist immer eine mitten im Raster unterwegs
+  for (let b = 0; b < 2; b++) {
+    const q = (q0 + b * 0.5) % 1, x = gx0 - 130 + q * (gw + 260);
+    ctx.save(); ctx.globalAlpha *= a * (b === 0 ? 0.8 : 0.48);
+    linearFill(ctx, x - 120, 0, x + 120, 0,
+      [[0, rgba(TOKENS.secondary, 0)], [0.5, rgba(TOKENS.violetHot, 0.24)], [1, rgba(TOKENS.secondary, 0)]],
+      [x - 120, s05_G.y0 - 45, 240, 3 * s05_G.pitch]);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
@@ -274,7 +307,7 @@ function s05_gridItems(ctx, t) {
       x = lerp(it.x, CX + (it.x - CX) * 0.22, E.inQuad(q));
       sc *= 1 - 0.4 * q; a *= 1 - remap(q, 0.5, 1);
     } else {
-      y += Math.sin(t * 2.4 + it.wob) * 2.6;
+      y += Math.sin(t * 2.4 + it.wob) * 2.6 - (1 - pop) * 32;   // fällt sichtbar in den Slot
       const wv = Math.sin((t - s05_FULL_T) * 13 - it.col * 0.62 - it.row * 0.9);
       y -= press * 6 * Math.max(0, wv);
       sc *= 1 + press * 0.06 * wv;
@@ -316,11 +349,22 @@ function s05_hotbar(ctx, t) {
   roundRect(ctx, 132, s05_HOT.y - 10, 816, s05_HOT.s + 20, 8); ctx.fill();
   ctx.save();
   ctx.beginPath(); ctx.rect(120, s05_HOT.y - 16, 840, s05_HOT.s + 32); ctx.clip();
-  mcHotbar(ctx, CX, s05_HOT.y, { slot: s05_HOT.s, gap: s05_HOT.gap, count: 9, selected: s05_hotSel(t), selColor: rgba(TOKENS.text, 0.9) });
+  const sel = s05_hotSel(t);
+  for (let k = 0; k < 9; k++) {
+    const p = s05_hotXY(k);
+    mcSlot(ctx, Math.round(p.x - s05_HOT.s / 2), Math.round(p.y - s05_HOT.s / 2), s05_HOT.s, { fill: s05_C.slot });
+  }
+  { // Auswahlrahmen wandert im Tail auf den Achteln weiter
+    const p = s05_hotXY(sel);
+    ctx.save();
+    ctx.strokeStyle = rgba(TOKENS.text, 0.9); ctx.lineWidth = 4;
+    ctx.strokeRect(Math.round(p.x - s05_HOT.s / 2) - 3, Math.round(p.y - s05_HOT.s / 2) - 3, s05_HOT.s + 6, s05_HOT.s + 6);
+    ctx.restore();
+  }
   for (const h of s05_HOTITEMS) {
     if (t < h.t0) continue;
     const p = s05_hotXY(h.k), pop = E.outBack(clamp((t - h.t0) / 0.13));
-    let x = p.x, y = p.y + Math.sin(t * 2.4 + h.k * 1.7) * 2.0, sc = lerp(1.5, 1, pop), al = 1;
+    let x = p.x, y = p.y + Math.sin(t * 2.4 + h.k * 1.7) * 2.0 - (1 - pop) * 28, sc = lerp(1.5, 1, pop), al = 1;
     if (t >= h.tOut) {
       const q = clamp((t - h.tOut) / 0.34);
       y += 260 * q * q; sc *= 1 - 0.4 * q; al = 1 - remap(q, 0.45, 1);
@@ -497,7 +541,7 @@ function s05_text(ctx, t) {
   const hOpt = { size: 120, family: FONTS.body, weight: 800, color: TOKENS.text, align: 'center' };
   const hs = s05_fit(ctx, 'Inventar voll?', hOpt, 800);
   band(ctx, 402, 190, 0.5);
-  s05_slam(ctx, 'Inventar voll?', CX, 400, Object.assign({}, hOpt, { size: hs, tracking: -0.04 * hs }), t, 12.0, 0.16);
+  s05_slam(ctx, 'Inventar voll?', CX, 400, Object.assign({}, hOpt, { size: hs, tracking: -0.04 * hs }), t, 11.96, 0.16);
   // Subline 'Verkauft sich selbst.' ab 13.40
   const sp = ez(t, 13.40, 13.78, E.outExpo);
   if (sp > 0.005) {
@@ -539,6 +583,7 @@ SCENES.s05 = {
     }, c => {
       s05_floor(c, t);
       s05_panel(c, t);
+      s05_rail(c, t);
       s05_grid(c, t);
       s05_scan(c, t);
       s05_gridItems(c, t);

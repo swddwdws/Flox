@@ -7,13 +7,13 @@ const s01_s02_R    = 4;                                 // farm half size (block
 const s01_s02_ROWS = [-3, -1, 1, 3];                    // pumpkin rows
 const s01_s02_BOTP = { ix: -1, iy: 1, iz: 1 };          // where the bot stands
 
-const s01_s02_PAL = {   // night-dimmed Minecraft palette (inside the voxel world only)
-  dirt:    { color: '#1C1209', top: '#221609', left: '#170E06', right: '#0F0904' },
-  grass:   { color: '#1B4015', top: '#204D18', left: '#1E1408', right: '#130C04',
+const s01_s02_PAL = {   // real Minecraft block textures, dimmed for the night scene
+  dirt:    { tex: 'dirt', dark: 0.72 },
+  grass:   { tex: { top: 'grass_top', side: 'grass_side' }, dark: 0.68,
              outline: '#08110A', outlineAlpha: 0.5, outlineWidth: 1.5 },
-  soil:    { color: '#2A1D11', top: '#332211', right: '#150D06', left: '#211608',
+  soil:    { tex: { top: 'farmland', side: 'dirt' }, dark: 0.66,
              outline: '#0A0704', outlineAlpha: 0.5, outlineWidth: 1.5 },
-  pumpkin: { color: '#6E3A08', top: '#8A4A0B', left: '#552C05', right: '#351A02',
+  pumpkin: { tex: { top: 'pumpkin_top', side: 'pumpkin_side' }, dark: 0.45,
              outline: '#1A0C01', outlineAlpha: 0.9, outlineWidth: 2 },
 };
 // violet re-paint of SPRITES.pumpkin — every palette key of the icon must be covered
