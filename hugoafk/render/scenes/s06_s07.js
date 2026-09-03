@@ -41,192 +41,504 @@ function s06_s07_isoSort(cells) {
   return cells.slice().sort((a, b) => (a.ix + a.iy + (a.iz || 0)) - (b.ix + b.iy + (b.iz || 0)));
 }
 
-/* ================================================================== s06 world */
-const s06_s07_ISO = { size: 50, cx: CX, cy: 1125 };   // farm anchor (bot tile 0/0 sits at cy)
-const s06_s07_R = 4;                                  // farm half size in blocks
-const s06_s07_PROWS = [-3, -1, 1, 3];                 // pumpkin rows
-const s06_s07_C = {
-  grass: '#3E7C2E', soil: '#63451F', dirt: '#33210E',
-  pump: '#CF7716', stem: '#3C8C2C', dead: '#0C0916',
-  torch: '#FFB25A', post: '#4A3722',
+/* ================================================================== s06 — die HugoSMP-Nachtfarm
+   Zweiter Durchgang: eine echte Minecraft-Welt statt bunter Würfel.
+     · Gelände mit Tiefe: Grasplateau der Farm, Hügelstufe dahinter, Wiese davor, die eine
+       Blockstufe abfällt — alles aus TEXTURIERTEN Blöcken (gebackenes AO in der Engine)
+     · begrenzte Farm-Parzelle: Kürbisreihen auf Ackerland mit Stielen dazwischen,
+       ein Wassergraben mit Sea Pickles, zwei Kopfsteinwege, ein Eichenzaun
+     · drei Eichen (Stamm + ausgefranste Blätterkrone), Fackeln, eine Kiste, Findlinge
+     · der AFK-SPIELER (mcPlayer) steht auf der reservierten Kachel und erntet
+   Nachtlook: die Blöcke gehen in eine eigene Ebene, EIN Lichtdurchgang ('source-atop')
+   dunkelt die Welt ab und schneidet warme Pfützen um die Fackeln heraus. */
+
+const s06_ISO  = { size: 66, cx: CX, cy: 1200 };
+const s06_UMAX = 10, s06_VMIN = -5, s06_VMAX = 23;      // visible (ix-iy) / (ix+iy) window
+const s06_PT   = { ix: 4, iy: -1 };                     // the reserved tile — the AFK player's spot
+const s06_CHK  = { x: 700, y: 1000 };                   // where the green check lands (left of the player)
+const s06_PLOT = { x0: -2, x1: 6, y0: -1, y1: 5 };      // the bounded farm plot
+
+const s06_TEX = {
+  grass:   { top: 'grass_top', side: 'grass_side' },
+  dirt:    'dirt',
+  stone:   'stone',
+  cobble:  'cobblestone',
+  soil:    { top: 'farmland', side: 'dirt' },
+  crop:    { top: 'farmland_crop', side: 'dirt' },
+  water:   'water',
+  sand:    'sand',
+  pumpkin: { top: 'pumpkin_top', side: 'pumpkin_side' },
+  log:     { top: 'oak_log_top', side: 'oak_log_side' },
+  leaves:  'oak_leaves',
+  chest:   { top: 'oak_planks', side: 'chest' },
 };
-const s06_s07_TORCH = [{ ix: -4, iy: -2 }, { ix: 4, iy: 2 }, { ix: 1, iy: -4 }, { ix: -3, iy: 4 }];
-// ground: full top layer + a dirt skirt on the two front edges
-const s06_s07_GROUND = (() => {
-  const o = [], R = s06_s07_R;
-  for (let ix = -R; ix <= R; ix++) for (let iy = -R; iy <= R; iy++) {
-    o.push({ ix: ix, iy: iy, iz: 0, c: s06_s07_PROWS.indexOf(iy) >= 0 ? s06_s07_C.soil : s06_s07_C.grass });
-    if (ix === R || iy === R) o.push({ ix: ix, iy: iy, iz: -1, c: s06_s07_C.dirt });
-  }
-  return s06_s07_isoSort(o);
-})();
-const s06_s07_PUMPS = (() => {
-  const o = [], R = s06_s07_R;
-  for (const iy of s06_s07_PROWS) for (let ix = -R; ix <= R; ix++) {
-    if (((ix + (iy < 0 ? 1 : 0)) % 2 + 2) % 2 !== 0) continue;
-    o.push({ ix: ix, iy: iy });
-  }
-  return s06_s07_isoSort(o.map(c => ({ ix: c.ix, iy: c.iy, iz: 1 })));
-})();
+const s06_HOT = { pumpkin: 1, leaves: 1, water: 1, chest: 1 };   // hot violet outline in the wireframe
+// what a plot row is made of (iy runs from the back path to the front path)
+const s06_ROW = { '-1': 'cobble', '0': 'soil', '1': 'crop', '2': 'water', '3': 'soil', '4': 'crop', '5': 'cobble' };
+const s06_PAR = { '0': 0, '3': 1 };                     // pumpkin on every other tile, staggered
 
-/* the bot as a real voxel figure (5 columns × 10 rows, one cube per cell) */
-const s06_s07_BOTROWS = [
-  '.hhh.',   // head top
-  '.hhh.',
-  '.hhh.',   // face row
-  'attta',   // shoulders + arms
-  'attta',
-  'attta',
-  '.ttt.',   // hips
-  '.l.l.',
-  '.l.l.',
-  '.l.l.',   // feet
+// tall, compact oaks — a long visible trunk reads as a tree, a fat canopy just reads as a hill.
+// Their canopies are kept off the player's column (ix-iy ≈ 5) so he is never hidden by leaves.
+// Two of them stand where their crowns break the horizon line into the night sky (x < 200 and
+// x > 880, i.e. outside every text column), which is what makes them read as trees at all.
+const s06_TREES = [
+  { ix: -3, iy:  4, trunk: 4, R: 1 },                   // hero oak, west edge
+  { ix:  4, iy: -3, trunk: 4, R: 1 },                   // hero oak, east of the player
+  { ix:  5, iy: 10, trunk: 3, R: 1 },                   // foreground oak, lower left
 ];
-const s06_s07_BOTPAL = { h: TOKENS.violetHot, t: TOKENS.secondary, a: '#6C2FC4', l: TOKENS.deepViolet };
-const s06_s07_BOTVOX = (() => {
-  const rows = s06_s07_BOTROWS, R = rows.length, o = [];
-  for (let r = 0; r < R; r++) for (let c = 0; c < rows[r].length; c++) {
-    const ch = rows[r][c]; if (ch === '.') continue;
-    o.push({ j: c - 2, k: R - 1 - r, ch: ch });
-  }
-  return o;                                   // drawn bottom-up, left-to-right
+const s06_POND = { x0: -6, x1: -4, y0: 1, y1: 3 };      // a little pond west of the farm
+const s06_TORCH = [
+  { ix:  1, iy: -1 }, { ix: 6, iy: -1 },                // on the path, flanking the player
+  { ix:  0, iy: -2 }, { ix: 5, iy: -2 },                // on the fence behind him
+  { ix: -2, iy:  5 }, { ix: -3, iy: 1 },                // the front path and the plot corner
+  { ix:  4, iy:  7 }, { ix: -4, iy: -1 },               // the meadow and the path out of the farm
+];
+// oak fence: along the back edge of the plot and up its left flank
+const s06_FENCE = (() => {
+  const o = [];
+  for (let ix = 0; ix <= 6; ix++) o.push({ ix: ix, iy: -2 });
+  for (let iy = 0; iy <= 3; iy++) o.push({ ix: -3, iy: iy });
+  return o;
 })();
-const s06_s07_U = s06_s07_ISO.size * 0.40;    // voxel edge of the bot (~20 px)
-const s06_s07_BOTX = s06_s07_ISO.cx;          // bot stands on tile 0/0
-const s06_s07_BOTY = s06_s07_ISO.cy;          // ground surface under the bot
+const s06_CHEST = { ix: -1, iy: -2 };
+// the cobble path continues out of the farm, back over the rise
+const s06_PATHOUT = (() => { const o = []; for (let ix = -6; ix <= -3; ix++) o.push({ ix: ix, iy: -1 }); return o; })();
 
-// per-voxel dissolve / rematerialise state — pure function of t
-function s06_s07_voxState(i, t) {
+// terrain height: the farm sits on a grass plain that terraces down at the front
+function s06_hAt(ix, iy) {
+  if (ix >= s06_PLOT.x0 - 1 && ix <= s06_PLOT.x1 + 1 && iy >= s06_PLOT.y0 - 1 && iy <= s06_PLOT.y1 + 1) return 1;
+  const v = ix + iy + (hash2(ix * 7 + 3, iy * 11 + 5) - 0.5) * 2.4;
+  if (v <= 9.5) return 1;
+  if (v <= 15.0) return 0;
+  return -1;
+}
+
+/* ------------------------------------------------- build the world once ---
+   One block per flat tile; a column only grows downwards where the terrain really
+   steps, and every block covered by (ix+1, iy+1, iz+1) is dropped again. */
+const s06_WORLD = (() => {
+  const occ = new Set(), K = (a, b, c) => a + '|' + b + '|' + c;
+  const solid = [], pumpkins = [], pickles = [];
+  const put = (ix, iy, iz, kind) => { const k = K(ix, iy, iz); if (occ.has(k)) return; occ.add(k); solid.push({ ix: ix, iy: iy, iz: iz, kind: kind }); };
+  const inWin = (ix, iy, m) => Math.abs(ix - iy) <= s06_UMAX + (m || 0) && ix + iy >= s06_VMIN - (m || 0) && ix + iy <= s06_VMAX + (m || 0);
+  const treeAt = (ix, iy) => { for (const tr of s06_TREES) if (tr.ix === ix && tr.iy === iy) return true; return false; };
+
+  for (let ix = -32; ix <= 32; ix++) for (let iy = -32; iy <= 32; iy++) {
+    if (!inWin(ix, iy, 2)) continue;
+    const h = s06_hAt(ix, iy);
+    const inPlot = ix >= s06_PLOT.x0 && ix <= s06_PLOT.x1 && iy >= s06_PLOT.y0 && iy <= s06_PLOT.y1;
+    let row = inPlot ? s06_ROW[String(iy)] : null;
+    if (!row && iy === -1 && ix >= -6 && ix < s06_PLOT.x0) row = 'cobble';   // the path out of the farm
+    if (!row && ix >= s06_POND.x0 && ix <= s06_POND.x1 && iy >= s06_POND.y0 && iy <= s06_POND.y1) row = 'water';
+    if (!row && ix >= s06_POND.x0 - 1 && ix <= s06_POND.x1 + 1 && iy >= s06_POND.y0 - 1 && iy <= s06_POND.y1 + 1) row = 'sand';
+    if (!row && !inPlot && hash2(ix * 13 + 7, iy * 29 + 3) > 0.955) row = 'dirt';
+    let kind = 'grass', pump = false;
+    if (row && !treeAt(ix, iy)) {
+      kind = row;
+      if (row === 'soil') {
+        pump = (((ix % 2) + 2) % 2) === s06_PAR[String(iy)];
+        if (!pump) kind = 'crop';                       // stems between the pumpkins
+      }
+    }
+    put(ix, iy, h, kind);
+    const hn = Math.min(s06_hAt(ix + 1, iy + 1), s06_hAt(ix + 1, iy), s06_hAt(ix, iy + 1));
+    for (let z = h - 1; z >= hn && z >= h - 3; z--) put(ix, iy, z, z === h - 1 ? 'dirt' : 'stone');
+    if (pump) { put(ix, iy, h + 1, 'pumpkin'); pumpkins.push({ ix: ix, iy: iy, iz: h + 1 }); }
+    if (kind === 'water' && hash2(ix * 5 + 1, iy * 7 + 9) > 0.44) pickles.push({ ix: ix, iy: iy, iz: h });
+  }
+  // oak trees: log stem, two wide leaf layers with the corners cut, a cap —
+  // a few rim leaves are dropped so the silhouette stays ragged, not a green box
+  for (const tr of s06_TREES) {
+    const h = s06_hAt(tr.ix, tr.iy), R = tr.R;
+    for (let k = 1; k <= tr.trunk; k++) put(tr.ix, tr.iy, h + k, 'log');
+    for (const lz of [tr.trunk, tr.trunk + 1]) for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) {
+      if (R > 1 && Math.abs(dx) === R && Math.abs(dy) === R) continue;
+      if (dx === 0 && dy === 0 && lz === tr.trunk) continue;
+      const rim = Math.max(Math.abs(dx), Math.abs(dy)) === R;
+      if (rim && hash2(tr.ix * 31 + dx, tr.iy * 17 + dy * 7 + lz) < (lz > tr.trunk ? 0.30 : 0.12)) continue;
+      put(tr.ix + dx, tr.iy + dy, h + lz, 'leaves');
+    }
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      if (Math.abs(dx) + Math.abs(dy) === 2 && hash2(tr.ix + dx * 5, tr.iy + dy * 9) < 0.62) continue;
+      put(tr.ix + dx, tr.iy + dy, h + tr.trunk + 2, 'leaves');
+    }
+  }
+  // boulders and bushes on the grass — never inside the farm rows
+  for (let ix = -32; ix <= 32; ix++) for (let iy = -32; iy <= 32; iy++) {
+    if (!inWin(ix, iy, 0) || ix + iy < -2) continue;   // nothing tall on the back edge (text sits there)
+    if (ix >= s06_PLOT.x0 - 1 && ix <= s06_PLOT.x1 + 1 && iy >= s06_PLOT.y0 - 1 && iy <= s06_PLOT.y1 + 1) continue;
+    const h = s06_hAt(ix, iy);
+    if (occ.has(K(ix, iy, h + 1))) continue;
+    const hs = hash2(ix * 19 + 101, iy * 23 + 7);
+    if (hs > 0.962) put(ix, iy, h + 1, hs > 0.984 ? 'cobble' : 'stone');
+    else if (hs < 0.034) put(ix, iy, h + 1, 'leaves');
+  }
+  // occlusion cull + painter order (ix + iy + iz ascending)
+  const vis = solid
+    .filter(b => inWin(b.ix, b.iy, 0) && !occ.has(K(b.ix + 1, b.iy + 1, b.iz + 1)))
+    .sort((a, b) => (a.ix + a.iy + a.iz) - (b.ix + b.iy + b.iz));
+  return { vis: vis, pumpkins: pumpkins, pickles: pickles };
+})();
+
+// a cuboid centred on a block tile, top face at height hTop (block units)
+function s06_boxAt(ctx, ix, iy, hTop, bw, bd, bh, o) {
+  const s = s06_ISO.size, c = isoPos(ix, iy, hTop, s06_ISO);
+  const ax = c.x - (s * ISO.w * bw - s * ISO.w * bd) / 2;
+  const ay = c.y - (s * ISO.h * bw + s * ISO.h * bd) / 2;
+  return isoBox(ctx, ax, ay, bw, bd, bh, Object.assign({ size: s }, o || {}));
+}
+
+/* ONE night pass for the whole world layer: a cool haze that is punched open
+   (destination-out) and warmed (lighter) where the torches burn. */
+const s06_LIT = { x0: -160, y0: 640, w: 1400, h: 1400 };
+let s06_litC = null;
+function s06_lightOverlay() {
+  const LW = 210, LH = 168;
+  if (!s06_litC) s06_litC = makeCanvas(LW, LH);
+  const x = s06_litC.getContext('2d');
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.filter = 'none';
+  x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, LW, LH);
+  const g = x.createLinearGradient(0, 0, 0, LH);
+  g.addColorStop(0.00, 'rgba(20,24,72,0.86)');        // the crowns that break the horizon
+  g.addColorStop(0.15, 'rgba(28,34,94,0.80)');        // moonlit haze in the distance
+  g.addColorStop(0.32, 'rgba(22,25,74,0.66)');
+  g.addColorStop(0.62, 'rgba(13,14,42,0.52)');
+  g.addColorStop(1.00, 'rgba(8,8,26,0.42)');
+  x.fillStyle = g; x.fillRect(0, 0, LW, LH);
+  const sx = LW / s06_LIT.w, sy = LH / s06_LIT.h, pts = [];
+  for (const tr of s06_TORCH) {
+    const p = isoPos(tr.ix, tr.iy, s06_hAt(tr.ix, tr.iy) + 0.95, s06_ISO);
+    pts.push({ x: (p.x - s06_LIT.x0) * sx, y: (p.y - s06_LIT.y0) * sy, fl: 0.92 });
+  }
+  x.globalCompositeOperation = 'destination-out';
+  for (const p of pts) {
+    const r = 34 * p.fl, rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    rg.addColorStop(0, 'rgba(0,0,0,0.98)'); rg.addColorStop(0.30, 'rgba(0,0,0,0.66)');
+    rg.addColorStop(0.66, 'rgba(0,0,0,0.19)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = rg; x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.fill();
+  }
+  x.globalCompositeOperation = 'lighter';
+  for (const p of pts) {
+    const r = 38 * p.fl, rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    rg.addColorStop(0, 'rgba(156,64,12,0.52)'); rg.addColorStop(0.42, 'rgba(92,34,6,0.20)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = rg; x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.fill();
+  }
+  return s06_litC;
+}
+
+/* ------------------------------------------------------------ night horizon
+   A blocky treeline just above the back edge of the terrain (y ≈ 980) plus haze,
+   so the farm sits in a landscape instead of floating in black. */
+const s06_FAR = (() => {
+  const o = [];
+  for (let i = 0; i < 44; i++) {
+    const x = hash1(i * 91 + 13) * (W + 200) - 100;
+    o.push({ x: Math.round(x), s: 11 + Math.round(hash1(i * 13 + 5) * 13), d: hash1(i * 7 + 2) });
+  }
+  return o.sort((a, b) => a.d - b.d);
+})();
+function s06_horizon(ctx) {
+  const yH = 968;
+  linearFill(ctx, 0, yH - 130, 0, yH + 60, [[0, 'rgba(40,32,80,0)'], [0.6, 'rgba(46,36,92,0.30)'], [1, 'rgba(18,14,40,0)']], [0, yH - 130, W, 190]);
+  ctx.save();
+  for (const tr of s06_FAR) {
+    ctx.fillStyle = tr.d > 0.5 ? '#151238' : '#0D0B26';
+    const y = yH - tr.d * 10;
+    ctx.fillRect(tr.x - 2, y - tr.s * 0.55, 5, tr.s * 0.6);
+    ctx.fillRect(tr.x - tr.s * 0.5, y - tr.s * 1.30, tr.s, tr.s * 0.80);
+    ctx.fillRect(tr.x - tr.s * 0.3, y - tr.s * 1.75, tr.s * 0.6, tr.s * 0.55);
+  }
+  ctx.fillStyle = '#0B0A22'; ctx.fillRect(0, yH, W, 26);
+  ctx.restore();
+  linearFill(ctx, 0, yH - 20, 0, yH + 110, [[0, 'rgba(66,58,124,0.26)'], [1, 'rgba(20,17,44,0)']], [0, yH - 20, W, 130]);
+}
+
+/* ---------------------------------------------------------------- the player
+   The AFK player stands on the reserved tile, idles and takes a mining swing
+   whenever he is connected. */
+function s06_playerA(t) {                                  // 1 = solid, 0 = gone
+  if (t < 15.40) return 1;
+  if (t < 16.42) return 1 - clamp(remap(t, 15.40, 15.74));
+  return clamp(remap(t, 16.52, 16.86));
+}
+function s06_player(ctx, t, wire) {
+  const a = s06_playerA(t);
+  if (a <= 0.01) return;
+  const p = isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), s06_ISO);
+  const cyc = ((t * 1.0) % 2.6 + 2.6) % 2.6;
+  const swing = (t < 15.32 || t > 16.88) && cyc < 0.80 ? Math.sin(cyc / 0.80 * Math.PI) : 0;
+  ctx.save(); ctx.globalAlpha *= a;
+  if (wire < 0.5) {                                        // contact shadow
+    ctx.save(); ctx.globalAlpha *= 0.45; ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + s06_ISO.size * 0.06, s06_ISO.size * 0.36, s06_ISO.size * 0.18, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  mcPlayer(ctx, p.x, p.y, {
+    size: s06_ISO.size, t: t, walk: 0, swing: swing, facing: 'left', bob: 0.020,
+    dark: wire > 0.5 ? 0.88 : 0.30,
+    outline: wire > 0.5 ? TOKENS.violetHot : '#0A0910',
+    outlineAlpha: wire > 0.5 ? 0.85 : 0.34, outlineWidth: wire > 0.5 ? 1.8 : 1.1,
+    held: { top: 'pumpkin_top', side: 'pumpkin_side' },
+  });
+  ctx.restore();
+}
+// the Minecraft name tag over the AFK player — drawn after the night pass so it stays lit
+function s06_nametag(ctx, t) {
+  const a = s06_playerA(t);
+  if (a <= 0.02) return;
+  const p = isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), s06_ISO);
+  const y = p.y - s06_ISO.size * 2.92 + Math.sin(t * 1.7 + 0.6) * 3;
+  const o = { size: 36, family: FONTS.term, weight: 400, color: '#EDE6F8', align: 'center', baseline: 'middle' };
+  const w = measureText(ctx, 'HugoAFK', o);
+  ctx.save(); ctx.globalAlpha *= a;
+  ctx.fillStyle = 'rgba(4,3,10,0.62)'; ctx.fillRect(p.x - w / 2 - 12, y - 22, w + 24, 43);
+  drawText(ctx, 'HugoAFK', p.x, y, o);
+  ctx.restore();
+}
+
+/* the player crumbling into real Minecraft voxels and flying back together.
+   Timing is unchanged: dissolve from 15.40, rematerialise from 16.42. */
+const s06_VOX = (() => {
+  const r = rng(9127), o = [];
+  for (let i = 0; i < 58; i++) {
+    const hgt = 0.06 + r() * 1.94;
+    const tex = hgt < 0.16 ? 'player_shoe' : hgt < 0.75 ? 'player_pants' : hgt < 1.5 ? 'player_shirt' : 'player_skin';
+    const w = hgt < 1.5 ? 0.30 : 0.24;
+    o.push({ du: (r() - 0.5) * w * 2, dv: (r() - 0.5) * w * 2, h: hgt, tex: tex });
+  }
+  return o;
+})();
+function s06_voxState(i, t) {
   const h = hash1(i * 7 + 3), hx = hash2(i, 11), hy = hash2(i, 29);
-  if (t < 15.40) return { dx: 0, dy: 0, sc: 1, a: 1 };
-  if (t < 16.42) {                                  // dissolve upward, 15.40 – ~15.97
+  if (t < 15.40) return null;
+  if (t < 16.42) {                                          // dissolve upward
     const st = 15.40 + h * 0.18, q = remap(t, st, st + 0.42);
     if (q <= 0) return { dx: 0, dy: 0, sc: 1, a: 1 };
     const e = E.outCubic(q);
     return { dx: (hx - 0.5) * 150 * e, dy: -(300 + hy * 190) * e, sc: lerp(1, 0.32, q), a: clamp(1 - q * q * 1.12) };
   }
   const st2 = 16.42 + h * 0.20, q2 = remap(t, st2, st2 + 0.32);   // fly back together
-  if (q2 <= 0) return { dx: 0, dy: 0, sc: 1, a: 0 };
+  const fade = 1 - clamp(remap(t, 16.60, 16.88));
+  if (q2 <= 0) return { dx: (hx - 0.5) * 130, dy: -(240 + hy * 140), sc: 0.4, a: 0 };
   const e2 = E.outCubic(q2);
-  return { dx: (hx - 0.5) * 130 * (1 - e2), dy: -(240 + hy * 140) * (1 - e2), sc: lerp(0.4, 1, e2), a: clamp(q2 * 1.7) };
+  return { dx: (hx - 0.5) * 130 * (1 - e2), dy: -(240 + hy * 140) * (1 - e2), sc: lerp(0.4, 1, e2), a: clamp(q2 * 1.7) * fade };
 }
-
-function s06_s07_bot(ctx, t) {
-  const u = s06_s07_U, bx = s06_s07_BOTX, by = s06_s07_BOTY;
-  const bob = Math.sin(t * 2.6) * 3.5 * (t < 15.35 || t > 16.9 ? 1 : 0.2);
-  // ground glow under the bot (only while it is actually there)
+function s06_voxels(ctx, t) {
+  if (t < 15.40) return;
+  const S = s06_ISO.size, hb = s06_hAt(s06_PT.ix, s06_PT.iy);
   let live = 0;
-  for (let i = 0; i < s06_s07_BOTVOX.length; i++) live += s06_s07_voxState(i, t).a;
-  live /= s06_s07_BOTVOX.length;
-  if (live > 0.02) {
+  for (let i = 0; i < s06_VOX.length; i++) {
+    const v = s06_VOX[i], s = s06_voxState(i, t);
+    if (!s || s.a <= 0.012) continue;
+    live += s.a;
+    const p = isoPos(s06_PT.ix + v.du, s06_PT.iy + v.dv, hb + v.h, s06_ISO);
+    const x = p.x + s.dx, y = p.y + s.dy, sz = S * 0.20 * s.sc;
+    blockIcon(ctx, v.tex, x, y, sz, { alpha: s.a });
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    dot(ctx, bx, by - u * 4, u * 7.5, TOKENS.secondary, 0.20 * live);
+    dot(ctx, x, y, sz * 2.0, TOKENS.violetHot, 0.20 * s.a);
     ctx.restore();
   }
-  for (let i = 0; i < s06_s07_BOTVOX.length; i++) {
-    const v = s06_s07_BOTVOX[i], s = s06_s07_voxState(i, t);
-    if (s.a <= 0.01) continue;
-    const x = bx + v.j * u + s.dx, y = by - (v.k + 1) * u + bob + s.dy, sz = u * s.sc;
-    s06_s07_blk(ctx, x, y, sz, s06_s07_BOTPAL[v.ch], {
-      alpha: s.a, topF: 1.3, leftF: 0.86, rightF: 0.6,
-      outline: '#180A2E', outlineAlpha: 0.55 * s.a, outlineWidth: 1.6,
-    });
-    if (s.a < 0.95 && s.a > 0.05) {   // spark on the loose voxels
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      dot(ctx, x, y, sz * 1.5, TOKENS.violetHot, 0.22 * s.a);
-      ctx.restore();
+  if (live > 0.4) {
+    const p = isoPos(s06_PT.ix, s06_PT.iy, hb, s06_ISO);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    dot(ctx, p.x, p.y - S * 0.4, S * 4.2, TOKENS.secondary, 0.16 * clamp(live / 12));
+    ctx.restore();
+  }
+}
+
+/* ---------------------------------------------------------------- props */
+function s06_torchPost(ctx, tr, wire) {
+  const h = s06_hAt(tr.ix, tr.iy);
+  s06_boxAt(ctx, tr.ix, tr.iy, h + 0.95, 0.16, 0.16, 0.95, wire > 0.5
+    ? { color: '#0C0818', top: '#160F2A', outline: TOKENS.secondary, outlineAlpha: 0.5, outlineWidth: 1.2 }
+    : { tex: { top: 'oak_log_top', side: 'oak_log_side' }, outline: '#120B04', outlineAlpha: 0.4, outlineWidth: 1 });
+}
+function s06_fencePost(ctx, f, wire) {
+  const h = s06_hAt(f.ix, f.iy);
+  const o = wire > 0.5
+    ? { color: '#0C0818', top: '#160F2A', outline: TOKENS.secondary, outlineAlpha: 0.42, outlineWidth: 1.1 }
+    : { tex: { top: 'oak_log_top', side: 'oak_log_side' }, outline: '#120B04', outlineAlpha: 0.4, outlineWidth: 1 };
+  s06_boxAt(ctx, f.ix, f.iy, h + 1.0, 0.22, 0.22, 1.0, o);
+  s06_boxAt(ctx, f.ix + 0.5, f.iy, h + 0.86, 1.0, 0.10, 0.12, o);
+  s06_boxAt(ctx, f.ix + 0.5, f.iy, h + 0.46, 1.0, 0.10, 0.12, o);
+}
+function s06_chestProp(ctx, wire) {
+  const c = s06_CHEST, h = s06_hAt(c.ix, c.iy);
+  const o = wire > 0.5
+    ? { color: '#0E0A1C', top: '#1A1130', outline: TOKENS.violetHot, outlineAlpha: 0.8, outlineWidth: 1.6 }
+    : { tex: s06_TEX.chest, outline: '#120B04', outlineAlpha: 0.4, outlineWidth: 1 };
+  s06_boxAt(ctx, c.ix, c.iy, h + 0.72, 0.86, 0.86, 0.72, o);
+  s06_boxAt(ctx, c.ix, c.iy, h + 0.98, 0.86, 0.86, 0.26, o);
+}
+// warm torch flames — drawn AFTER the night pass, so they stay the brightest thing
+function s06_flames(ctx, t, k) {
+  const S = s06_ISO.size;
+  for (const tr of s06_TORCH) {
+    const p = isoPos(tr.ix, tr.iy, s06_hAt(tr.ix, tr.iy) + 0.95, s06_ISO);
+    const fl = 0.74 + 0.26 * Math.sin(t * 10.5 + tr.ix * 2.1 + tr.iy * 1.3);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= k;
+    ctx.fillStyle = '#C46A18'; ctx.fillRect(p.x - S * 0.085, p.y - S * 0.10, S * 0.17, S * 0.13);
+    ctx.fillStyle = '#FFE7A8'; ctx.fillRect(p.x - S * 0.055, p.y - S * 0.09 - S * 0.03 * fl, S * 0.11, S * 0.1);
+    ctx.restore();
+    dot(ctx, p.x, p.y - S * 0.05, S * 2.1, '#FF9A34', 0.17 * fl * k);
+    dot(ctx, p.x, p.y - S * 0.05, S * 0.8, '#FFCE88', 0.40 * fl * k);
+  }
+  for (const w of s06_WORLD.pickles) {                       // sea pickles are a light source too
+    const p = isoPos(w.ix, w.iy, w.iz, s06_ISO);
+    dot(ctx, p.x, p.y - S * 0.16, S * 0.9, '#C8E86A', 0.20 * k);
+  }
+}
+
+/* ---------------------------------------------------------------- the world draw
+   The terrain never changes, so it is baked ONCE into two canvases, split at the
+   player's depth: everything behind him, then the player, then everything in front.
+   That turns ~1250 textured faces per frame into two drawImage calls. */
+// both canvases are cropped to the band their content really occupies, so the two
+// per-frame blits cost about half a full frame instead of two
+const s06_BOXA = { y: 650, h: 1280 }, s06_BOXB = { y: 1200, h: 730 };
+let s06_bakeA = null, s06_bakeB = null;
+function s06_bakeWorld() {
+  if (s06_bakeA) return;
+  s06_bakeA = makeCanvas(W, s06_BOXA.h); s06_bakeB = makeCanvas(W, s06_BOXB.h);
+  const A = s06_bakeA.getContext('2d'), B = s06_bakeB.getContext('2d');
+  A.translate(0, -s06_BOXA.y); B.translate(0, -s06_BOXB.y);
+  const S = s06_ISO.size, O = s06_ISO;
+  const kOf = (ix, iy) => ix + iy + s06_hAt(ix, iy) + 0.5;
+  const PK = kOf(s06_PT.ix, s06_PT.iy);
+  const cmds = [];
+  for (const b of s06_WORLD.vis) {
+    const p = isoPos(b.ix, b.iy, b.iz, O);
+    if (b.kind === 'leaves') {                               // dimmed, so a canopy never melts into the grass
+      cmds.push({ k: b.ix + b.iy + b.iz, v: b.ix + b.iy, f: g => cube(g, b.ix, b.iy, b.iz, { size: S, cx: O.cx, cy: O.cy,
+        tex: 'oak_leaves', dark: 0.30, outline: '#050A06', outlineAlpha: 0.40, outlineWidth: 1.2 }) });
+      continue;
+    }
+    const dy = b.kind === 'water' ? S * 0.13 : 0;
+    if (b.kind === 'log') {
+      cmds.push({ k: b.ix + b.iy + b.iz, v: b.ix + b.iy, f: g => cube(g, b.ix, b.iy, b.iz, { size: S, cx: O.cx, cy: O.cy,
+        tex: s06_TEX.log, dark: 0.16, outline: '#0B0703', outlineAlpha: 0.42, outlineWidth: 1.2 }) });
+    } else {
+      cmds.push({ k: b.ix + b.iy + b.iz, v: b.ix + b.iy, f: g => blockIcon(g, s06_TEX[b.kind], p.x, p.y + dy, S,
+        { outline: '#070910', outlineAlpha: 0.26, outlineWidth: 1 }) });
     }
   }
-  // eyes, only on the intact figure
-  const eA = clamp((t < 15.40 ? 1 : 0) + (t > 16.86 ? clamp((t - 16.86) / 0.12) : 0));
-  if (eA > 0.02) {
-    const y = by - 9 * s06_s07_U + bob;
-    ctx.save(); ctx.globalAlpha *= eA; ctx.fillStyle = 'rgba(14,6,26,0.92)';
-    ctx.fillRect(Math.round(bx - u * 0.46), Math.round(y + u * 0.30), Math.round(u * 0.26), Math.round(u * 0.26));
-    ctx.fillRect(Math.round(bx + u * 0.20), Math.round(y + u * 0.42), Math.round(u * 0.26), Math.round(u * 0.26));
-    ctx.restore();
+  for (const f of s06_FENCE) cmds.push({ k: kOf(f.ix, f.iy), v: f.ix + f.iy, f: g => s06_fencePost(g, f, 0) });
+  for (const tr of s06_TORCH) cmds.push({ k: kOf(tr.ix, tr.iy), v: tr.ix + tr.iy, f: g => s06_torchPost(g, tr, 0) });
+  cmds.push({ k: kOf(s06_CHEST.ix, s06_CHEST.iy), v: s06_CHEST.ix + s06_CHEST.iy, f: g => s06_chestProp(g, 0) });
+  // sea pickles growing in the water channel
+  for (const w of s06_WORLD.pickles) {
+    const p = isoPos(w.ix, w.iy, w.iz, O), n = 1 + Math.floor(hash2(w.ix, w.iy) * 3);
+    cmds.push({ k: w.ix + w.iy + w.iz + 0.6, v: w.ix + w.iy, f: g => {
+      for (let i = 0; i < n; i++) {
+        const q1 = hash2(w.ix * 5 + i, w.iy * 7 + 1), q2 = hash2(w.ix * 11 + i, w.iy * 3 + 9);
+        pixelSprite(g, p.x + (q1 - 0.5) * S * 0.55, p.y - S * 0.10 + (q2 - 0.5) * S * 0.18,
+          S * 0.030, SPRITES.sea_pickle.rows, SPRITES.sea_pickle.pal, { alpha: 0.95 });
+      }
+    } });
+  }
+  cmds.sort((p, q) => p.k - q.k);
+  // anything at or behind the player's depth row goes into the back canvas
+  const PV = s06_PT.ix + s06_PT.iy;
+  for (const c of cmds) c.f((c.k <= PK || c.v <= PV) ? A : B);
+  // ONE night pass, baked in: a cool haze punched open and warmed around the torches
+  const lit = s06_lightOverlay();
+  for (const g of [A, B]) {
+    g.save(); g.globalCompositeOperation = 'source-atop';
+    g.drawImage(lit, s06_LIT.x0, s06_LIT.y0, s06_LIT.w, s06_LIT.h);
+    g.restore();
   }
 }
-
-/* the farm — solid before the disconnect, violet wireframe while the bot is away */
-function s06_s07_farm(ctx, t, wire) {
-  const O = s06_s07_ISO, m = O.size * 0.72;
-  const oa = 0.2 + wire * 0.6, wc = s06_s07_mix(TOKENS.secondary, TOKENS.violetHot, 0.4);
-  // night cast first, then the wireframe fade
-  const dead = k => s06_s07_mix(s06_s07_mix(k, '#160C28', 0.36), s06_s07_C.dead, wire * 0.86);
-  for (const c of s06_s07_GROUND) {
-    cube(ctx, c.ix, c.iy, c.iz, {
-      size: O.size, cx: O.cx, cy: O.cy, color: dead(c.c), topF: 1.12, leftF: 0.74, rightF: 0.48,
-      // real block textures while the world is solid; the wireframe state keeps the flat cast
-      tex: wire < 0.35 ? (c.c === s06_s07_C.soil ? { top: 'farmland', side: 'dirt' } : { top: 'grass_top', side: 'grass_side' }) : null,
-      dark: 0.34 + wire * 0.4,
-      outline: wire > 0.05 ? wc : '#101A08', outlineAlpha: wire > 0.05 ? oa : 0.35, outlineWidth: 1.3,
+function s06_worldTex(ctx, t, wire) {
+  s06_bakeWorld();
+  ctx.save(); ctx.globalAlpha *= 1 - wire;
+  ctx.drawImage(s06_bakeA, 0, s06_BOXA.y);
+  s06_player(ctx, t, wire);
+  ctx.drawImage(s06_bakeB, 0, s06_BOXB.y);
+  ctx.restore();
+}
+// violet wireframe version of exactly the same build — the farm stays standing while the bot is gone
+function s06_worldWire(ctx, t, wire) {
+  const violet = T().secondary, hot = TOKENS.violetHot, O = s06_ISO;
+  ctx.save();
+  for (const b of s06_WORLD.vis) {
+    if (b.kind === 'stone' || b.kind === 'dirt') continue;      // buried body: no wire needed
+    const q = isoPos(b.ix, b.iy, b.iz, O);
+    // the skeleton is brightest around the farm and dissolves into the dark towards the edges
+    const fall = clamp(1 - (Math.hypot((q.x - 640) * 0.86, q.y - 1250) - 280) / 360);
+    if (fall <= 0.03) continue;
+    const pl = 0.5 + 0.5 * Math.sin(t * 2.4 + b.ix * 0.8 + b.iy * 0.55);
+    const hotK = s06_HOT[b.kind] === 1;
+    cube(ctx, b.ix, b.iy, b.iz, {
+      size: O.size, cx: O.cx, cy: O.cy, alpha: wire * fall,
+      color: '#0D0918', top: '#1B1136', left: '#0A0716', right: '#07050F',
+      outline: hotK ? hot : violet,
+      outlineAlpha: (hotK ? 1.0 : 0.5) * wire * fall * (0.68 + 0.32 * pl),
+      outlineWidth: hotK ? 2.0 : 1.3,
     });
   }
-  for (const c of s06_s07_PUMPS) {
-    if (c.ix === 0 && c.iy === 0) continue;                     // keep the bot's tile free
-    const g = isoPos(c.ix, c.iy, 0, O);
-    s06_s07_blk(ctx, g.x, g.y - m, m, dead(s06_s07_C.pump),
-      { tex: wire < 0.35 ? { top: 'pumpkin_top', side: 'pumpkin_side' } : null, dark: 0.28 + wire * 0.4,
-        outline: wire > 0.05 ? wc : '#3A1E06', outlineAlpha: wire > 0.05 ? oa : 0.55, outlineWidth: 1.3 });
-    if (wire >= 0.35) s06_s07_blk(ctx, g.x, g.y - m * 1.3, m * 0.3, dead(s06_s07_C.stem), { alpha: 1 - wire * 0.3 });
-  }
-  // torches: the only warm light in the night farm (voxel world, not UI)
-  for (let i = 0; i < s06_s07_TORCH.length; i++) {
-    const c = s06_s07_TORCH[i], g = isoPos(c.ix, c.iy, 0, O), fl = 0.8 + 0.2 * Math.sin(t * 7 + i * 2.1);
-    s06_s07_blk(ctx, g.x, g.y - O.size * 0.34, O.size * 0.22, dead(s06_s07_C.post));
-    s06_s07_blk(ctx, g.x, g.y - O.size * 0.62, O.size * 0.20, dead(s06_s07_C.torch));
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    dot(ctx, g.x, g.y - O.size * 0.55, O.size * 1.5, s06_s07_C.torch, (0.30 - wire * 0.26) * fl);
-    ctx.restore();
-  }
+  ctx.globalAlpha *= wire;
+  for (const f of s06_FENCE) s06_fencePost(ctx, f, 1);
+  for (const tr of s06_TORCH) s06_torchPost(ctx, tr, 1);
+  s06_chestProp(ctx, 1);
+  s06_player(ctx, t, 1);
+  s06_voxels(ctx, t);
+  ctx.restore();
 }
 
 /* pumpkin items popping out of the farm — before the reset and again once the bot is back */
-const s06_s07_POPS = [15.00, 15.25, 16.98, 17.23, 17.48];
-// only the front-LEFT pumpkins pop: that corridor is free of the bot (x~540) and the check (x~790)
-const s06_s07_POPCELLS = (() => s06_s07_PUMPS.filter(c => c.iy >= 1 && c.ix <= -2))();
-function s06_s07_items(ctx, t, wire) {
+const s06_POPS = [15.00, 15.25, 16.98, 17.23, 17.48];
+// only pumpkins in the open lower-left corridor pop: clear of the player (x~820),
+// of the check (x~792) and of the chat plate
+const s06_POPCELLS = (() => {
+  const o = s06_WORLD.pumpkins.filter(c => {
+    const p = isoPos(c.ix, c.iy, c.iz, s06_ISO);
+    return p.x > 230 && p.x < 720 && p.y > 1160 && p.y < 1460;
+  });
+  return o.length ? o : s06_WORLD.pumpkins;
+})();
+function s06_items(ctx, t, wire) {
   if (wire > 0.4) return;
-  const O = s06_s07_ISO;
-  for (let k = 0; k < s06_s07_POPS.length; k++) {
-    const st = s06_s07_POPS[k], life = (t - st) / 0.85;
+  for (let k = 0; k < s06_POPS.length; k++) {
+    const st = s06_POPS[k], life = (t - st) / 0.85;
     if (life <= 0 || life >= 1) continue;
-    const cell = s06_s07_POPCELLS[Math.floor(hash1(k * 17 + 5) * s06_s07_POPCELLS.length)];
+    const cell = s06_POPCELLS[Math.floor(hash1(k * 17 + 5) * s06_POPCELLS.length)];
     if (!cell) continue;
-    const g = isoPos(cell.ix, cell.iy, 0, O), e = E.outCubic(life);
-    const dx = -(30 + hash2(k, 3) * 48);                             // drift out over the empty left ground
-    const x0 = g.x, y0 = g.y - O.size * 1.9;                        // start above the block top
-    const x = x0 + dx * e, y = y0 - e * 140 + life * life * 30;     // rise, then a touch of gravity
+    const g = isoPos(cell.ix, cell.iy, cell.iz, s06_ISO), e = E.outCubic(life);
+    const dx = -(30 + hash2(k, 3) * 48);
+    const x0 = g.x, y0 = g.y - s06_ISO.size * 0.55;
+    const x = x0 + dx * e, y = y0 - e * 140 + life * life * 30;
     const a = clamp((1 - life) * 1.8) * clamp(life / 0.10) * (1 - wire);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    // short warm trail behind the item (torch light of the voxel world, not UI gold)
     for (let t2 = 1; t2 <= 4; t2++) {
       const e2 = E.outCubic(Math.max(0, life - t2 * 0.055));
-      dot(ctx, x0 + dx * e2, y0 - e2 * 140, 28 - t2 * 4, s06_s07_C.torch, a * 0.13 / t2);
+      dot(ctx, x0 + dx * e2, y0 - e2 * 140, 28 - t2 * 4, '#FFB25A', a * 0.13 / t2);
     }
-    dot(ctx, x, y, 50, s06_s07_C.torch, a * 0.26);
+    dot(ctx, x, y, 50, '#FFB25A', a * 0.26);
     ctx.restore();
     ctx.save(); ctx.globalAlpha *= a;
-    itemIcon(ctx, 'pumpkin', x, y, 4.9, { rotate: (hash2(k, 9) - 0.5) * 0.5 + life * 0.5 });
+    ctx.translate(x, y); ctx.rotate((hash2(k, 9) - 0.5) * 0.3 + life * 0.35);
+    blockIcon(ctx, s06_TEX.pumpkin, 0, -12, 40);
     ctx.restore();
   }
 }
 
-/* the reserved tile: a violet marker on the ground while the bot is gone */
-function s06_s07_spot(ctx, t) {
+/* the reserved tile: a dashed violet marker on the ground while the bot is away */
+function s06_spot(ctx, t) {
   const a = win(t, 15.55, 15.75, 16.62, 16.86) * (0.5 + 0.5 * pulse(t, 0.5, 5, 15.5));
   if (a <= 0.01) return;
-  const O = s06_s07_ISO, p = isoPos(0, 0, 0, O), w = O.size * 0.866, h = O.size * 0.5;
+  const O = s06_ISO, p = isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), O);
+  const w = O.size * 0.866, h = O.size * 0.5;
   ctx.save(); ctx.globalAlpha *= a;
   ctx.strokeStyle = TOKENS.violetHot; ctx.lineWidth = 3; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -t * 26;
   ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x + w, p.y); ctx.lineTo(p.x, p.y + h); ctx.lineTo(p.x - w, p.y); ctx.closePath(); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, p.x, p.y, O.size * 1.1, TOKENS.secondary, 0.20); ctx.restore();
-  // a small pixel label so "same spot" is readable, not just implied
-  const ly = p.y - O.size * 1.5 - 8 * Math.sin((t - 15.5) * 2.4);
-  ctx.fillStyle = 'rgba(8,4,16,0.72)'; ctx.fillRect(p.x - 92, ly - 20, 184, 40);
-  drawText(ctx, 'RESERVIERT', p.x, ly, { size: 24, family: FONTS.silk, weight: 700, color: TOKENS.violetHot, align: 'center', tracking: 2 });
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, p.x, p.y, O.size * 1.3, TOKENS.secondary, 0.24); ctx.restore();
+  // a small pixel label so "same spot" is readable, not just implied (kept inside x 90..900)
+  // clamped so that even at the camera's widest zoom the plate stays inside x 90..900
+  const lx = Math.min(p.x, 772), ly = p.y - O.size * 1.5 - 8 * Math.sin((t - 15.5) * 2.4);
+  ctx.fillStyle = 'rgba(8,4,16,0.74)'; ctx.fillRect(lx - 80, ly - 19, 160, 38);
+  drawText(ctx, 'GLEICHE STELLE', lx, ly, { size: 21, family: FONTS.silk, weight: 700, color: TOKENS.violetHot, align: 'center', tracking: 2 });
   ctx.restore();
 }
 
@@ -286,7 +598,7 @@ function s06_s07_chat(ctx, t) {
   if (!lines.length) return;
   const slide = (1 - E.outCubic(clamp((t - s06_s07_CHAT[lines.length - 1].t) / 0.16))) * 16;
   ctx.save(); ctx.translate(0, slide);
-  mcChat(ctx, 132, 1198, lines, { size: 36, lineHeight: 48, family: FONTS.term, bgColor: 'rgba(5,3,12,0.68)', pad: 14, extraW: 12 });
+  mcChat(ctx, 132, 1198, lines, { size: 36, lineHeight: 48, family: FONTS.term, bgColor: 'rgba(5,3,12,0.72)', pad: 14, extraW: 12 });
   ctx.restore();
 }
 
@@ -323,13 +635,13 @@ function s06_s07_loading(ctx, t) {
 function s06_s07_check(ctx, t) {
   const p = remap(t, 16.88, 17.12);
   if (p <= 0) return;
-  const x = 792, y = 1038, sc = E.outBack(p) * (1 + 0.06 * Math.sin((t - 16.9) * 9) * (1 - p));
+  const x = s06_CHK.x, y = s06_CHK.y, sc = E.outBack(p) * (1 + 0.06 * Math.sin((t - 16.9) * 9) * (1 - p));
   ctx.save();
   ctx.globalCompositeOperation = 'lighter'; dot(ctx, x, y, 94 * sc, TOKENS.ok, 0.30 + 0.16 * pulse(t, 0.5, 6, 16.9));
   ctx.restore();
   shockwave(ctx, x, y, remap(t, 16.90, 17.30), { radius: 160, color: TOKENS.ok, width: 8, alpha: 0.7 });
   ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
-  itemIcon(ctx, 'check', 0, 0, 9);
+  itemIcon(ctx, 'check', 0, 0, 7);
   ctx.restore();
 }
 
@@ -346,32 +658,47 @@ SCENES.s06 = {
     const dark = win(t, 15.86, 16.02, 16.34, 16.46);           // the black pause
     const worldA = 1 - 0.74 * dark;
 
-    nightSky(ctx, t, { count: 70, seed: 33, color: '#CFC6E8', alpha: 0.22 * (1 - dark * 0.8), hMul: 0.62, drift: true });
-    radialFill(ctx, CX, 1150, 800,
-      [[0, rgba(TOKENS.secondary, (0.13 + 0.05 * pulse(t, 0.5, 6, 15.0)) * worldA)], [0.55, rgba(TOKENS.deepViolet, 0.05 * worldA)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    /* --- sky (stays out of the world layer, so the night pass never touches it) */
+    linearFill(ctx, 0, 260, 0, 1040,
+      [[0, 'rgba(30,22,62,0.0)'], [0.34, 'rgba(30,23,64,0.55)'], [0.72, 'rgba(19,15,44,0.72)'], [1, 'rgba(11,9,28,0.6)']],
+      [0, 260, W, 780]);
+    nightSky(ctx, t, { count: 110, seed: 33, color: '#CFC6E8', alpha: 0.34 * (1 - dark * 0.8), hMul: 0.52, drift: true });
+    radialFill(ctx, CX, 1180, 820,
+      [[0, rgba(TOKENS.secondary, (0.11 + 0.05 * pulse(t, 0.5, 6, 15.0)) * worldA)], [0.55, rgba(TOKENS.deepViolet, 0.05 * worldA)], [1, 'rgba(0,0,0,0)']], 'lighter');
     // red alarm wash on the beats of the warning
     const al = (1 - remap(t, 15.30, 15.70)) * (0.35 + 0.65 * pulse(t, 0.5, 5.5, 15.0));
     if (al > 0.01) {
       radialFill(ctx, CX, CY, 1160, [[0.35, 'rgba(0,0,0,0)'], [1, rgba(T().primary, 0.30 * al)]], 'lighter');
     }
 
-    s06_s07_dust(ctx, t, 0.4 * (1 - dark * 0.7));
+    s06_s07_dust(ctx, t, 0.34 * (1 - dark * 0.7));
 
-    ctx.save();
-    ctx.globalAlpha *= worldA;
-    withCamera(ctx, {
-      zoom: 1 + 0.026 * Math.sin((t - 15) * 0.85) + 0.035 * impulse(t, 15.40, 6) + 0.022 * impulse(t, 16.42, 5),
+    /* --- the world: two baked, night-lit canvases with the player between them */
+    const cam = {
+      zoom: 1.03 + 0.026 * Math.sin((t - 15) * 0.85) + 0.035 * impulse(t, 15.40, 6) + 0.022 * impulse(t, 16.42, 5),
       y: -13 * Math.sin((t - 15) * 0.62),
       x: 9 * Math.sin((t - 15) * 0.41 + 1.1),
       rot: 0.004 * Math.sin((t - 15) * 0.5),
-      ox: CX, oy: 1130,
-    }, c => {
-      s06_s07_farm(c, t, wire);
-      c.save(); c.globalAlpha = Math.min(1, worldA * 3.4); s06_s07_spot(c, t); c.restore();
-      s06_s07_bot(c, t);
-      s06_s07_items(c, t, wire);
+      ox: CX, oy: 1180,
+    };
+    withCamera(ctx, cam, c => {
+      c.save(); c.globalAlpha *= worldA;
+      s06_horizon(c);
+      if (wire < 0.995) s06_worldTex(c, t, wire);
+      if (wire > 0.005) s06_worldWire(c, t, wire);
+      s06_flames(c, t, 1 - wire * 0.9);
+      if (wire < 0.5) {                                    // warm key light on the player from the path torch
+        const pp = isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), s06_ISO);
+        c.save(); c.globalCompositeOperation = 'lighter';
+        dot(c, pp.x, pp.y - s06_ISO.size * 0.9, s06_ISO.size * 2.4, '#FFB25A', 0.16 * s06_playerA(t) * (1 - wire * 2));
+        c.restore();
+      }
+      s06_voxels(c, t);
+      s06_nametag(c, t);
+      c.restore();
+      c.save(); c.globalAlpha *= Math.min(1, worldA * 3.4); s06_spot(c, t); c.restore();
+      c.save(); c.globalAlpha *= worldA; s06_items(c, t, wire); c.restore();
     });
-    ctx.restore();
 
     // violet scanline sweep so the black pause never stands still
     if (dark > 0.05) {
@@ -395,11 +722,12 @@ SCENES.s06 = {
     s06_s07_slam(ctx, 'World-Reset', CX, 548, Object.assign({}, hOpt, { size: s1, tracking: -0.04 * s1 }), t, 15.05);
     s06_s07_slam(ctx, 'erkannt.', CX, 656, Object.assign({}, hOpt, { size: s2, tracking: -0.04 * s2 }), t, 15.17);
 
-    /* subline — three sentences, 15.5 / 16.4 / 16.9 */
+    /* subline — three sentences on the bars 15.5 / 16.0 / 16.5, so the payoff line lands
+       right after the log confirms it (16.45) and still holds a full bar before the cut */
     const subs = [
       { s: 'Trennt sich.', t0: 15.50, y: 752, c: rgba(T().text, 0.85) },
-      { s: 'Kommt zurück.', t0: 16.40, y: 808, c: rgba(T().text, 0.85) },
-      { s: 'Gleiche Stelle.', t0: 16.90, y: 864, c: TOKENS.violetHot },
+      { s: 'Kommt zurück.', t0: 16.00, y: 808, c: rgba(T().text, 0.85) },
+      { s: 'Gleiche Stelle.', t0: 16.50, y: 864, c: TOKENS.violetHot },
     ];
     for (const s of subs) {
       const p = ez(t, s.t0, s.t0 + 0.34, E.outExpo);
@@ -581,18 +909,19 @@ function s06_s07_finger(ctx, t, P, vBtn) {
     if (t < tp.a || t > tp.up + 0.16) continue;
     const app = E.outCubic(remap(t, tp.a, tp.c)), lift = remap(t, tp.up, tp.up + 0.16);
     const off = (1 - app) * 120 + lift * 150;
-    const pt = s06_s07_map(off * 0.55, vBtn + off, P);
+    // the contact point sits on the button's lower band (bh = 92), so neither the
+    // fingertip disc nor its ring ever covers the STOPP / START label
+    const pt = s06_s07_map(off * 0.55, vBtn + 78 + off, P);
     const a = clamp(app * app * 2.2) * (1 - lift);
     ctx.save(); ctx.globalAlpha *= a;
-    radialFill(ctx, pt.x, pt.y, 60, [[0, 'rgba(255,255,255,0.34)'], [0.62, 'rgba(255,255,255,0.16)'], [1, 'rgba(255,255,255,0)']]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(pt.x, pt.y, 54, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(pt.x, pt.y, 76, 0, TAU); ctx.stroke();
+    radialFill(ctx, pt.x, pt.y, 56, [[0, 'rgba(255,255,255,0.22)'], [0.62, 'rgba(255,255,255,0.10)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(pt.x, pt.y, 50, 0, TAU); ctx.stroke();
     ctx.restore();
     const r = remap(t, tp.c, tp.c + 0.34);
     if (r > 0 && r < 1) {
-      ctx.save(); ctx.globalAlpha *= (1 - r) * 0.9;
-      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(pt.x, pt.y, 52 + E.outCubic(r) * 96, 0, TAU); ctx.stroke();
+      ctx.save(); ctx.globalAlpha *= (1 - r) * 0.55;
+      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 48 + E.outCubic(r) * 92, 0, TAU); ctx.stroke();
       ctx.restore();
     }
   }

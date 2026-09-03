@@ -62,8 +62,8 @@ function s05_slam(ctx, str, x, y, o, t, t0, dur) {
 }
 // item icon — the 16x16 sprites want a cell size, 5 px cell ≈ 50 px sichtbares Item im 84er Slot
 function s05_icon(ctx, name, x, y, cell, o) {
-  if (!SPRITES[name]) return;
-  itemIcon(ctx, name, x, y, cell, o);
+  if (!SPRITES[name] && !MC_BLOCK_ICONS[name]) return;
+  mcItem(ctx, name, x, y, cell, o);
 }
 
 /* ------------------------------------------------------------------ item tables */
@@ -82,7 +82,9 @@ const s05_ITEMS = (() => {
   let i = 0;
   for (; i < s05_PREFILL; i++) {               // schon da, wenn die Szene aufmacht
     const p = s05_slotXY(i);
-    out.push({ i: i, kind: s05_kind(r), x: p.x, y: p.y, row: p.r, col: p.c, t0: 11.80 + i * 0.012, tOut: 13.20 + (2 - p.r) * 0.022 + p.c * 0.009, wob: r() * 6.283 });
+    // the first row is not random: it is the loot s04 flew into the panel, slot for slot
+    const k = s05_kind(r), kind = (p.r === 0 && s03_s04_HANDOVER[p.c]) ? s03_s04_HANDOVER[p.c] : k;
+    out.push({ i: i, kind: kind, x: p.x, y: p.y, row: p.r, col: p.c, t0: 11.80 + i * 0.012, tOut: 13.20 + (2 - p.r) * 0.022 + p.c * 0.009, wob: r() * 6.283 });
   }
   for (let g = 0; g < s05_BURSTS.length; g++) {
     for (let j = 0; j < s05_BURSTS[g]; j++, i++) {

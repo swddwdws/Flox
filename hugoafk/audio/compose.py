@@ -179,12 +179,14 @@ for i in range(3):
 n = S.n_of(0.5); fdown = 900 * (90 / 900) ** np.linspace(0, 1, n)
 sfx.add(S.reverb(S.sine(fdown, 0.5) * np.linspace(1, 0, n) ** 1.3, 1.6, 0.35), RT(15.4), gain=0.42)
 sfx.add(S.glitch_stutter(0.3, N('D5'), seed=82, rate=1 / 16, bpm=BPM), RT(15.42), gain=0.30)
-for i in range(5):
-    sfx.add(S.tick(0.02, 1400, seed=90 + i), 15.95 + i * 0.1, gain=0.12)
+# waiting bed while the bot reconnects, then the reconnect sweep on the chat line (16.45)
+for i in range(8):
+    sfx.add(S.tick(0.02, 1400, seed=90 + i), 15.62 + i * 0.10, gain=0.12)
+blip_up(RT(16.0), N('A4'), 0.26, 0.10)                      # "Kommt zurück."
 n = S.n_of(0.45); fup = 200 * (900 / 200) ** np.linspace(0, 1, n)
-sfx.add(S.reverb(S.sine(fup, 0.45) * np.linspace(0, 1, n) ** 0.6 * S.expdecay(0.45, 0.3), 1.8, 0.4), RT(16.4), gain=0.42)
-for i, nm in enumerate(('D5', 'A5')):
-    blip_up(RT(16.9) + i * 0.09, N(nm), 0.30, 0.12)
+sfx.add(S.reverb(S.sine(fup, 0.45) * np.linspace(0, 1, n) ** 0.6 * S.expdecay(0.45, 0.3), 1.8, 0.4), RT(16.42), gain=0.42)
+for i, nm in enumerate(('D5', 'A5')):                       # "Gleiche Stelle."
+    blip_up(RT(16.5) + i * 0.09, N(nm), 0.30, 0.12)
 # s07 phone: console ticks, a tap, restart confirmation
 t, i = RT(17.7), 0
 while t < RT(19.0):

@@ -486,8 +486,8 @@ function s04_grown(t, cell) {
 }
 // a Minecraft item: blocks are drawn as real isometric blocks, everything else as a pixel item
 function s04_itemDraw(ctx, kind, x, y, px, o) {
-  if (kind === 'pumpkin') { const e = px * 0.60; blockIcon(ctx, { top: 'pumpkin_top', side: 'pumpkin_side' }, x, y - e * 0.25, e, o || {}); }
-  else s03_s04_icon(ctx, kind, x, y, px, o);
+  const sp = SPRITES[kind];
+  mcItem(ctx, kind, x, y, px / (sp ? sp.rows.length : 16), o || {});
 }
 // where a piece of loot is picked
 function s04_srcPos(it) {
@@ -792,7 +792,10 @@ function s03_s04_flyingItems(ctx, t, slot) {
     const s = s04_srcPos(it);
     const a = [s.x, s.y - 26], b = [slot.x, slot.y];
     const c1 = [a[0] + 340, a[1] - 70], c2 = [1090, 560];
-    const q = s03_s04_bez3(E.inOutQuad(p), a, c1, c2, b);
+    const q0 = s03_s04_bez3(E.inOutQuad(p), a, c1, c2, b);
+    // last stretch pulls straight onto the slot centre — an item never docks beside it
+    const snap = E.outCubic(clamp(remap(p, 0.52, 1)));
+    const q = [lerp(q0[0], b[0], snap), lerp(q0[1], b[1], snap)];
     const px = lerp(46, 94, E.outBack(clamp(p * 3.2))) * lerp(1, 0.62, clamp(remap(p, 0.78, 1)));
     const gc = it.kind === 'sea_pickle' ? '#8FBF4A' : (it.kind === 'rotten_flesh' || it.kind === 'bone' || it.kind === 'string' || it.kind === 'gunpowder') ? TOKENS.violetHot : s03_s04_C.pumpkin;
     const dim = lerp(1, 0.14, win(q[1], 470, 566, 900, 992));   // vanish behind the copy band
@@ -811,6 +814,16 @@ function s03_s04_flyingItems(ctx, t, slot) {
    Final geometry is byte-identical to s05 (slot 84, pitch 90, panel 120..960 / 633..933)
    and the top row is handed over already filled, exactly like s05's first frame. */
 const s03_s04_FILLORDER = [4, 3, 5, 2, 6, 1, 7, 0, 8];
+/* The top row exactly as it stands when the dive ends: column c holds the kind s04 put
+   there. s05 opens on this same row, so the 12.0 cut carries the loot over unchanged. */
+const s03_s04_HANDOVER = (() => {
+  const row = new Array(9).fill(null), n = s03_s04_ITEMS.length;
+  for (let i = 0; i < s03_s04_FILLORDER.length; i++) {
+    const it = s03_s04_ITEMS[n - 1 - i];
+    if (it) row[s03_s04_FILLORDER[i]] = it.kind;
+  }
+  return row;
+})();
 function s03_s04_inventory(ctx, t, slot, landed) {
   const u2 = slot.u2, pitch = slot.pitch, ns = slot.ns;
   const slotFill = 'rgba(46,42,62,0.94)';
@@ -859,7 +872,7 @@ function s03_s04_inventory(ctx, t, slot, landed) {
     }
     const pop = i === 0 ? 1 + 0.22 * impulse(t, it.t0 + it.fl, 13) : lerp(1.25, 1, al);
     ctx.save(); ctx.globalAlpha *= al;
-    s04_itemDraw(ctx, it.kind, x, y, sz * 0.69 * pop);
+    s04_itemDraw(ctx, it.kind, x, y, sz * 0.95 * pop);
     ctx.restore();
   }
 }
@@ -901,7 +914,7 @@ function s03_s04_subline(ctx, t) {
 
 /* counter next to the slot */
 function s03_s04_slotCounter(ctx, t, slot, count) {
-  const a = ez(t, 8.99, 9.32, E.outCubic) * (1 - remap(t, 11.60, 11.80));
+  const a = ez(t, 8.99, 9.32, E.outCubic) * (1 - remap(t, 11.34, 11.56));
   if (a <= 0.004) return;
   let hit = 0;
   for (const it of s03_s04_ITEMS) hit = Math.max(hit, impulse(t, it.t0 + it.fl, 12));
@@ -941,7 +954,7 @@ SCENES.s04 = {
     });
     ctx.restore();
 
-    const ta = 1 - remap(t, 11.45, 11.78);
+    const ta = 1 - remap(t, 11.28, 11.58);
     if (ta > 0.004) {
       ctx.save(); ctx.globalAlpha *= ta;
       ctx.translate(0, -2.5 * Math.sin((t - 9) * 1.1));

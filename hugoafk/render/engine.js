@@ -483,16 +483,16 @@ function pixelSprite(ctx, x, y, cell, rows, palette, o = {}) {
 // ready-made blocky item icons (rows + palette), all 12x12 or 10x10
 const SPRITES = {
   pumpkin: { rows: ["................", ".......kgk......", "......kGGGk.....", ".......ggg......", "..kkkkkkkkkkkk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..kkkkkkkkkkkk..", "................", "................"], pal: {"G": "#5E9433", "O": "#D9821B", "g": "#3E6B1F", "k": "#5B3306", "l": "#F0A233", "o": "#B0670F"} },
-  sea_pickle: { rows: ["................", "................", "................", "........y.......", "....y..yPy......", "...yPy.PPPy.....", "...PPP.pPPp.....", "..sppp.sppp.....", "..spppsspppy....", "..spppspppPy....", "..sppppppppp....", "..ssppppppps....", "..ssssssssss....", "...sssssssss....", "................", "................"], pal: {"P": "#8FBF4A", "p": "#5E8B2E", "s": "#2C4A22", "y": "#D8E86A"} },
+  sea_pickle: { rows: ["................", "................", "................", "......y.........", ".....yPy...y....", ".....PPp..yPy...", "..y..PPp..PPp...", ".yPy.PPp..PPp...", ".PPp.pPp..pPp...", ".PPp.pPp..pPp...", ".pPp.pPp..pPp...", ".ppp.ppp..ppp...", "sssssssssssssss.", ".sssssssssssss..", "................", "................"], pal: {"P": "#6E8C2E", "p": "#4C6620", "y": "#DCE87A", "s": "#33471A"} },
   spawner: { rows: ["................", "..dddddddddddd..", "..dBbbbbbbbbBd..", "..db.d.d.d..bd..", "..db..fF f..bd..", "..d..fFFFf...d..", "..db.fFFFFf.bd..", "..db..fFFf..bd..", "..d....ff....d..", "..db.d.d.d..bd..", "..dBbbbbbbbbBd..", "..dddddddddddd..", "................", "................", "................", "................"], pal: {"B": "#5A6673", "F": "#F5C25A", "b": "#39424D", "d": "#1E2228", "f": "#E0762A"} },
   emerald: { rows: ["................", ".......ee.......", "......eEEe......", ".....eEMMEe.....", "....eEMMMMEe....", "...eEMMMMMMEe...", "..eEMMMMMMMMEe..", "..eEMMMMMMMMEe..", "..eEMMMMMMMMEe..", "..eeEMMMMMMEee..", "...eeEMMMMEee...", "....eeEMMEee....", ".....eeEEee.....", "......eeee......", ".......ee.......", "................"], pal: {"E": "#19C46B", "M": "#6BF0A8", "e": "#0E6B3A"} },
   gold_ingot: { rows: ["................", "................", "................", "....uuuuuuuu....", "...uWWWWWWWWu...", "..uWWUUUUUUWWu..", ".uWUUUUUUUUUUWu.", ".uUUUUUUUUUUUUu.", ".uUUUUUUUUUUUUu.", ".uUUUUUUUUUUUUu.", ".uuUUUUUUUUUUuu.", "..uuuuuuuuuuuu..", "................", "................", "................", "................"], pal: {"U": "#E0A82A", "W": "#FBE07A", "u": "#8A6410"} },
   diamond: { rows: ["................", "................", ".....cccccc.....", "....cSSSSSSc....", "...cSCCCCCCSc...", "..cSCCCCCCCCSc..", "..cCCCCCCCCCCc..", "...cCCCCCCCCc...", "....cCCCCCCc....", ".....cCCCCc.....", "......cCCc......", ".......cc.......", "................", "................", "................", "................"], pal: {"C": "#3ED8DF", "S": "#A9F5F7", "c": "#1C7E86"} },
   iron_ingot: { rows: ["................", "................", "................", ".....iiiiii.....", "....iwwwwwwi....", "...iwIIIIIIwi...", "..iwIIIIIIIIwi..", "..iIIIIIIIIIIi..", "..iIIIIIIIIIIi..", "..iiIIIIIIIIii..", "...iiiiiiiiii...", "................", "................", "................", "................", "................"], pal: {"I": "#C7C7C7", "i": "#7B7B7B", "w": "#EDEDED"} },
-  rotten_flesh: { rows: ["................", "................", ".....rrrrr......", "...rrRRnnRr.....", "..rRnnnnnnRr....", ".rRnnnRRnnnRr...", ".rRnnRrrRnnnr...", ".rRnnnRRnnnnr...", "..rRnnnnnnnRr...", "...rRnnnnnRr....", "....rrRnnRr.....", "......rrrr......", "................", "................", "................", "................"], pal: {"R": "#8A4433", "n": "#A85E48", "r": "#5C2C20"} },
-  bone: { rows: ["................", "..........jHHj..", ".........jHHHHj.", ".........jHHHHj.", "........jHHHHj..", ".......jHHHj....", "......jHHHj.....", ".....jHHHj......", "....jHHHj.......", "...jHHHj........", "..jHHHHj........", ".jHHHHj.........", ".jHHHHj.........", "..jHHj..........", "................", "................"], pal: {"H": "#E9E5D2", "j": "#8E8A78"} },
-  string: { rows: ["................", ".......HHH......", "......Hj.jH.....", ".....Hj...jH....", ".....H.....H....", ".....Hj...jH....", "......HjjjH.....", ".......HHH......", "......jH........", ".....jH.........", "....jH..........", "...jH...........", "..jH............", "..H.............", "................", "................"], pal: {"H": "#E9E5D2", "j": "#8E8A78"} },
-  gunpowder: { rows: ["................", "................", "................", ".......xx.......", "......xXXx......", ".....xXxxXx.....", "....xXxXXxXx....", "...xXxXXXXxXx...", "..xXxXXXXXXxXx..", "..xXXXXXXXXXXx..", "..xxXXXXXXXXxx..", "...xxxxxxxxxx...", "................", "................", "................", "................"], pal: {"X": "#767676", "x": "#4A4A4A"} },
+  rotten_flesh: { rows: ["................", "................", ".....RRRRr......", "...RRnnnnRr.....", "..RnnNNnnnRr....", ".Rnnnnnnnnnr....", ".RnNNnnnnnnr....", ".RnnnnnNNnnr....", ".RRnnnnnnnRr....", "..RnnNNnnRr.....", "...RRnnnRr......", ".....RRRr.......", "................", "................", "................", "................"], pal: {"n": "#A05C48", "N": "#7A3E2E", "R": "#6B3527", "r": "#4A2419"} },
+  bone: { rows: ["................", "...........HHH..", "..........HWWHH.", "..........HWWWH.", "..........HHWHH.", ".........HHWHj..", "........HHWHj...", ".......HHWHj....", "......HHWHj.....", ".....HHWHj......", "....HHWHj.......", "...HHWHHj.......", "..HWWWWHj.......", "..HWWWHHj.......", "...HHHjj........", "................"], pal: {"H": "#D3CFBB", "W": "#F2EEDC", "j": "#8E8A78"} },
+  string: { rows: ["................", "................", ".........wWWw...", "........wW..Ww..", "........W....W..", "........W...Ww..", "........wW.Ww...", ".......Ww.WW....", "......Ww..w.....", ".....Ww.........", "....Ww..........", "...Ww...........", "..Ww............", "..W.............", "..w.............", "................"], pal: {"W": "#E4E1D2", "w": "#9A9686"} },
+  gunpowder: { rows: ["................", "................", ".......xx.......", "......xGGx......", ".....xGXXGx.....", "....xGXGGXGx....", "...xGXGXXGXGx...", "...xXGXGGXGXx...", "..xGXGXXXXGXGx..", "..xXGXGXXGXGXx..", "...xXXGXXGXXx...", "....xXXXXXXx....", ".....xxxxxx.....", "................", "................", "................"], pal: {"G": "#9E9E9E", "X": "#6E6E6E", "x": "#3F3F3F"} },
   redstone: { rows: ["................", "................", ".......qq.......", "......qQQq......", ".....qQzzQq.....", "....qQzQQzQq....", "...qQzQQQQzQq...", "..qQzQQQQQQzQq..", "..qQQQQQQQQQQq..", "..qqQQQQQQQQqq..", "...qqqqqqqqqq...", "................", "................", "................", "................", "................"], pal: {"Q": "#C42020", "q": "#7A1414", "z": "#F04545"} },
   chest: { rows: ["................", "................", "..tttttttttttt..", "..tTvvvvvvvvTt..", "..tTvvvvvvvvTt..", "..tTvvvmmvvvTt..", "..tttttmmttttt..", "..tTvvvNNvvvTt..", "..tTvvvmmvvvTt..", "..tTvvvvvvvvTt..", "..tTvvvvvvvvTt..", "..tTvvvvvvvvTt..", "..tttttttttttt..", "................", "................", "................"], pal: {"N": "#46464F", "T": "#7A5426", "m": "#2C2C33", "t": "#4A3218", "v": "#A8752F"} },
   hopper: { rows: ["................", "..mmmmmmmmmmmm..", "..mNNNNNNNNNNm..", "..mNmmmmmmmmNm..", "..mNmNNNNNNmNm..", "..mmNNNNNNNNmm..", "...mmNNNNNNmm...", "....mmNNNNmm....", ".....mmNNmm.....", "......mNNm......", "......mNNm......", "......mmmm......", "................", "................", "................", "................"], pal: {"N": "#46464F", "m": "#2C2C33"} },
@@ -506,6 +506,20 @@ const SPRITES = {
 };
 SPRITES.coin = SPRITES.gold_ingot;   // legacy alias
 function itemIcon(ctx, name, x, y, cell, o = {}) { const s = SPRITES[name]; if (!s) return null; return pixelSprite(ctx, x, y, cell, s.rows, s.pal, o); }
+
+/* Inventory icon the way Minecraft actually draws one: a full block gets a 3D isometric
+   icon, everything else its flat 16x16 sprite. `cell` is the sprite's pixel size, so both
+   kinds come out the same visual width (~12 sprite pixels) and sit centred in the slot. */
+const MC_BLOCK_ICONS = {
+  pumpkin: { top: 'pumpkin_top', side: 'pumpkin_side' },
+  chest: { top: 'oak_planks', side: 'chest' },
+  spawner: { top: 'spawner', side: 'spawner' },
+};
+function mcItem(ctx, name, x, y, cell, o = {}) {
+  const b = MC_BLOCK_ICONS[name];
+  if (b && IMG.tex && IMG.texMeta) { const e = cell * 7.1; blockIcon(ctx, b, x, y - e * 0.5, e, Object.assign({ flat: true }, o)); return null; }
+  return itemIcon(ctx, name, x, y, cell, o);
+}
 
 /* Minecraft-style HUD */
 function mcSlot(ctx, x, y, s, o = {}) {           // one inventory slot (dark, beveled)
@@ -665,8 +679,8 @@ function mcPlayer(ctx, x, y, o = {}) {
    brightness levels, so a block can be drawn as a real isometric cube with textured
    top / left / right faces — the way Minecraft renders a block in the inventory. */
 const _tex = { ready: false, faces: new Map() };
-function texFace(name, level) {           // level 0 = top (bright), 1 = left, 2 = right (darkest)
-  const key = name + level; let c = _tex.faces.get(key); if (c) return c;
+function texFace(name, level, flat) {     // level 0 = top (bright), 1 = left, 2 = right (darkest)
+  const key = name + level + (flat ? 'f' : ''); let c = _tex.faces.get(key); if (c) return c;
   const M = IMG.texMeta, i = M.index[name]; if (i == null) return null;
   const T = M.tile, sx = (i % M.cols) * T, sy = Math.floor(i / M.cols) * T;
   c = makeCanvas(T, T); const x = c.getContext('2d');
@@ -675,9 +689,12 @@ function texFace(name, level) {           // level 0 = top (bright), 1 = left, 2
   x.globalCompositeOperation = 'source-atop';
   if (dim) { x.fillStyle = `rgba(0,0,0,${dim})`; x.fillRect(0, 0, T, T); }
   if (level === 0) { x.fillStyle = 'rgba(255,255,255,0.10)'; x.fillRect(0, 0, T, T); }
-  // baked ambient occlusion: side faces darken towards the ground, top faces towards their edges
-  if (level > 0) { const g = x.createLinearGradient(0, 0, 0, T); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.26)'); x.fillStyle = g; x.fillRect(0, 0, T, T); }
-  else { const g = x.createRadialGradient(T / 2, T / 2, T * 0.18, T / 2, T / 2, T * 0.78); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.16)'); x.fillStyle = g; x.fillRect(0, 0, T, T); }
+  // baked ambient occlusion for world blocks: side faces darken towards the ground, top faces
+  // towards their edges. Inventory icons pass flat=true — vanilla item icons have flat faces.
+  if (!flat) {
+    if (level > 0) { const g = x.createLinearGradient(0, 0, 0, T); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.26)'); x.fillStyle = g; x.fillRect(0, 0, T, T); }
+    else { const g = x.createRadialGradient(T / 2, T / 2, T * 0.18, T / 2, T / 2, T * 0.78); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.16)'); x.fillStyle = g; x.fillRect(0, 0, T, T); }
+  }
   _tex.faces.set(key, c); return c;
 }
 // draw one textured parallelogram: unit square -> (origin, uVec, vVec)
@@ -698,9 +715,10 @@ function blockIcon(ctx, names, x, y, size, o = {}) {
   ctx.save(); if (o.alpha != null) ctx.globalAlpha *= o.alpha; if (o.composite) ctx.globalCompositeOperation = o.composite;
   if (o.rotate) { ctx.translate(x, y); ctx.rotate(o.rotate); ctx.translate(-x, -y); }
   // top rhombus: back corner (x, y-h), u -> right, v -> left
-  _face(ctx, texFace(top, 0), x, y - h, w, h, -w, h);
-  _face(ctx, texFace(left, 1), x - w, y, w, h, 0, s);      // left face from the left corner
-  _face(ctx, texFace(right, 2), x + w, y, -w, h, 0, s);    // right face from the right corner
+  const fl = !!o.flat;
+  _face(ctx, texFace(top, 0, fl), x, y - h, w, h, -w, h);
+  _face(ctx, texFace(left, 1, fl), x - w, y, w, h, 0, s);      // left face from the left corner
+  _face(ctx, texFace(right, 2, fl), x + w, y, -w, h, 0, s);    // right face from the right corner
   if (o.outline) { ctx.strokeStyle = rgba(o.outline, o.outlineAlpha ?? 0.5); ctx.lineWidth = o.outlineWidth ?? 1.5;
     ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + s); ctx.lineTo(x, y + h + s); ctx.lineTo(x - w, y + s); ctx.lineTo(x - w, y); ctx.closePath(); ctx.stroke(); }
   ctx.restore();

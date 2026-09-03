@@ -534,16 +534,16 @@ function s01_s02_flies(ctx, t, alpha) {
 
 /* ------------------------------------------------------------ s01 pieces */
 const s01_s02_CHAT = [
-  { t: -0.45, s: '<Nico> so, ich mach den pc aus', c: '#FFFFFF' },   // already typing at f0 → cover frame carries the hook
-  { t: 0.28, s: '<Mira> und deine kürbisfarm?', c: '#FFFFFF' },
-  { t: 0.50, s: '<Nico> läuft weiter :)', c: '#FFFFFF' },
-  { t: 0.68, s: '[HugoAFK] Bot bleibt online.', c: TOKENS.violetHot },
+  { t: -0.62, s: '<Nico> so, ich mach den pc aus', c: '#FFFFFF' },   // fully typed at f0 → the cover frame carries the whole hook
+  { t: 0.16, s: '<Mira> und deine kürbisfarm?', c: '#FFFFFF' },
+  { t: 0.40, s: '<Nico> läuft weiter :)', c: '#FFFFFF' },
+  { t: 0.54, s: '[HugoAFK] Bot bleibt online.', c: TOKENS.violetHot, cps: 105 },   // readable before the 0.92 glitch ramp
 ];
 function s01_s02_chat(ctx, t) {
   const lines = [];
   for (const l of s01_s02_CHAT) {
     if (t < l.t) break;
-    const n = Math.min(l.s.length, Math.floor((t - l.t) * 62));
+    const n = Math.min(l.s.length, Math.floor((t - l.t) * (l.cps || 62)));
     if (n <= 0) continue;
     lines.push({ t: l.s.slice(0, n), c: l.c, a: 1 });
   }
@@ -616,7 +616,13 @@ SCENES.s01 = {
       ctx.restore();
     }
 
-    nightSky(ctx, t, { count: 60, seed: 21, alpha: 0.22 * remap(t, 1.6, 2.4), hMul: 0.58, drift: true });
+    nightSky(ctx, t, { count: 72, seed: 21, alpha: 0.30 * remap(t, 1.6, 2.4), hMul: 0.58, drift: true });
+    // faint violet aurora above the wireframe world, so the upper third is not dead black
+    const aur = remap(t, 1.5, 2.3);
+    if (aur > 0.01) {
+      radialFill(ctx, CX, 300, 940, [[0, rgba(TOKENS.deepViolet, 0.30 * aur)], [0.58, rgba(TOKENS.deepViolet, 0.11 * aur)], [1, 'rgba(0,0,0,0)']], 'lighter');
+      radialFill(ctx, CX - 260, 140, 640, [[0, rgba(T().secondary, 0.11 * aur)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    }
 
     const revealP = ez(t, 1.38, 2.1, E.outCubic);
     const botA = ez(t, 1.30, 1.56, E.outCubic) * (0.82 + 0.18 * Math.sin(t * 7));

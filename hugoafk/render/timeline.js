@@ -34,5 +34,5 @@ TL.transitions.push(
   { at: 17.5, type: ['punch', 'rgb'], punch: 0.05, amount: 10, dur: 0.14, shake: 3 },
   { at: 20.0, type: 'xfade', dur: 0.12 },                                                      // into the calm trust beat
   { at: 23.0, type: ['punch', 'rgb'], punch: 0.06, amount: 8, dur: 0.14, shake: 4 },
-  { at: 26.0, type: ['flash', 'punch', 'shake'], amount: 1.0, punch: 0.08, pre: 0, shake: 14, decay: 7, color: '#FFFFFF' },
+  { at: 26.0, type: ['flash', 'punch', 'shake'], amount: 0.85, punch: 0.08, pre: 0, shake: 14, decay: 7, color: '#FFFFFF' },
 );
