@@ -287,9 +287,13 @@ SCENES.s05 = {
           let idleCol = rgba(P.primary, 0.45);
           if (!isActive && i === prevIdx) { const af = 1 - ez(t, activeT0, activeT0 + 0.3, E.outCubic); idleCol = mixColor(P.accent, P.primary, 1 - af * 0.8); }
           if (isActive) {
-            const p = ez(t, activeT0, activeT0 + 0.12, E.outBack);
+            // a re-trigger of the same label (VERIFY at 11.375 → 11.5) keeps the lit pill instead of regrowing it
+            const growT0 = prevIdx === active ? prevT0 : activeT0;
+            const p = ez(t, growT0, growT0 + 0.12, E.outBack);
             const rep = impulse(t, activeT0, 12);
             const sweep = remap(t, activeT0 + 0.05, activeT0 + 0.3);
+            // idle text stays visible while the pill is still small (p = 0 exactly on the beat frame → no one-frame gap)
+            if (p < 0.3) drawText(ctx, s05_LABELS[i], lp.x, lp.y, { size: 44, family: FONTS.mono, weight: 500, color: idleCol, tracking: 2, alpha: hudFade * clamp(collapse * 2) * (1 - p / 0.3) });
             ctx.save(); ctx.globalAlpha = hudFade; ctx.translate(lp.x, lp.y); ctx.scale(1 + 0.12 * rep, 1 + 0.12 * rep); ctx.translate(-lp.x, -lp.y);
             { const pw = lp.w + 52, gp = clamp(p * 2); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.55 * gp; ctx.translate(lp.x, lp.y); ctx.scale(pw / 72, 1); dot(ctx, 0, 0, 92, P.accent, 1); ctx.restore(); }
             pill(ctx, s05_LABELS[i], lp.x, lp.y, { size: 44, family: FONTS.mono, weight: 600, padX: 26, h: 72, color: P.accent, textColor: '#141210', tracking: 2, glow: false }, p, sweep);

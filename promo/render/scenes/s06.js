@@ -16,6 +16,8 @@ const s06_KICKS = [12.0, 12.5, 13.0, 13.5];
 const s06_THR_X0 = 170, s06_THR_X1 = 910, s06_THR_Y = 1060;   // horizontal thread under the headline
 const s06_HL_Y = 700, s06_HL_X0 = 120, s06_HL_X1 = 960;       // hairline s07 inherits
 const s06_COLL0 = 13.80, s06_COLL1 = 13.95;                    // collapse window (the engine stutter shows t = 13.883 and 13.95 last)
+const s06_COLLG = 0.72;                                        // geometry collapse at p = 1: s07 picks the residual lines up at exactly this fraction
+const s06_TXT0 = 13.79, s06_TXT1 = 13.87;                      // text blur-and-fade window (fully gone before the collapse frames are shown)
 
 // ---- speed / distance / spacing ------------------------------------------
 // 1400 px/s, doubling to 2800 with a 0.25 s ramp from 13.2 (analytic integral → continuous distance)
@@ -100,7 +102,7 @@ const s06_OFF2 = makeCanvas(W / 4, H / 4), s06_OFF2CTX = s06_OFF2.getContext('2d
 // 3D part: from the vanishing point (z = ZTHR) snaking forward to (170, 1060) at z = 0
 function s06_threadA(z, t, out) {
   const q = clamp(z / s06_ZTHR), s = s06_F / (z + s06_F);
-  const wob = (Math.sin(z / 210 + 1.7) * 380 + Math.sin(t * 2.2 + z / 330) * 40) * q * (1 - q);
+  const wob = (Math.sin(z / 210 + 1.7) * 90 + Math.sin(t * 2.2 + z / 330) * 24) * q * (1 - q);   // gentle: the 3D part crosses the headline block, keep it a clean line
   const xw = -370 * Math.pow(1 - q, 1.35) + wob, yw = 200 * (1 - q);
   out.x = s06_VP.x + xw * s; out.y = s06_VP.y + yw * s; return out;
 }
@@ -136,17 +138,17 @@ function s06_threadDist(x, y, fa, fb) {
 function s06_frames(ctx, t, lt, lw, alphaMul, color, p, glowPass) {
   const sp = s06_spacing(t), phi = s06_phase(t), frac = phi - Math.floor(phi), n = Math.min(48, Math.ceil(s06_ZFR / sp));
   const boost = 1 - ez(lt, 0, 0.25, E.outCubic);           // s05's rings handing over: near frames bright and thick
-  const fadeP = 1 - p * p;
+  const fadeP = lerp(1, 0.4, p), pg = p * s06_COLLG;
   ctx.lineJoin = 'round';
   for (let k = n; k >= 0; k--) {
     const z = (k - frac) * sp + 8; if (z <= 0) continue;
     const s = s06_F / (z + s06_F);
     const x0 = s06_VP.x - s06_HW * s, y0 = s06_VP.y - s06_HH * s, x1 = s06_VP.x + s06_HW * s, y1 = s06_VP.y + s06_HH * s;
     if (x0 < -40 && x1 > W + 40 && y0 < -40 && y1 > H + 40) continue;   // fully outside the frame
-    let a = (0.25 + 0.55 * clamp(1 - z / s06_ZFR)) * alphaMul, w = lw;
+    let a = (0.25 + 0.55 * clamp(1 - z / s06_ZFR)) * alphaMul * lerp(1, 1 - clamp(z / 900), p), w = lw;   // collapse: far frames vanish first, the near ~10 stay alive for s07
     if (boost > 0 && s > 0.5) { const b = boost * clamp((s - 0.5) * 3); a *= 1 + 0.8 * b; w *= 1 + 2.2 * b; }
     ctx.globalAlpha = clamp(a) * fadeP; ctx.lineWidth = (glowPass ? 3 : 1) * w; ctx.strokeStyle = color;
-    const cx0 = lerp(x0, s06_HL_X0, p), cx1 = lerp(x1, s06_HL_X1, p), cy0 = lerp(y0, s06_HL_Y, p), cy1 = lerp(y1, s06_HL_Y, p);
+    const cx0 = lerp(x0, s06_HL_X0, pg), cx1 = lerp(x1, s06_HL_X1, pg), cy0 = lerp(y0, s06_HL_Y, pg), cy1 = lerp(y1, s06_HL_Y, pg);
     ctx.strokeRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
   }
   ctx.globalAlpha = 1;
@@ -158,9 +160,10 @@ function s06_thread(ctx, t, hp, p, glowPass, P, core) {
   const amp = 6 * ez(t, 12.78, 13.05, E.outCubic);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = core ? rgba(P.primary, 0.55) : P.accent;
   ctx.lineWidth = glowPass ? 9 : core ? 0.8 : 2.2;
-  // 3D part (fades and squashes toward the hairline during the collapse)
+  // 3D part (fades and squashes toward the hairline during the collapse); drawn softer than the horizontal part
   if (fa > 0) {
-    ctx.globalAlpha = (glowPass ? 0.75 : 0.95) * (1 - p) * (1 - p);
+    ctx.lineWidth *= 0.8;
+    ctx.globalAlpha = (glowPass ? 0.55 : 0.7) * (1 - p) * (1 - p);
     const segs = fa * (s06_TA - 1), nFull = Math.floor(segs);
     ctx.beginPath(); ctx.moveTo(s06_TPX[0], lerp(s06_TPY[0], s06_HL_Y, p));
     for (let i = 1; i <= nFull && i < s06_TA; i++) ctx.lineTo(s06_TPX[i], lerp(s06_TPY[i], s06_HL_Y, p));
@@ -169,6 +172,7 @@ function s06_thread(ctx, t, hp, p, glowPass, P, core) {
   }
   // horizontal part under the headline, waving 1.5 Hz / 6 px once settled
   if (fb > 0) {
+    ctx.lineWidth = glowPass ? 9 : core ? 0.8 : 2.2;
     ctx.globalAlpha = (glowPass ? 0.75 : 0.95) * (1 - p);
     const xa = lerp(s06_THR_X0, s06_HL_X0, p), xb = lerp(s06_THR_X1, s06_HL_X1, p), yb = lerp(s06_THR_Y, s06_HL_Y, p);
     const N = 36, wa = amp * (1 - p);
@@ -198,15 +202,6 @@ function s06_haloCanvas(ctx, hsz, opt, P) {
   drawText(x, 'den Überblick.', CX, 1000 - s06_HALO.y0, Object.assign({}, opt, { color: P.accent }));
   s06_HALO.size = hsz; s06_HALO.canvas = c; return c;
 }
-// filter-free expanding ring (the engine shockwave uses a blur filter, which is slow in software raster)
-function s06_ring(ctx, x, y, life, R, color) {
-  if (life <= 0 || life >= 1) return;
-  const r = R * E.outCubic(life), a = 1 - life;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.strokeStyle = rgba(color, 0.22 * a); ctx.lineWidth = 18 * (1 - life * 0.6); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
-  ctx.strokeStyle = rgba(color, 0.5 * a); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
-  ctx.restore();
-}
 
 SCENES.s06 = {
   draw(ctx, lt, t, dur, sc) {
@@ -216,19 +211,21 @@ SCENES.s06 = {
     const dist = s06_dist(t);
     const ramp = ez(t, 13.2, 13.75, E.inOutQuad);             // speed-up / brightness rise
     const p = remap(t, s06_COLL0, s06_COLL1);                 // collapse into the hairline (last frames)
+    const textFade = 1 - ez(t, s06_TXT0, s06_TXT1, E.inQuad); // headline/subline blur-and-fade before the collapse (never squashed)
     const hp = s06_headP(t);                                  // thread head progress 0..1
     let kick = 0; for (const k of s06_KICKS) kick += impulse(t, k, 12);
     let kickShake = 0; for (const k of s06_KICKS) kickShake = Math.max(kickShake, 3 * impulse(t, k, 12));
     FX.shake = Math.max(FX.shake, kickShake);
     if (lt < 0.1) FX.rgb = Math.max(FX.rgb, 10 * (1 - ez(lt, 0, 0.1, E.outCubic)));     // 3-frame RGB split on the slam
-    FX.bloom = Math.max(FX.bloom, lerp(0.2, 0.34, ramp) * (1 - p));
+    FX.bloom = Math.max(FX.bloom, lerp(0.2, 0.34, ramp) * lerp(1, 0.6, p));
     s06_buildThread(t);
 
     // camera: zoom 1.0 → 1.05 over the scene, tiny kick punches, roll 0 → 6° over 13.2–14.0; snaps back to identity in the collapse
     const camZoom = lerp(lerp(1, 1.05, lt / 2) * (1 + 0.02 * kick), 1, p);
     const camRot = 6 * Math.PI / 180 * ez(t, 13.2, 14.0, E.inOutQuad) * (1 - p);
     const cam = { zoom: camZoom, rot: camRot, ox: s06_VP.x, oy: s06_VP.y };
-    const frameAlpha = (1 + 0.3 * kick) * lerp(1, 1.5, ramp);
+    const camB = { zoom: camZoom, ox: s06_VP.x, oy: s06_VP.y };   // no roll: the type stays level while the tunnel rolls
+    const frameAlpha = (1 + 0.3 * kick) * lerp(1, 1.5, ramp) * lerp(1, 0.45, p);   // capped in the collapse so the hand-over is not blown to white
     const frameLW = lerp(1, 1.6, ramp);
 
     // ================= layer A: tunnel (under the camera)
@@ -250,13 +247,14 @@ SCENES.s06 = {
         const fa1 = clamp(hp1 / s06_UA), fb1 = clamp((hp1 - s06_UA) / (1 - s06_UA));
         const fa2 = clamp(hp2 / s06_UA), fb2 = clamp((hp2 - s06_UA) / (1 - s06_UA));
         const threadOn = hp > 0;
-        const dotAlpha = lerp(1, 1.4, ramp) * (1 - p);
+        const dotAlpha = lerp(1, 1.4, ramp) * Math.pow(1 - p, 1.5), pg = p * s06_COLLG;
+        const bandY0 = 790, bandY1 = 1200;                          // headline/subline band: no bright wake inside it
         for (let i = 0; i < D.n; i++) {
           const z = ((D.z0[i] - dNow) % s06_ZDOT + s06_ZDOT) % s06_ZDOT, s = s06_F / (z + s06_F);
           const x = s06_VP.x + D.wx[i] * s, y = s06_VP.y + D.wy[i] * s;
           if (x < -10 || x > W + 10 || y < -10 || y > H + 10) continue;
           const depth = clamp(1 - z / s06_ZDOT), a = (0.25 + 0.2 * depth) * D.br[i];
-          const sz = 1.2 + 1.6 * s, yy = lerp(y, s06_HL_Y, p);
+          const sz = 1.2 + 1.6 * s, yy = lerp(y, s06_HL_Y, pg);
           bk[Math.min(NB - 1, Math.floor(a / 0.45 * NB))].push(x, yy, sz);
           if (!threadOn) continue;
           // wake: nearest approach now and at two past positions (decays over 0.8 s)
@@ -265,6 +263,7 @@ SCENES.s06 = {
             const z1 = z + dPast1; if (z1 < s06_ZDOT) { const s1 = s06_F / (z1 + s06_F); b = Math.max(b, 0.66 * clamp((60 - s06_threadDist(s06_VP.x + D.wx[i] * s1, s06_VP.y + D.wy[i] * s1, fa1, fb1)) / 25)); }
             const z2 = z + dPast2; if (z2 < s06_ZDOT && b < 0.66) { const s2 = s06_F / (z2 + s06_F); b = Math.max(b, 0.33 * clamp((60 - s06_threadDist(s06_VP.x + D.wx[i] * s2, s06_VP.y + D.wy[i] * s2, fa2, fb2)) / 25)); }
           }
+          if (y > bandY0 && y < bandY1) b = Math.min(b, 0.55);
           if (b > 0.03) bright[Math.min(2, Math.floor(b * 3))].push(x, yy, sz, b);
         }
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -298,19 +297,16 @@ SCENES.s06 = {
     {
       const o = s06_OFFCTX; o.setTransform(0.25, 0, 0, 0.25, 0, 0); o.globalCompositeOperation = 'source-over'; o.filter = 'none'; o.globalAlpha = 1;
       o.clearRect(0, 0, W, H); o.globalCompositeOperation = 'lighter';
-      withCamera(o, cam, () => {
-        s06_frames(o, t, lt, frameLW * 1.4, lerp(0.35, 1.0, ramp) * (1 + 0.5 * kick), P.accent, p, true);
-        if (hp > 0) s06_thread(o, t, hp, p, true, P);
-      });
+      withCamera(o, cam, () => { s06_frames(o, t, lt, frameLW * 1.4, lerp(0.35, 1.0, ramp) * (1 + 0.5 * kick) * lerp(1, 0.5, p), P.accent, p, true); });
+      if (hp > 0) withCamera(o, camB, () => { s06_thread(o, t, hp, p, true, P); });
       const o2 = s06_OFF2CTX; o2.setTransform(1, 0, 0, 1, 0, 0); o2.globalCompositeOperation = 'source-over'; o2.filter = 'none'; o2.globalAlpha = 1;
       o2.clearRect(0, 0, W / 4, H / 4); o2.filter = 'blur(3px)'; o2.drawImage(s06_OFF, 0, 0); o2.filter = 'none';
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85; ctx.drawImage(s06_OFF2, 0, 0, W, H); ctx.restore();
     }
 
     // ================= layer B: band, thread, text (under the same camera)
-    withCamera(ctx, cam, () => {
-      const textFade = 1 - p;
-      band(ctx, 985, 470, 0.6 * textFade);
+    withCamera(ctx, camB, () => {
+      band(ctx, 990, 520, lerp(0.6, 0.8, ramp) * textFade);
 
       // ---- roter Faden (crisp) + travelling head + ping at 12.5 / arrival at 12.8
       if (hp > 0) {
@@ -327,8 +323,7 @@ SCENES.s06 = {
         ctx.restore();
         const ping = impulse(t, 12.5, 10);
         if (ping > 0.02) flare(ctx, s06_VP.x, s06_VP.y, { color: P.accent, size: 260, intensity: 0.8 * ping, streakLen: 2.4, streakThin: 0.03 });
-        s06_ring(ctx, s06_VP.x, s06_VP.y, remap(t, 12.5, 12.85), 520, P.accent);
-        const arrive = remap(t, 12.8, 13.1);
+            const arrive = remap(t, 12.8, 13.1);
         if (arrive > 0 && arrive < 1) burst(ctx, s06_THR_X1, s06_THR_Y, arrive, { count: 26, color: P.accent, radius: 110, seed: 6062, alpha: 0.8 });
       }
 
@@ -339,25 +334,27 @@ SCENES.s06 = {
       const hopt = Object.assign({}, HO, { size: hsz, tracking: -0.045 * hsz });
       const sp = ez(lt, 0, 0.15, E.outExpo);
       const hs = lerp(1.2, 1, sp) * (1 + 0.06 * impulse(t, 12.0, 14)) * (1 + 0.025 * impulse(t, 13.0, 14));
+      if (textFade > 0.01) {
       ctx.save();
-      // collapse: the text block squashes into the hairline
-      ctx.translate(0, s06_HL_Y); ctx.scale(1, Math.max(0.001, 1 - p)); ctx.translate(0, -s06_HL_Y);
       ctx.globalAlpha = textFade;
+      const outBlur = (1 - textFade) * 10;                       // blur-and-fade out (13.79–13.87), the type is never distorted
       withCamera(ctx, { zoom: hs, ox: CX, oy: 940 }, () => {
         const lines = [['Ich behalte', 880], ['den Überblick.', 1000]];
         // accent halo: glyph copy blurred 24 px at 20 %
         ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.22 + 0.12 * kick;
         ctx.drawImage(s06_haloCanvas(ctx, hsz, hopt, P), 0, s06_HALO.y0);
         ctx.restore();
-        ctx.save(); if (sp < 0.9) ctx.filter = `blur(${((1 - sp) * 6).toFixed(1)}px)`;
+        ctx.save(); if (sp < 0.9) ctx.filter = `blur(${((1 - sp) * 6).toFixed(1)}px)`; else if (outBlur > 0.5) ctx.filter = `blur(${outBlur.toFixed(1)}px)`;
         for (const [s, y] of lines) drawText(ctx, s, CX, y, hopt);
         ctx.restore();
       });
+      if (outBlur > 0.5) ctx.filter = `blur(${outBlur.toFixed(1)}px)`;
       // ---- subline — per-character rise at y=1100 (12.4–13.0)
       const sub = 'Langer Kontext. Ganze Codebasen.';
       const spp = remap(lt, 0.4, 1.0);
       if (spp > 0) drawKinetic(ctx, sub, CX, 1100, { size: 48, family: FONTS.head, weight: 500, color: rgba(P.primary, 0.8), tracking: 0.02 * 48, stagger: 0.65, ease: E.outExpo, rise: 24 }, spp, 'rise');
       ctx.restore();
+      }
     });
 
     // ================= the hairline s07 inherits (draws in during the collapse; camera is identity by then)
