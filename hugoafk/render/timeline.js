@@ -23,7 +23,7 @@ TL.add('s08', 20.5, 23.5);   // Erlaubt & empfohlen
 TL.add('s09', 23.5, 26.5);   // Build / Countdown
 TL.add('s10', 26.5, 30.0);   // Endkarte
 TL.transitions.push(
-  { at: 0.0, type: 'fade', dur: 0.3 },                                                        // fade from black
+  { at: -0.12, type: 'fade', dur: 0.3 },                                                      // fade from black (frame 0 already visible: TikTok thumbnail)
   { at: 3.0, type: ['flash', 'punch', 'shake'], amount: 0.9, punch: 0.10, shake: 12, decay: 8, color: '#FFFFFF' },
   { at: 6.0, type: ['punch', 'rgb'], punch: 0.05, amount: 10, dur: 0.14, shake: 3 },
   { at: 9.0, type: ['punch', 'rgb'], punch: 0.05, amount: 10, dur: 0.14, shake: 3 },
