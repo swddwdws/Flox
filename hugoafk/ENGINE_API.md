@@ -128,3 +128,36 @@ beat timing.
 textured Minecraft block instead of flat shaded faces; `dark: 0..1` dims it for night scenes.
 Available textures: grass_top, grass_side, dirt, farmland, pumpkin_top, pumpkin_side, spawner,
 oak_planks, stone, chest, iron_block, violet_block, red_block.
+
+---
+
+# High-quality Minecraft world toolkit (second pass)
+
+## Block textures (assets/tex.png)
+`dirt, grass_top, grass_side, farmland, farmland_crop, pumpkin_top, pumpkin_side, spawner,
+oak_planks, oak_log_side, oak_log_top, oak_leaves, cobblestone, stone, sand, water, chest,
+iron_block, violet_block, red_block, player_skin, player_face, player_head_side, player_shirt,
+player_pants, player_shoe`
+
+Every textured face is cached per brightness level with baked ambient occlusion (side faces
+darken towards the ground, top faces towards their edges), so a field of textured blocks reads
+with real depth.
+
+- `blockIcon(ctx, tex, x, y, size, {alpha, height, rotate, outline, ...})` — one isometric block,
+  `tex` = `'name'` or `{top, side}` or `{top, left, right}`. (x, y) = centre of the top face.
+- `texCube(ctx, ix, iy, iz, {tex, size, cx, cy, ...})` / `texField(ctx, cells, opts)` — blocks in
+  isometric block coordinates, drawn back-to-front.
+- `cube()` / `cubeField()` also accept `tex` per cell plus `dark: 0..1` (night dimming) and
+  `darkColor`.
+- `isoBox(ctx, x, y, bw, bd, bh, {size, tex, color, alpha, dark, outline})` — a cuboid of any
+  proportions. (x, y) is the TOP-BACK corner. This is what the player model is built from.
+
+## Player character
+`mcPlayer(ctx, x, y, {size, t, walk, swing, facing, held, lift, alpha, dark, outline})`
+A Minecraft-proportioned player (legs 0–0.75, body 0.75–1.5, head 1.5–2.0 blocks, so two blocks
+tall) standing on the block whose TOP FACE is at (x, y) — get that with
+`isoPos(ix, iy, iz, {size, cx, cy})`. `walk` 0..1 drives the leg/arm cycle, `swing` 0..1 the
+mining swing, `facing` `'left'|'right'` puts the face on that side, `held` draws a small block in
+the front hand (e.g. `{top:'pumpkin_top', side:'pumpkin_side'}`).
+Draw the player AFTER the blocks behind it and BEFORE the blocks in front of it — split the field
+by depth (`ix + iy`) around the player's tile if blocks must occlude it.

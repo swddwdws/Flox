@@ -38,3 +38,17 @@ Pure function of `t`: seeded tables and any `Particles`/`Warp` instances at modu
 3. LOOK at the sheet and at 2–3 single frames at full resolution (Read the PNGs). Fix overflowing/unreadable text, empty or static frames, wrong colours, anything that reads as a slideshow. Check the render log for `PAGE ERROR` / `CONSOLE` lines.
 4. Iterate at least twice. Check the very first and very last frame of your scene and every beat frame.
 Report what you implemented, deviations from the brief and why, and the render time per frame.
+
+
+## Second pass: world quality (this is what the client asked for)
+The voxel world must read as a real Minecraft scene, not as coloured cubes:
+- Use the TEXTURED blocks (`tex:` on cube/cubeField, `blockIcon`, `texField`) everywhere in the
+  world — grass blocks with the grass overhang, dirt sides, farmland with furrows, pumpkins with
+  stem and ridges, oak logs and leaves, cobblestone paths, water, sand.
+- Build terrain with DEPTH: several block layers (grass on dirt on stone), edges that step, a
+  horizon, trees (log + leaf canopy), torches, fences or path blocks — not a single flat plate.
+- Put a real PLAYER in the scene with `mcPlayer(...)` — that is the AFK player the product is
+  about. Animate it (walk cycle, mining swing, held block) and let it stand ON a block.
+- Keep the palette rule for UI/text; the world itself uses its natural Minecraft colours.
+- Watch the frame budget: a textured face is one drawImage, so a few hundred blocks are fine, but
+  do not exceed ~1200 visible blocks per frame.

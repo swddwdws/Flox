@@ -483,15 +483,15 @@ function pixelSprite(ctx, x, y, cell, rows, palette, o = {}) {
 // ready-made blocky item icons (rows + palette), all 12x12 or 10x10
 const SPRITES = {
   pumpkin: { rows: ["................", ".......kgk......", "......kGGGk.....", ".......ggg......", "..kkkkkkkkkkkk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..klOoOlOoOlOk..", "..kkkkkkkkkkkk..", "................", "................"], pal: {"G": "#5E9433", "O": "#D9821B", "g": "#3E6B1F", "k": "#5B3306", "l": "#F0A233", "o": "#B0670F"} },
-  sea_pickle: { rows: ["................", "................", "..........y.....", ".........yPy....", "....y....PPP....", "...yPy...pPp....", "...PPP..sppps...", "...pPp..spppd...", "..sppps.sppps...", "..spppd.sppps...", "..sppps.ssppd...", "..ssssssssssss..", "..sssssssssss...", "................", "................", "................"], pal: {"P": "#8FBF4A", "d": "#1E2228", "p": "#5E8B2E", "s": "#2C4A22", "y": "#D8E86A"} },
+  sea_pickle: { rows: ["................", "................", "................", "........y.......", "....y..yPy......", "...yPy.PPPy.....", "...PPP.pPPp.....", "..sppp.sppp.....", "..spppsspppy....", "..spppspppPy....", "..sppppppppp....", "..ssppppppps....", "..ssssssssss....", "...sssssssss....", "................", "................"], pal: {"P": "#8FBF4A", "p": "#5E8B2E", "s": "#2C4A22", "y": "#D8E86A"} },
   spawner: { rows: ["................", "..dddddddddddd..", "..dBbbbbbbbbBd..", "..db.d.d.d..bd..", "..db..fF f..bd..", "..d..fFFFf...d..", "..db.fFFFFf.bd..", "..db..fFFf..bd..", "..d....ff....d..", "..db.d.d.d..bd..", "..dBbbbbbbbbBd..", "..dddddddddddd..", "................", "................", "................", "................"], pal: {"B": "#5A6673", "F": "#F5C25A", "b": "#39424D", "d": "#1E2228", "f": "#E0762A"} },
-  emerald: { rows: ["................", ".......ee.......", "......eEEe......", ".....eEMMEe.....", "....eEMMMMEe....", "...eEMMEEMMEe...", "..eEMMEeeEMMEe..", "..eEMEe..eEMEe..", "..eEMMEeeEMMEe..", "...eEMMEEMMEe...", "....eEMMMMEe....", ".....eEMMEe.....", "......eEEe......", ".......ee.......", "................", "................"], pal: {"E": "#19C46B", "M": "#6BF0A8", "e": "#0E6B3A"} },
-  gold_ingot: { rows: ["................", "................", "................", ".....uuuuuu.....", "....uWWWWWWu....", "...uWUUUUUUWu...", "..uWUUUUUUUUWu..", "..uUUUUUUUUUUu..", "..uUUUUUUUUUUu..", "..uuUUUUUUUUuu..", "...uuuuuuuuuu...", "................", "................", "................", "................", "................"], pal: {"U": "#E0A82A", "W": "#FBE07A", "u": "#8A6410"} },
+  emerald: { rows: ["................", ".......ee.......", "......eEEe......", ".....eEMMEe.....", "....eEMMMMEe....", "...eEMMMMMMEe...", "..eEMMMMMMMMEe..", "..eEMMMMMMMMEe..", "..eEMMMMMMMMEe..", "..eeEMMMMMMEee..", "...eeEMMMMEee...", "....eeEMMEee....", ".....eeEEee.....", "......eeee......", ".......ee.......", "................"], pal: {"E": "#19C46B", "M": "#6BF0A8", "e": "#0E6B3A"} },
+  gold_ingot: { rows: ["................", "................", "................", "....uuuuuuuu....", "...uWWWWWWWWu...", "..uWWUUUUUUWWu..", ".uWUUUUUUUUUUWu.", ".uUUUUUUUUUUUUu.", ".uUUUUUUUUUUUUu.", ".uUUUUUUUUUUUUu.", ".uuUUUUUUUUUUuu.", "..uuuuuuuuuuuu..", "................", "................", "................", "................"], pal: {"U": "#E0A82A", "W": "#FBE07A", "u": "#8A6410"} },
   diamond: { rows: ["................", "................", ".....cccccc.....", "....cSSSSSSc....", "...cSCCCCCCSc...", "..cSCCCCCCCCSc..", "..cCCCCCCCCCCc..", "...cCCCCCCCCc...", "....cCCCCCCc....", ".....cCCCCc.....", "......cCCc......", ".......cc.......", "................", "................", "................", "................"], pal: {"C": "#3ED8DF", "S": "#A9F5F7", "c": "#1C7E86"} },
   iron_ingot: { rows: ["................", "................", "................", ".....iiiiii.....", "....iwwwwwwi....", "...iwIIIIIIwi...", "..iwIIIIIIIIwi..", "..iIIIIIIIIIIi..", "..iIIIIIIIIIIi..", "..iiIIIIIIIIii..", "...iiiiiiiiii...", "................", "................", "................", "................", "................"], pal: {"I": "#C7C7C7", "i": "#7B7B7B", "w": "#EDEDED"} },
-  rotten_flesh: { rows: ["................", "................", ".....rrrr.......", "....rRRnRr......", "...rRnnnnRr.....", "..rRnnnnnnRr....", "..rRnnRRnnnRr...", "..rRnnRrRnnnr...", "...rRnnnnnnRr...", "....rRnnnnRr....", ".....rRnnRr.....", "......rrrr......", "................", "................", "................", "................"], pal: {"R": "#8A4433", "n": "#A85E48", "r": "#5C2C20"} },
-  bone: { rows: ["................", "............jHj.", "...........jHHHj", "............HHH.", "..........jHHHj.", ".........jHHj...", "........jHHj....", ".......jHHj.....", "......jHHj......", ".....jHHj.......", "...jHHHj........", "..jHHHj.........", ".jHHHj..........", "..jHj...........", "................", "................"], pal: {"H": "#E9E5D2", "j": "#8E8A78"} },
-  string: { rows: ["................", "................", ".....HHHHH......", "....Hj...jH.....", "...Hj..HHH.j....", "...H..Hj..Hj....", "...H..H....H....", "....j.Hj..jH....", ".....H..HHH.....", ".....Hj....j....", "......H...H.....", ".......HHH......", "........j.......", "................", "................", "................"], pal: {"H": "#E9E5D2", "j": "#8E8A78"} },
+  rotten_flesh: { rows: ["................", "................", ".....rrrrr......", "...rrRRnnRr.....", "..rRnnnnnnRr....", ".rRnnnRRnnnRr...", ".rRnnRrrRnnnr...", ".rRnnnRRnnnnr...", "..rRnnnnnnnRr...", "...rRnnnnnRr....", "....rrRnnRr.....", "......rrrr......", "................", "................", "................", "................"], pal: {"R": "#8A4433", "n": "#A85E48", "r": "#5C2C20"} },
+  bone: { rows: ["................", "..........jHHj..", ".........jHHHHj.", ".........jHHHHj.", "........jHHHHj..", ".......jHHHj....", "......jHHHj.....", ".....jHHHj......", "....jHHHj.......", "...jHHHj........", "..jHHHHj........", ".jHHHHj.........", ".jHHHHj.........", "..jHHj..........", "................", "................"], pal: {"H": "#E9E5D2", "j": "#8E8A78"} },
+  string: { rows: ["................", ".......HHH......", "......Hj.jH.....", ".....Hj...jH....", ".....H.....H....", ".....Hj...jH....", "......HjjjH.....", ".......HHH......", "......jH........", ".....jH.........", "....jH..........", "...jH...........", "..jH............", "..H.............", "................", "................"], pal: {"H": "#E9E5D2", "j": "#8E8A78"} },
   gunpowder: { rows: ["................", "................", "................", ".......xx.......", "......xXXx......", ".....xXxxXx.....", "....xXxXXxXx....", "...xXxXXXXxXx...", "..xXxXXXXXXxXx..", "..xXXXXXXXXXXx..", "..xxXXXXXXXXxx..", "...xxxxxxxxxx...", "................", "................", "................", "................"], pal: {"X": "#767676", "x": "#4A4A4A"} },
   redstone: { rows: ["................", "................", ".......qq.......", "......qQQq......", ".....qQzzQq.....", "....qQzQQzQq....", "...qQzQQQQzQq...", "..qQzQQQQQQzQq..", "..qQQQQQQQQQQq..", "..qqQQQQQQQQqq..", "...qqqqqqqqqq...", "................", "................", "................", "................", "................"], pal: {"Q": "#C42020", "q": "#7A1414", "z": "#F04545"} },
   chest: { rows: ["................", "................", "..tttttttttttt..", "..tTvvvvvvvvTt..", "..tTvvvvvvvvTt..", "..tTvvvmmvvvTt..", "..tttttmmttttt..", "..tTvvvNNvvvTt..", "..tTvvvmmvvvTt..", "..tTvvvvvvvvTt..", "..tTvvvvvvvvTt..", "..tTvvvvvvvvTt..", "..tttttttttttt..", "................", "................", "................"], pal: {"N": "#46464F", "T": "#7A5426", "m": "#2C2C33", "t": "#4A3218", "v": "#A8752F"} },
@@ -581,6 +581,85 @@ function nightSky(ctx, t, o = {}) {
 }
 
 
+
+/* isometric cuboid in block units. (x, y) = the screen position of the TOP-BACK corner.
+   bw runs along +ix (right-down), bd along +iy (left-down), bh upwards.
+   tex: name | {top, side} | {top, left, right}; colors fall back to flat shading. */
+function isoBox(ctx, x, y, bw, bd, bh, o = {}) {
+  const s = o.size ?? 60, W2 = s * ISO.w, H2 = s * ISO.h;
+  const ux = [W2 * bw, H2 * bw], uy = [-W2 * bd, H2 * bd], dz = s * bh;
+  const A = [x, y], B = [x + ux[0], y + ux[1]], C = [x + ux[0] + uy[0], y + ux[1] + uy[1]], D = [x + uy[0], y + uy[1]];
+  ctx.save(); if (o.alpha != null) ctx.globalAlpha *= o.alpha; if (o.composite) ctx.globalCompositeOperation = o.composite;
+  const n = typeof o.tex === 'string' ? { top: o.tex, side: o.tex } : (o.tex || null);
+  if (n && IMG.tex) {
+    _face(ctx, texFace(n.top, 0), A[0], A[1], ux[0], ux[1], uy[0], uy[1]);
+    _face(ctx, texFace(n.right || n.side || n.top, 2), B[0], B[1], uy[0], uy[1], 0, dz);
+    _face(ctx, texFace(n.left || n.side || n.top, 1), D[0], D[1], ux[0], ux[1], 0, dz);
+  } else {
+    const col = o.color || T().primary;
+    const quad = (p, q, r, u, fill) => { ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.lineTo(r[0], r[1]); ctx.lineTo(u[0], u[1]); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
+    quad(A, B, C, D, o.top || shade(col, o.topF ?? 1.25));
+    quad(B, C, [C[0], C[1] + dz], [B[0], B[1] + dz], o.right || shade(col, o.rightF ?? 0.52));
+    quad(D, C, [C[0], C[1] + dz], [D[0], D[1] + dz], o.left || shade(col, o.leftF ?? 0.78));
+  }
+  if (o.dark) { ctx.globalAlpha *= o.dark; ctx.fillStyle = o.darkColor || '#000000';
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(B[0], B[1] + dz); ctx.lineTo(C[0], C[1] + dz); ctx.lineTo(D[0], D[1] + dz); ctx.lineTo(D[0], D[1]); ctx.closePath(); ctx.fill(); ctx.globalAlpha /= o.dark; }
+  if (o.outline) { ctx.strokeStyle = rgba(o.outline, o.outlineAlpha ?? 0.5); ctx.lineWidth = o.outlineWidth ?? 1.4;
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]); ctx.lineTo(D[0], D[1]); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(B[0], B[1]); ctx.lineTo(B[0], B[1] + dz); ctx.lineTo(C[0], C[1] + dz); ctx.lineTo(C[0], C[1]); ctx.moveTo(D[0], D[1]); ctx.lineTo(D[0], D[1] + dz); ctx.lineTo(C[0], C[1] + dz); ctx.stroke(); }
+  ctx.restore();
+  return { A, B, C, D, dz };
+}
+/* A Minecraft-proportioned player, drawn in the isometric world (1 block = size px).
+   Body plan in block units: legs 0..0.75, body 0.75..1.5, head 1.5..2.0 — the player is
+   two blocks tall like in game. (x, y) = screen position of the TOP FACE of the block it
+   stands on. o: size, t (s, for the walk cycle), walk 0..1, swing 0..1 (arm swing / mining),
+   facing 'left'|'right' (which side the face is on), alpha, dark, held (a texture drawn in
+   the front hand), lift (blocks above the ground). */
+function mcPlayer(ctx, x, y, o = {}) {
+  const s = o.size ?? 60, t = o.t ?? 0, walk = o.walk ?? 0, dark = o.dark ?? 0, alpha = o.alpha;
+  const P = { skin: 'player_skin', face: 'player_face', side: 'player_head_side', shirt: 'player_shirt', pants: 'player_pants', shoe: 'player_shoe' };
+  const ph = t * (o.stepRate ?? 4.4) * Math.PI;
+  const sw = Math.sin(ph) * walk * 0.16, sw2 = -sw;                       // leg / arm offsets in blocks
+  const bob = (Math.abs(Math.sin(ph)) * 0.035) * walk + (o.bob ?? 0.010) * Math.sin(t * 1.7 + 0.6);
+  const arm = (o.swing ?? 0) ? Math.abs(Math.sin(t * 10)) * 0.42 * o.swing : 0;
+  const base = y - s * ((o.lift ?? 0) + bob);
+  const W = 0.25, D = 0.25;
+  // place a box centred on (ix, iy) with its top face at height hTop
+  const boxAt = (ix, iy, hTop, bw, bd, bh, tex, extra) => {
+    const c = isoPos(ix, iy, hTop, { size: s, cx: x, cy: base });
+    const ax = c.x - (s * ISO.w * bw - s * ISO.w * bd) / 2;
+    const ay = c.y - (s * ISO.h * bw + s * ISO.h * bd) / 2;
+    return isoBox(ctx, ax, ay, bw, bd, bh, Object.assign({ size: s, tex, alpha, dark, outline: o.outline, outlineAlpha: o.outlineAlpha, outlineWidth: o.outlineWidth }, extra || {}));
+  };
+  const right = (o.facing || 'left') === 'right';
+  const fwd = right ? 1 : -1;                                             // walking direction in the iso plane
+  // far leg + far arm first, then the body, then the near limbs and the head
+  const legs = [[-0.13, sw], [0.13, sw2]];
+  const far = legs[right ? 0 : 1], near = legs[right ? 1 : 0];
+  const drawLeg = (lx, off) => {
+    boxAt(lx + off * fwd, -off * fwd, 0.75, W, D, 0.63, P.pants);
+    boxAt(lx + off * fwd, -off * fwd, 0.12, W, D, 0.12, P.shoe);
+  };
+  const drawArm = (side, off) => {
+    const ax = side * 0.375, o2 = off * fwd + arm * fwd * 0.5;
+    boxAt(ax + o2, -o2, 1.5, W, D, 0.58, P.shirt);
+    boxAt(ax + o2 * 1.25, -o2 * 1.25, 0.92, W, D, 0.17, P.skin);
+    return { ix: ax + o2 * 1.25, iy: -o2 * 1.25 };
+  };
+  drawLeg(far[0], far[1]);
+  const farArm = drawArm(right ? -1 : 1, far[1]);
+  boxAt(0, 0, 1.5, 0.5, D, 0.75, P.shirt);                                // torso
+  drawLeg(near[0], near[1]);
+  const nearArm = drawArm(right ? 1 : -1, near[1]);
+  boxAt(0, 0, 2.0, 0.5, 0.5, 0.5, { top: P.side, left: right ? P.side : P.face, right: right ? P.face : P.side });
+  if (o.held) {                                                           // small block in the front hand
+    const h = isoPos(nearArm.ix, nearArm.iy, 0.9, { size: s, cx: x, cy: base });
+    blockIcon(ctx, o.held, h.x, h.y, s * 0.38, { alpha: alpha });
+  }
+  return { x: x, y: base };
+}
+
 /* ---------------------------------------------- textured Minecraft blocks
    A 16x16 texture atlas (assets/tex.png) is sliced into per-face canvases at three
    brightness levels, so a block can be drawn as a real isometric cube with textured
@@ -593,8 +672,12 @@ function texFace(name, level) {           // level 0 = top (bright), 1 = left, 2
   c = makeCanvas(T, T); const x = c.getContext('2d');
   x.imageSmoothingEnabled = false; x.drawImage(IMG.tex, sx, sy, T, T, 0, 0, T, T);
   const dim = [0, 0.20, 0.42][level];
-  if (dim) { x.globalCompositeOperation = 'source-atop'; x.fillStyle = `rgba(0,0,0,${dim})`; x.fillRect(0, 0, T, T); }
-  if (level === 0) { x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(255,255,255,0.10)'; x.fillRect(0, 0, T, T); }
+  x.globalCompositeOperation = 'source-atop';
+  if (dim) { x.fillStyle = `rgba(0,0,0,${dim})`; x.fillRect(0, 0, T, T); }
+  if (level === 0) { x.fillStyle = 'rgba(255,255,255,0.10)'; x.fillRect(0, 0, T, T); }
+  // baked ambient occlusion: side faces darken towards the ground, top faces towards their edges
+  if (level > 0) { const g = x.createLinearGradient(0, 0, 0, T); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.26)'); x.fillStyle = g; x.fillRect(0, 0, T, T); }
+  else { const g = x.createRadialGradient(T / 2, T / 2, T * 0.18, T / 2, T / 2, T * 0.78); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.16)'); x.fillStyle = g; x.fillRect(0, 0, T, T); }
   _tex.faces.set(key, c); return c;
 }
 // draw one textured parallelogram: unit square -> (origin, uVec, vVec)

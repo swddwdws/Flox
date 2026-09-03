@@ -12,7 +12,7 @@ const TL = {
     if (t >= 25.85 && t < 26.0) { fx.grain = 0; fx.vignette = 0; fx.scan = 0; }  // hard black hold
   },
 };
-TL.add('s01', 0.0, 3.0);     // Hook: PC aus, Farm läuft weiter
+if (window.__DEMO) { TL.add('__demo', 0.0, 3.0); } else TL.add('s01', 0.0, 3.0);     // Hook: PC aus, Farm läuft weiter
 TL.add('s02', 3.0, 6.0);     // Logo-Reveal
 TL.add('s03', 6.0, 9.0);     // Cloud
 TL.add('s04', 9.0, 12.0);    // 24/7 an der Farm
