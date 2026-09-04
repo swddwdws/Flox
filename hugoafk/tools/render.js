@@ -2,6 +2,7 @@
 // Deterministic frame renderer: opens render/index.html in headless Chromium and
 // writes one PNG per frame. Usage:
 //   node tools/render.js --out out/frames [--start 0] [--end 900] [--frames 10,20,30]
+//                        [--html dev_world.html]
 //                        [--every 30] [--workers 3] [--times 1.5,4.25]
 'use strict';
 const path = require('path');
@@ -16,7 +17,7 @@ for (let i = 2; i < process.argv.length; i++) {
 }
 const outDir = path.resolve(args.out || 'out/frames');
 const workers = parseInt(args.workers || '3', 10);
-const html = 'file://' + path.resolve(__dirname, '..', 'render', 'index.html');
+const html = 'file://' + path.resolve(__dirname, '..', 'render', args.html || 'index.html');
 
 let frames = [];
 if (args.frames) frames = args.frames.split(',').map(Number);
