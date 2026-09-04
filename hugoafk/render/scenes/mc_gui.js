@@ -11,10 +11,39 @@
 //     · every text y   is the glyph VERTICAL CENTRE (drawText baseline 'middle'), not a
 //                      typographic baseline
 //     · every label    goes through MC.text (mandatory 4/6/8 px flat drop shadow) EXCEPT
-//                      panel titles, book ink and sign text, which vanilla draws flat
+//                      panel titles, the inventory status word, book ink and sign text,
+//                      which vanilla draws flat
 //     · o              an options object; every key listed with {type, default}
 //     · all colours default to MC.C tokens; pass a hex to override
 //     · every function is a pure function of its arguments. No state survives a frame.
+//
+//   THE FACE — read this before you pass a `size` anywhere (APPENDIX B1)
+//     The interface face is PRESS START 2P (MC.F.ui, weight 400) via the helper
+//     MC.ui(size, o); the running-text face is VT323 (MC.F.txt, weight 400) via
+//     MC.tx(size, o). Silkscreen is out of the film and FONTS.silk appears nowhere in
+//     this file. Every default size below is already the converted one.
+//
+//     Press Start 2P is MONOSPACE at exactly 1.0 em per character — measured, not
+//     assumed — so you never have to guess:
+//                       width in px  =  size  x  number of characters
+//     §4.4's table is in SILKSCREEN sizes and Press Start 2P is 1.31x wider per
+//     character, so ANY size taken from §4.4 must go through MC.pss() before it is
+//     passed to a function here. MC.pss(44) = 34, MC.pss(36) = 27, MC.pss(34) = 26.
+//     Passing a raw §4.4 number produces type ~31 % too big; MC.fit will stop it
+//     overflowing its box but the layout will not be the one the direction drew.
+//     §4.4's 34 px floor for load-bearing type converts to 26 px, which is MC.fit's
+//     default floor. Copy is written in normal German sentence case and rendered as
+//     written — nothing here upper-cases anything, and no call passes `upper`.
+//
+//     Characters that fit, at the defaults, with the drop shadow inside the box:
+//       620x84 button (pause menu, join)          21   at size 27
+//       700x84 button (disconnect)                24   at size 27
+//       700x88 Fertig                             24   at size 27
+//       380x110 thumb button (S7)                 13   at size 26
+//       centred screen title, 790 px safe measure 23   at size 34
+//       toast name (600 px measure)               22   at size 27
+//       book ink (615 px measure)                 19   at size 31
+//       oak sign (500 px measure)                 14   at size 35
 //
 //   MC.dirtBg(ctx, t, o)
 //     Fills the whole 1080x1920 frame with the vanilla menu background: the `dirt`
@@ -31,23 +60,23 @@
 //         bevel: number = 4, alpha: number = 1,
 //         scale: number = 1            (about the panel centre; transition device B/C),
 //         title: string|null = null    (GUI panel title — SHADOWLESS, C.GUI_TITEL,
-//                                       left-aligned, Silkscreen),
+//                                       left-aligned, Press Start 2P),
 //         titleX: number = 35, titleY: number = 42   (offsets from x, y),
-//         titleSize: number = 34, titleColor: hex = C.GUI_TITEL}
+//         titleSize: number = 26  (= MC.pss(34)), titleColor: hex = C.GUI_TITEL}
 //
 //   MC.button(ctx, x, y, w, h, label, o) -> {x, y, w, h, cx, cy}
 //     The vanilla button: 1 px C.RAHMEN frame, body, 2 px C.BUTTON_KANTE_H top/left +
-//     C.BUTTON_KANTE_D bottom/right bevel, centred Silkscreen label + drop shadow,
+//     C.BUTTON_KANTE_D bottom/right bevel, centred Press Start 2P label + drop shadow,
 //     auto-fitted with MC.fit.
 //     o: {state: 'normal'|'hover'|'ghost'|'pressed'|'disabled' = 'normal',
 //         outline: bool = false     persistent 1 px C.GEIST_KANTE INSET outline; the film
 //                                   carries it on every button the bot operates. 'ghost'
 //                                   forces it on,
 //         outlineColor: hex = C.GEIST_KANTE, outlineWidth: number = 1,
-//         fill: hex = null          body override (C.HUGO_ROT for BOT STOPPEN only),
+//         fill: hex = null          body override (C.HUGO_ROT for `Bot stoppen` only),
 //         labelColor: hex = C.WEISS ('#A0A0A0' when disabled),
-//         size: number = 36, family: string = FONTS.silk, weight: number = 700,
-//         maxW: number = w - 28, floor: number = 34   (MC.fit measure pass),
+//         size: number = 27 (= MC.pss(36)), family: string = MC.F.ui, weight: 400,
+//         maxW: number = w - 28, floor: number = 26   (MC.fit measure pass),
 //         alpha: number = 1, dy: number = null        (label offset; 2 when pressed/ghost)}
 //     States: normal = C.BUTTON body · hover (CURSOR ONLY, 0-2 s and 26-28 s) =
 //     C.BUTTON_HELL body + 2 px white outline · ghost (THE FILM'S MOTION SIGNATURE, §6.3)
@@ -68,11 +97,83 @@
 //                                    (those three route through blockIcon, isometric);
 //                                    flat sprites are pre-rendered once per (name, cell),
 //         itemBox: number = s * 0.78, count: number|string|null = null,
-//         countSize: number = 34     (VT323 weight 400, white + shadow, bottom-right),
+//         countSize: number = 26     (Press Start 2P weight 400, white + the mandatory 4 px
+//                                    shadow, bottom-right — the SAME face and size mc_hud
+//                                    draws the hotbar's counts in, MC.HUD_GEO.countSize),
 //         flash: number = 0          0..1 white overlay (the 2-frame landing flash),
 //         flashColor: hex = '#FFFFFF',
 //         selected: bool = false     4 px white outline outside the slot,
-//         selColor: hex = '#FFFFFF', alpha: number = 1}
+//         selColor: hex = '#FFFFFF', alpha: number = 1,
+//         skip: bool = false         MC.inventory only: leave this cell undrawn}
+//
+//   MC.invGeom(x, y, o) -> geometry table          (pure data, draws nothing)
+//     Every coordinate of the S5 inventory screen, derived from the panel's top-left so a
+//     scene can flash a slot, land a particle or anchor a toast on it without re-deriving
+//     §5.3. Defaults reproduce §S5 exactly for x = 130, y = 420, w = 770, h = 880.
+//     o: {w: 770, h: 880}
+//     -> { x, y, w, h,
+//          title  : {x, y}                 x+35,  y+42   (165,  462)
+//          status : {x, y}                 x+w-35,y+42   (865,  462)   right-aligned
+//          preview: {x, y, w, h}           x+35,  y+70,  260x340  (165, 490)
+//          armour : [{x, y, s} x4]         x+35,  y+100 +i*78, s 72   (165, 520..754)
+//          off    : {x, y, s}              x+307, y+334, s 72        (437, 754)
+//          craft  : [{x, y, s} x4]         x+470 +(i%2)*80, y+100 +row*80, s 70 (600/680,
+//                                                                              520/600)
+//          arrow  : {x, y, w}              x+640, y+150, w 30        (770, 570)
+//          result : {x, y, s}              x+685, y+135, s 70        (815, 555)
+//          main   : [{x, y, s, col, row} x27]  x+35 +col*78, y+500 +row*78, s 72
+//                                                          (165..861, 920/998/1076)
+//          hotbar : [{x, y, s, col} x9]    x+35 +col*78, y+740, s 72  (165..861, 1160) }
+//     The offhand slot is not in §S5's table; vanilla has one and it sits to the RIGHT of
+//     the preview box, bottom-aligned with the boots slot, which is where it is put here.
+//
+//   MC.inventory(ctx, x, y, o) -> the same geometry table
+//     THE WHOLE S5 SCREEN, furnished: panel + title + status word + player preview box
+//     with the portrait in it + armour column + offhand + crafting 2x2 + arrow + result
+//     slot + the 9x3 main grid + the hotbar row. Draw it INSTEAD of hand-assembling a
+//     panel, or the top half of the panel is an empty grey void.
+//     o: {w: 770, h: 880, alpha: number = 1,
+//         scale: number = 1        about the panel centre — applies to ALL the furniture,
+//                                  so pass MC.guiOpen/guiClose's `scale` here, not to
+//                                  MC.panel,
+//         title: string = 'Inventar'   (null removes it), titleSize: 26, titleColor,
+//         status: string|{s, color, size}|null = null    the top-right word, SHADOWLESS,
+//                                  default colour C.ROT — S5's `Voll` at 12.00,
+//         fill/light/dark/frameColor/bevel                forwarded to MC.panel
+//                                  (frameColor: C.ROT is S5's 3-frame panel flash),
+//         t: number = 0            film time — drives the portrait's idle bob,
+//         portrait: bool|object = true    false removes the figure and leaves the recessed
+//                                  box; an object is passed on to MC.portrait,
+//         armour / craft / main / hotbar : array of MC.slot options | fn(i) -> options
+//                                  | null. Index order: armour top-to-bottom; craft
+//                                  left-to-right then top-to-bottom; main and hotbar
+//                                  left-to-right, top-to-bottom (main index = row*9+col).
+//                                  A missing or null entry still draws the EMPTY slot —
+//                                  pass {skip: true} to leave the cell out entirely,
+//         off / result : MC.slot options | null           the two single slots,
+//         offhand: bool = true, arrow: bool = true}
+//
+//   MC.portrait(ctx, x, y, w, h, o) -> {x, y, w, h}
+//     The inventory's player preview: a recessed C.SLOT box with a FRONT-FACING player
+//     elevation standing in it — head from the `player_face` atlas tile at 1:1, sleeves
+//     and torso from `player_shirt` (the brand violet, straight out of the atlas), hands
+//     `player_skin`, legs `player_pants`, boots `player_shoe`. The figure is built once
+//     into a 32x64 offscreen canvas at module level (2 canvas px per skin pixel, so the
+//     16x16 face lands unscaled) and blitted at an INTEGER scale, so it is one drawImage
+//     per frame and stays on the pixel grid. Vanilla's portrait faces the player, and the
+//     face tile is drawn to be seen head-on.
+//     THIS IS NOT A SECOND MC.player. MC.player (mc_world.js) is the world-space F5 entity
+//     planted on the ground plane, with a blob shadow, a nametag and fog; MC.portrait is
+//     flat screen-space GUI furniture and never appears in the world.
+//     o: {t: number = 0        drives the idle bob, +/-3 px at 0.55 Hz,
+//         bob: number = 1      0 freezes it,
+//         area: [x0, w] = [x, w]   the horizontal band the figure is centred in; the
+//                              inventory passes the part of the box right of the armour
+//                              column,
+//         box: bool = true     draw the recessed box,
+//         fill: hex = C.SLOT, light: hex = C.SLOT_UNTEN, dark: hex = C.SLOT_OBEN,
+//         bevel: number = 2, alpha: number = 1}
+//     Draws the box and nothing else if the atlas is not decoded yet.
 //
 //   MC.toast(ctx, t, o) -> {x, y, w, h, p} | null   (null when off screen)
 //     The advancement toast. Box 760x150; slides in from x 1080 and rests with its right
@@ -80,22 +181,25 @@
 //     4 px C.TOAST_RAHMEN border, 3 px C.TOAST_LICHT highlight inset 4 px, 12x12
 //     double-bevel corner squares (the vanilla 9-slice tell). 88 px icon cell at box+24.
 //     o: {t0: number REQUIRED       when the slide-in starts,
-//         name: string = ''         Silkscreen 36 white + shadow, left at box+136,
-//         kicker: string = 'Fortschritt erzielt!'   Silkscreen 28 C.GELB,
+//         name: string = ''         Press Start 2P 27 white + shadow, left at box+136,
+//         kicker: string = 'Fortschritt erzielt!'   Press Start 2P 21 C.GELB,
 //         icon: string|null = null  item/block name, drawn in the 88 px cell,
 //         iconDraw: fn(ctx, cx, cy, box)|null = null   custom icon instead,
 //         slot: 0|1|2 = 0           y 320 / 480 / 640,
 //         y: number = null          explicit top edge, overrides slot,
 //         x0: number = 140, w: number = 760, h: number = 150,
 //         in: number = 0.25 (E.outCubic), hold: number = 1.4, out: number = 0.20,
-//         alpha: number = 1, kickerSize: 28, nameSize: 36}
+//         alpha: number = 1, kickerSize: 21, nameSize: 27}
 //
 //   MC.field(ctx, x, y, w, h, o) -> {x, y, w, h, textX, caretX}
 //     Vanilla text field: C.FELD_BG fill, 2 px C.FELD_KANTE border, optional label 30 px
 //     above the box (VT323 34 C.GRAU), value inside at x+20.
 //     o: {label: string|null = null, labelSize: 34, labelColor: hex = C.GRAU,
-//         value: string = '', size: number = 46, family: string = FONTS.term,
-//         weight: number = 400      (MUST stay 400 for VT323; pass 700 with FONTS.silk),
+//         value: string = '', size: number = 46, family: string = MC.F.txt,
+//         weight: number = 400      both faces ship 400 ONLY — never pass 700,
+//                                   S10's `HugoAFK.com` value is the one INTERFACE value
+//                                   in the film: pass {family: MC.F.ui, size: MC.pss(52)}
+//                                   = size 40, 440 px wide inside the 660 px measure,
 //         color: hex = C.WEISS, pad: number = 20,
 //         p: number = 1             0..1 typing progress; floor(p * len) chars are shown,
 //         caret: bool = false       vanilla blinking block caret after the last character,
@@ -115,7 +219,7 @@
 //
 //   MC.serverRow(ctx, x, y, w, h, o) -> {x, y, w, h}
 //     One multiplayer server-list row (default 700x150). 128 px icon box at (x+15, y+11)
-//     with the logo letterboxed inside it, name Silkscreen 44 at (x+170, y+45), MOTD
+//     with the logo letterboxed inside it, name Press Start 2P 34 at (x+170, y+45), MOTD
 //     VT323 38 weight 400 at (x+170, y+100), five ascending ping bars (8/14/20/26/32 px,
 //     8 px wide, 5 px gaps = 60 px) at x+640 with their bottom edge at y+56.
 //     o: {name: string = '', motd: string = '', motd2: string|null = null,
@@ -124,21 +228,22 @@
 //         selected: bool = false    #4A4A52 fill + 2 px #FFFFFF border,
 //         dim: bool = false         placeholder row: everything in C.GRAU / #555555,
 //         ping: number = 5          0..5 lit bars, pingColor: hex = C.GRUEN,
-//         nameSize: 44, motdSize: 38, alpha: number = 1}
+//         nameSize: 34, motdSize: 38, alpha: number = 1}
 //
 //   MC.book(ctx, o) -> {x, y, w, h, inkX, measure}
 //     The written book on parchment. C.PERGAMENT page, 3 px C.PERGAMENT_KANTE border,
 //     6 px C.PERGAMENT_FALZ spine line inset 40 px from the left plus a faint
-//     rgba(0,0,0,0.06) fold gradient. Ink is Silkscreen 40 in C.TINTE, LEFT-ALIGNED and
-//     SHADOWLESS, first line at y+100, line height 72, measure 615 px.
+//     rgba(0,0,0,0.06) fold gradient. Ink is Press Start 2P 31 (= MC.pss(40)) in C.TINTE,
+//     LEFT-ALIGNED and SHADOWLESS, first line at y+100, line height 72, measure 615 px
+//     — 19 characters per line.
 //     o: {x: 190, y: 400, w: 700, h: 840,
 //         lines: array = []         each entry is one of
 //                                     'plain text'
-//                                     {s, color = C.TINTE, size = 40, p = 1}
-//                                     {parts: [{s, color}, ...], size = 40, p = 1}
+//                                     {s, color = C.TINTE, size = 31, p = 1}
+//                                     {parts: [{s, color}, ...], size = 31, p = 1}
 //                                   p is 0..1 type-on progress over that line's characters
 //                                   (blank entries and '' are legal spacer lines),
-//         size: number = 40, lineHeight: number = 72,
+//         size: number = 31, lineHeight: number = 72,
 //         inkX: number = 85         ink left inset from x, y0: number = 100,
 //         color: hex = C.TINTE, spine: number = 40, alpha: 1, scale: 1}
 //
@@ -171,9 +276,10 @@
 //   MC.sign(ctx, x, y, o) -> {x, y, w, h}
 //     The standing oak sign. Board of tiled `oak_planks` (8x = 128 px tiles) with a 3 px
 //     C.SCHILD_KANTE border and two 40x160 `oak_log_side` posts below it. Up to four
-//     CENTRED, SHADOWLESS Silkscreen 46 lines in C.SCHILD_TINTE at y+40/+102/+164/+226.
+//     CENTRED, SHADOWLESS Press Start 2P 35 (= MC.pss(46)) lines in C.SCHILD_TINTE at
+//     y+40/+102/+164/+226 — 14 characters per line in the 500 px measure.
 //     o: {w: 560, h: 300, lines: array of string = [],
-//         size: number = 46, y0: number = 40, pitch: number = 62,
+//         size: number = 35, y0: number = 40, pitch: number = 62,
 //         color: hex = C.SCHILD_TINTE, post: bool = true, postW: 40, postH: 160,
 //         postGap: 200        (distance between the two post centres),
 //         tileScale: number = 8   (board plank tile = 16 px * tileScale),
@@ -197,16 +303,18 @@
 //         bg: 'rgba(0,0,0,0.75)', color: C.GRAU, selColor: C.GELB, alpha: 1}
 //
 //   MC.screenTitle(ctx, str, y, o) -> number   (the fitted size actually used)
-//     A centred vanilla screen title at x 540: Silkscreen, white + drop shadow, run
+//     A centred vanilla screen title at x 540: Press Start 2P, white + drop shadow, run
 //     through MC.fit against the 790 px safe measure.
-//     o: {size: 44, color: C.WEISS, family: FONTS.silk, weight: 700, maxW: 790,
-//         floor: 34, align: 'center', x: 540, alpha: 1, shadow: bool = true}
+//     o: {size: 34 (= MC.pss(44)), color: C.WEISS, family: MC.F.ui, weight: 400,
+//         maxW: 790, floor: 26, align: 'center', x: 540, alpha: 1, shadow: bool = true}
+//     The pause menu's `Spiel pausiert` is §4.4's one bigger title: pass size MC.pss(48)
+//     = 37 (518 px wide).
 //
 //   MC.craftArrow(ctx, x, y, w, o) -> void
 //     The vanilla crafting arrow (shaft + stepped head), left-anchored at (x, y) where y
 //     is its vertical centre. Shaft thickness is w * 0.2, head length w * 0.45.
 //     o: {color: hex = '#8B8B8B', shadow: hex = '#555555', alpha: number = 1}.
-//     The film uses w = 30 at x 770, y 570 (inventory, S5).
+//     The film uses w = 30 at x 770, y 570 (inventory, S5) — MC.inventory draws it.
 //
 //   MC.guiOpen(t, at, o) -> {scale, dim, p, open}
 //     Transition device B (§7): world dim 0 -> o.dim over 4 frames from `at`; panel scale
@@ -219,12 +327,28 @@
 //     `at` onward.
 //
 //   Not defined here (owned elsewhere): MC.cursor, MC.ripple, MC.chat, MC.f3, MC.hud,
-//   MC.world, MC.blocks, MC.arm, MC.break, MC.particles.
+//   MC.world, MC.blocks, MC.arm, MC.player, MC.break, MC.particles.
    =================================================================================== */
 
 (function () {
   const C = MC.C;
   const R = MC.rect;
+
+  /* §4.4's sizes are SILKSCREEN sizes and the interface face is now Press Start 2P
+     (APPENDIX B1), which is 1.31x wider per character — so every default below is the
+     §4.4 number put through MC.pss(). Written out once, here, so that the ten scene files
+     and this module cannot drift apart. */
+  const SZ = {
+    screen: MC.pss(44),      // 34 · centred screen titles (Server auswählen, Vormerken, …)
+    button: MC.pss(36),      // 27 · every button label
+    panelTitle: MC.pss(34),  // 26 · GUI panel titles (Inventar) — shadowless
+    status: MC.pss(30),      // 23 · the inventory status word (Voll)
+    kicker: MC.pss(28),      // 21 · toast kicker (Fortschritt erzielt!)
+    toastName: MC.pss(36),   // 27 · toast name
+    serverName: MC.pss(44),  // 34 · server-list row name
+    ink: MC.pss(40),         // 31 · book ink
+    sign: MC.pss(46),        // 35 · oak sign lines
+  };
 
   /* ---------------------------------------------------------------- 1 · caches
      §10.4: pre-render every repeated pixel sprite and build every pattern ONCE.
@@ -295,6 +419,44 @@
     });
   }
 
+  /* The inventory portrait's figure, built ONCE into a 32x64 canvas: 16 skin units wide,
+     32 tall (head 8, torso 12, legs 12 — the real model's proportions), at 2 canvas px per
+     skin unit so the 16x16 `player_face` tile lands unscaled and the eyes survive. Every
+     part is filled with its atlas tile at 1:1 texels, never stretched. Blitted at an
+     INTEGER scale, so the whole portrait costs one drawImage per frame. */
+  let _fig = null;
+  function figureCanvas() {
+    if (_fig) return _fig;
+    const T = {};
+    for (const n of ['player_face', 'player_skin', 'player_shirt', 'player_pants', 'player_shoe']) {
+      T[n] = atlasTile(n); if (!T[n]) return null;              // atlas not decoded yet
+    }
+    const c = makeCanvas(32, 64), x = c.getContext('2d');
+    x.imageSmoothingEnabled = false;
+    const P = (tile, dx, dy, dw, dh) => {                       // tile the 16x16 at 1:1
+      for (let oy = 0; oy < dh; oy += 16) for (let ox = 0; ox < dw; ox += 16) {
+        const w = Math.min(16, dw - ox), h = Math.min(16, dh - oy);
+        x.drawImage(tile, 0, 0, w, h, dx + ox, dy + oy, w, h);
+      }
+    };
+    P(T.player_shirt, 8, 16, 16, 24);                           // torso
+    P(T.player_shirt, 0, 16, 8, 18); P(T.player_skin, 0, 34, 8, 6);    // arm + hand
+    P(T.player_shirt, 24, 16, 8, 18); P(T.player_skin, 24, 34, 8, 6);
+    P(T.player_pants, 8, 40, 8, 18); P(T.player_shoe, 8, 58, 8, 6);    // leg + boot
+    P(T.player_pants, 16, 40, 8, 18); P(T.player_shoe, 16, 58, 8, 6);
+    x.drawImage(T.player_face, 8, 0);                           // the head, 1:1
+    // In the game the limbs are separate boxes and their side faces do the separating; on
+    // a flat elevation that job falls to a flat shade plus a one-SKIN-PIXEL seam (2 canvas
+    // px, so it stays on the skin grid) down each limb join. Without them the arms and the
+    // torso merge into one violet slab and the legs into one blue one.
+    x.fillStyle = 'rgba(0,0,0,0.14)'; x.fillRect(0, 16, 8, 24); x.fillRect(24, 16, 8, 24);
+    x.fillStyle = 'rgba(0,0,0,0.10)'; x.fillRect(16, 40, 8, 24);
+    x.fillStyle = 'rgba(0,0,0,0.30)';
+    x.fillRect(6, 16, 2, 24); x.fillRect(24, 16, 2, 24);        // arm / torso joins
+    x.fillRect(14, 40, 2, 24);                                  // between the legs
+    _fig = c; return c;
+  }
+
   const A = (ctx, a) => { if (a != null) ctx.globalAlpha *= a; };
 
   /* ---------------------------------------------------------------- 2 · surfaces */
@@ -321,10 +483,8 @@
       light: o.light || C.BEVEL_HELL, dark: o.dark || C.BEVEL_DUNKEL, frame: false,
     });
     if (o.title) {
-      MC.text(ctx, o.title, x + (o.titleX != null ? o.titleX : 35), y + (o.titleY != null ? o.titleY : 42), {
-        size: o.titleSize || 34, family: FONTS.silk, weight: 700,
-        color: o.titleColor || C.GUI_TITEL, align: 'left', shadow: false,
-      });
+      MC.text(ctx, o.title, x + (o.titleX != null ? o.titleX : 35), y + (o.titleY != null ? o.titleY : 42),
+        MC.ui(o.titleSize || SZ.panelTitle, { color: o.titleColor || C.GUI_TITEL, align: 'left', shadow: false }));
     }
     ctx.restore();
     return { x: x, y: y, w: w, h: h };
@@ -355,10 +515,11 @@
       ctx.strokeRect(x + 3 + lw / 2, y + 3 + lw / 2, w - 6 - lw, h - 6 - lw);
     }
     if (label) {
-      const opt = {
-        size: o.size || 36, family: o.family || FONTS.silk, weight: o.weight || 700,
+      const opt = MC.ui(o.size || SZ.button, {
         color: o.labelColor || (isOff ? '#A0A0A0' : C.WEISS), align: 'center',
-      };
+      });
+      if (o.family) opt.family = o.family;
+      if (o.weight) opt.weight = o.weight;
       opt.size = MC.fit(ctx, label, opt, o.maxW != null ? o.maxW : w - 28, o.floor);
       const dy = o.dy != null ? o.dy : ((isPress || isGhost) ? 2 : 0);
       MC.text(ctx, label, x + Math.round(w / 2), y + Math.round(h / 2) + dy, opt);
@@ -377,17 +538,122 @@
     MC.inset(ctx, x, y, s, s, { width: o.bevel || 2, dark: o.dark || C.SLOT_OBEN, light: o.light || C.SLOT_UNTEN });
     if (o.item) drawItem(ctx, o.item, x + s / 2, y + s / 2, o.itemBox != null ? o.itemBox : s * 0.78, null);
     if (o.count != null) {
-      MC.text(ctx, String(o.count), x + s - 6, y + s - 8, {
-        size: o.countSize || 34, family: FONTS.term, weight: 400,
-        color: C.WEISS, align: 'right', baseline: 'alphabetic',
-      });
+      /* RE-GATE: this was MC.tx (VT323) 34, taken from §S4's pre-B1 copy. mc_hud draws the
+         HOTBAR's stack counts in MC.ui (Press Start 2P) at MC.HUD_GEO.countSize = 26, and
+         a stack count is interface, not running text — S5 puts both on screen at once (the
+         panel's own hotbar row over the dimmed HUD hotbar), so two faces for one object was
+         visible in a single frame. One face, one size: PS2P 26. "64" is 52 px, right
+         aligned inside a 70 or 72 px slot with the 4 px shadow still clear of the bevel. */
+      MC.text(ctx, String(o.count), x + s - 6, y + s - 8,
+        MC.ui(o.countSize || 26, { color: C.WEISS, align: 'right', baseline: 'alphabetic' }));
     }
     if (o.flash) { ctx.save(); ctx.globalAlpha *= clamp(o.flash); R(ctx, x, y, s, s, o.flashColor || '#FFFFFF'); ctx.restore(); }
     if (o.selected) { ctx.strokeStyle = o.selColor || '#FFFFFF'; ctx.lineWidth = 4; ctx.strokeRect(x - 2, y - 2, s + 4, s + 4); }
     ctx.restore();
   };
 
-  /* ---------------------------------------------------------------- 3 · toast */
+  /* ---------------------------------------------------------------- 3 · the inventory
+     §S5's table, as data first and drawing second, because ten scene files need to land
+     particles, flashes and toasts on these cells and must not each re-derive §5.3. */
+
+  MC.invGeom = function (x, y, o) {
+    o = o || {};
+    x = Math.round(x != null ? x : 130); y = Math.round(y != null ? y : 420);
+    const w = Math.round((o.w != null ? o.w : 770)), h = Math.round((o.h != null ? o.h : 880));
+    const g = {
+      x: x, y: y, w: w, h: h,
+      title: { x: x + 35, y: y + 42 },
+      status: { x: x + w - 35, y: y + 42 },
+      preview: { x: x + 35, y: y + 70, w: 260, h: 340 },
+      off: { x: x + 307, y: y + 334, s: 72 },
+      arrow: { x: x + 640, y: y + 150, w: 30 },
+      result: { x: x + 685, y: y + 135, s: 70 },
+      armour: [], craft: [], main: [], hotbar: [],
+    };
+    for (let i = 0; i < 4; i++) g.armour.push({ x: x + 35, y: y + 100 + i * 78, s: 72 });
+    for (let i = 0; i < 4; i++) g.craft.push({ x: x + 470 + (i % 2) * 80, y: y + 100 + Math.floor(i / 2) * 80, s: 70 });
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) g.main.push({ x: x + 35 + c * 78, y: y + 500 + r * 78, s: 72, col: c, row: r });
+    for (let c = 0; c < 9; c++) g.hotbar.push({ x: x + 35 + c * 78, y: y + 740, s: 72, col: c });
+    return g;
+  };
+
+  /* The player preview. Vanilla's portrait looks AT the player, and the atlas's
+     `player_face` tile is drawn to be seen head-on, so the figure is a front elevation.
+     It is not a second MC.player: MC.player is the world-space F5 entity with a blob
+     shadow, a nametag and fog, and none of those belong on a grey panel. */
+  MC.portrait = function (ctx, x, y, w, h, o) {
+    o = o || {};
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    ctx.save(); A(ctx, o.alpha);
+    if (o.box !== false) {
+      R(ctx, x, y, w, h, o.fill || C.SLOT);
+      MC.inset(ctx, x, y, w, h, { width: o.bevel || 2, dark: o.dark || C.SLOT_OBEN, light: o.light || C.SLOT_UNTEN });
+    }
+    const fig = figureCanvas();
+    if (fig) {
+      const a = o.area || [x, w];
+      // integer blit scale only: 32x64 source, so k px per source pixel = 2k px per skin px
+      const k = Math.max(1, Math.min(Math.floor((a[1] - 16) / 32), Math.floor((h - 24) / 64)));
+      const fw = 32 * k, fh = 64 * k;
+      const bob = (o.bob != null ? o.bob : 1) * 3 * Math.sin((Math.PI * 2) * 0.55 * (o.t || 0));
+      const fx = Math.round(a[0] + (a[1] - fw) / 2);
+      const fy = Math.round(y + (h - fh) / 2 + bob);
+      MC.pixel(ctx, c => c.drawImage(fig, fx, fy, fw, fh));
+    }
+    ctx.restore();
+    return { x: x, y: y, w: w, h: h };
+  };
+
+  MC.inventory = function (ctx, x, y, o) {
+    o = o || {};
+    const g = MC.invGeom(x, y, o);
+    const pick = (src, i) => {
+      if (src == null) return {};
+      if (typeof src === 'function') return src(i) || {};
+      if (Array.isArray(src)) return src[i] || {};
+      return src;
+    };
+    const bank = (list, src) => {
+      for (let i = 0; i < list.length; i++) {
+        const q = pick(src, i); if (q.skip) continue;
+        MC.slot(ctx, list[i].x, list[i].y, list[i].s, q);
+      }
+    };
+    ctx.save(); A(ctx, o.alpha);
+    const sc = o.scale != null ? o.scale : 1;
+    if (sc !== 1) {
+      const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
+      ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
+    }
+    MC.panel(ctx, g.x, g.y, g.w, g.h, {
+      fill: o.fill, light: o.light, dark: o.dark, frameColor: o.frameColor, bevel: o.bevel,
+      title: o.title !== undefined ? o.title : 'Inventar',
+      titleSize: o.titleSize, titleColor: o.titleColor,
+    });
+    if (o.status) {
+      const st = typeof o.status === 'string' ? { s: o.status } : o.status;
+      if (st.s) {
+        MC.text(ctx, st.s, g.status.x, g.status.y,
+          MC.ui(st.size || SZ.status, { color: st.color || C.ROT, align: 'right', shadow: false }));
+      }
+    }
+    if (o.portrait !== false) {
+      MC.portrait(ctx, g.preview.x, g.preview.y, g.preview.w, g.preview.h, Object.assign(
+        { t: o.t || 0, area: [g.preview.x + 72, g.preview.w - 72] },
+        (o.portrait && typeof o.portrait === 'object') ? o.portrait : {}));
+    }
+    bank(g.armour, o.armour);
+    if (o.offhand !== false) { const q = pick(o.off, 0); if (!q.skip) MC.slot(ctx, g.off.x, g.off.y, g.off.s, q); }
+    bank(g.craft, o.craft);
+    if (o.arrow !== false) MC.craftArrow(ctx, g.arrow.x, g.arrow.y, g.arrow.w, {});
+    { const q = pick(o.result, 0); if (!q.skip) MC.slot(ctx, g.result.x, g.result.y, g.result.s, q); }
+    bank(g.main, o.main);
+    bank(g.hotbar, o.hotbar);
+    ctx.restore();
+    return g;
+  };
+
+  /* ---------------------------------------------------------------- 4 · toast */
 
   MC.toast = function (ctx, t, o) {
     o = o || {};
@@ -419,11 +685,10 @@
     if (o.iconDraw) o.iconDraw(ctx, x + 24 + 44, cy, 88);
     else if (o.icon) drawItem(ctx, o.icon, x + 24 + 44, cy, 88, null);
     const tx = x + 136;
-    MC.text(ctx, o.kicker != null ? o.kicker : 'Fortschritt erzielt!', tx, y + 48, {
-      size: o.kickerSize || 28, family: FONTS.silk, weight: 700, color: C.GELB, align: 'left',
-    });
+    MC.text(ctx, o.kicker != null ? o.kicker : 'Fortschritt erzielt!', tx, y + 48,
+      MC.ui(o.kickerSize || SZ.kicker, { color: C.GELB, align: 'left' }));
     if (o.name) {
-      const opt = { size: o.nameSize || 36, family: FONTS.silk, weight: 700, color: C.WEISS, align: 'left' };
+      const opt = MC.ui(o.nameSize || SZ.toastName, { color: C.WEISS, align: 'left' });
       opt.size = MC.fit(ctx, o.name, opt, x + w - 24 - tx);
       MC.text(ctx, o.name, tx, y + 100, opt);
     }
@@ -431,7 +696,7 @@
     return { x: x, y: y, w: w, h: h, p: clamp(d / IN) };
   };
 
-  /* ---------------------------------------------------------------- 4 · fields, bars */
+  /* ---------------------------------------------------------------- 5 · fields, bars */
 
   MC.field = function (ctx, x, y, w, h, o) {
     o = o || {};
@@ -442,19 +707,17 @@
     R(ctx, x, y, w, h, edge);
     R(ctx, x + bw, y + bw, w - bw * 2, h - bw * 2, o.fill || C.FELD_BG);
     if (o.label) {
-      MC.text(ctx, o.label, x, y - 30, {
-        size: o.labelSize || 34, family: FONTS.term, weight: 400,
-        color: o.labelColor || C.GRAU, align: 'left',
-      });
+      MC.text(ctx, o.label, x, y - 30,
+        MC.tx(o.labelSize || 34, { color: o.labelColor || C.GRAU, align: 'left' }));
     }
     const pad = o.pad != null ? o.pad : 20;
-    const size = o.size || 46, fam = o.family || FONTS.term, wt = o.weight != null ? o.weight : 400;
     const full = o.value || '';
     const p = o.p != null ? o.p : 1;
     const n = p >= 1 ? full.length : Math.floor(p * full.length + 1e-6);
     const shown = full.slice(0, n);
     const cy = y + Math.round(h / 2);
-    const opt = { size: size, family: fam, weight: wt, color: o.color || C.WEISS, align: 'left' };
+    const size = o.size || 46;
+    const opt = { size: size, family: o.family || MC.F.txt, weight: o.weight != null ? o.weight : 400, color: o.color || C.WEISS, align: 'left' };
     if (shown) MC.text(ctx, shown, x + pad, cy, opt);
     const cw = measureText(ctx, shown, opt);
     const caretX = x + pad + cw + 4;
@@ -503,19 +766,17 @@
       ctx.drawImage(o.img, bx + Math.round((128 - dw) / 2), by + Math.round((128 - dh) / 2), dw, dh);
     }
     if (o.name) {
-      const opt = { size: o.nameSize || 44, family: FONTS.silk, weight: 700, color: dim ? C.GRAU : C.WEISS, align: 'left' };
+      const opt = MC.ui(o.nameSize || SZ.serverName, { color: dim ? C.GRAU : C.WEISS, align: 'left' });
       opt.size = MC.fit(ctx, o.name, opt, w - 185 - 80);
       MC.text(ctx, o.name, x + 170, y + 45, opt);
     }
     if (o.motd) {
-      MC.text(ctx, o.motd, x + 170, y + 100, {
-        size: o.motdSize || 38, family: FONTS.term, weight: 400, color: dim ? '#7A7A7A' : C.GRAU, align: 'left',
-      });
+      MC.text(ctx, o.motd, x + 170, y + 100,
+        MC.tx(o.motdSize || 38, { color: dim ? '#7A7A7A' : C.GRAU, align: 'left' }));
     }
     if (o.motd2) {
-      MC.text(ctx, o.motd2, x + 170, y + 140, {
-        size: o.motdSize || 38, family: FONTS.term, weight: 400, color: dim ? '#7A7A7A' : C.GRAU, align: 'left',
-      });
+      MC.text(ctx, o.motd2, x + 170, y + 140,
+        MC.tx(o.motdSize || 38, { color: dim ? '#7A7A7A' : C.GRAU, align: 'left' }));
     }
     // five ascending ping bars: 8 px wide, 5 px gaps, heights 8/14/20/26/32
     const hs = [8, 14, 20, 26, 32], px = x + 640, pb = y + 56;
@@ -528,7 +789,7 @@
     return { x: x, y: y, w: w, h: h };
   };
 
-  /* ---------------------------------------------------------------- 5 · book */
+  /* ---------------------------------------------------------------- 6 · book */
 
   MC.book = function (ctx, o) {
     o = o || {};
@@ -548,7 +809,7 @@
 
     const inkX = x + (o.inkX != null ? o.inkX : 85);
     const measure = w - (o.inkX != null ? o.inkX : 85);
-    const lh = o.lineHeight || 72, size0 = o.size || 40;
+    const lh = o.lineHeight || 72, size0 = o.size || SZ.ink;
     let cy = y + (o.y0 != null ? o.y0 : 100);
     for (const ln of (o.lines || [])) {
       if (ln == null || ln === '') { cy += lh; continue; }
@@ -563,7 +824,7 @@
         if (budget <= 0) break;
         const k = Math.min(q.s.length, budget); budget -= q.s.length;
         const str = q.s.slice(0, k);
-        const opt = { size: size, family: FONTS.silk, weight: 700, color: q.color || o.color || C.TINTE, align: 'left', shadow: false };
+        const opt = MC.ui(size, { color: q.color || o.color || C.TINTE, align: 'left', shadow: false });
         MC.text(ctx, str, px, cy, opt);
         px += measureText(ctx, str, opt);
       }
@@ -585,7 +846,7 @@
     return { page: 1, dx: 0 };
   };
 
-  /* ---------------------------------------------------------------- 6 · console, stats */
+  /* ---------------------------------------------------------------- 7 · console, stats */
 
   function consoleParts(s, color) {
     if (color) return [{ s: s, c: color }];
@@ -623,7 +884,7 @@
       const cy = y + pad + i * lh + Math.round(lh / 2);
       for (const q of consoleParts(s, col)) {
         if (!q.s) continue;
-        const opt = { size: size, family: FONTS.term, weight: 400, color: q.c, align: 'left', alpha: a };
+        const opt = MC.tx(size, { color: q.c, align: 'left', alpha: a });
         MC.text(ctx, q.s, px, cy, opt);
         px += measureText(ctx, q.s, opt);
       }
@@ -636,8 +897,8 @@
     o = o || {};
     x = Math.round(x); y = Math.round(y); w = Math.round(w);
     const size = o.size || 40;
-    const lopt = { size: size, family: FONTS.term, weight: 400, color: o.labelColor || C.GRAU, align: 'left' };
-    const vopt = { size: size, family: FONTS.term, weight: 400, color: o.valueColor || C.WEISS, align: 'right' };
+    const lopt = MC.tx(size, { color: o.labelColor || C.GRAU, align: 'left' });
+    const vopt = MC.tx(size, { color: o.valueColor || C.WEISS, align: 'right' });
     ctx.save(); A(ctx, o.alpha);
     const lab = o.label || '', val = o.value || '';
     if (lab) MC.text(ctx, lab, x, y, lopt);
@@ -650,7 +911,7 @@
     ctx.restore();
   };
 
-  /* ---------------------------------------------------------------- 7 · sign */
+  /* ---------------------------------------------------------------- 8 · sign */
 
   MC.sign = function (ctx, x, y, o) {
     o = o || {};
@@ -674,7 +935,7 @@
     const lines = o.lines || [], y0 = o.y0 != null ? o.y0 : 40, pitch = o.pitch || 62;
     for (let i = 0; i < Math.min(4, lines.length); i++) {
       const s = lines[i]; if (!s) continue;
-      const opt = { size: o.size || 46, family: FONTS.silk, weight: 700, color: o.color || C.SCHILD_TINTE, align: 'center', shadow: false };
+      const opt = MC.ui(o.size || SZ.sign, { color: o.color || C.SCHILD_TINTE, align: 'center', shadow: false });
       opt.size = MC.fit(ctx, s, opt, w - 60);
       MC.text(ctx, s, x + Math.round(w / 2), y + y0 + i * pitch, opt);
     }
@@ -682,7 +943,7 @@
     return { x: x, y: y, w: w, h: h };
   };
 
-  /* ---------------------------------------------------------------- 8 · chat input */
+  /* ---------------------------------------------------------------- 9 · chat input */
 
   MC.suggest = function (ctx, x, y, items, o) {
     o = o || {};
@@ -690,16 +951,14 @@
     if (!items.length) return null;
     x = Math.round(x); y = Math.round(y);
     const size = o.size || 34, lineH = o.lineH || 35, pad = o.pad != null ? o.pad : 10;
-    const opt = { size: size, family: FONTS.term, weight: 400, align: 'left' };
+    const opt = MC.tx(size, { align: 'left' });
     let mw = 0; for (const s of items) mw = Math.max(mw, measureText(ctx, s, opt));
     const w = Math.round(o.w || (mw + pad * 2)), h = items.length * lineH;
     ctx.save(); A(ctx, o.alpha);
     R(ctx, x, y, w, h, o.bg || 'rgba(0,0,0,0.75)');
     for (let i = 0; i < items.length; i++) {
-      MC.text(ctx, items[i], x + pad, y + i * lineH + Math.round(lineH / 2), {
-        size: size, family: FONTS.term, weight: 400, align: 'left',
-        color: i === (o.index || 0) ? (o.selColor || C.GELB) : (o.color || C.GRAU),
-      });
+      MC.text(ctx, items[i], x + pad, y + i * lineH + Math.round(lineH / 2),
+        MC.tx(size, { align: 'left', color: i === (o.index || 0) ? (o.selColor || C.GELB) : (o.color || C.GRAU) }));
     }
     ctx.restore();
     return { x: x, y: y, w: w, h: h };
@@ -714,7 +973,7 @@
     ctx.save(); A(ctx, o.alpha);
     R(ctx, 0, y, W, h, o.bg || 'rgba(0,0,0,0.50)');
     const cy = y + Math.round(h / 2);
-    const opt = { size: size, family: FONTS.term, weight: 400, color: o.color || C.WEISS, align: 'left' };
+    const opt = MC.tx(size, { color: o.color || C.WEISS, align: 'left' });
     if (shown) MC.text(ctx, shown, x, cy, opt);
     const caretX = x + measureText(ctx, shown, opt) + 4;
     if (o.caret !== false && Math.floor((o.t || 0) * 2) % 2 === 0) {
@@ -727,15 +986,16 @@
     return { y: y, h: h, textX: x, caretX: caretX };
   };
 
-  /* ---------------------------------------------------------------- 9 · odds and ends */
+  /* ---------------------------------------------------------------- 10 · odds and ends */
 
   MC.screenTitle = function (ctx, str, y, o) {
     o = o || {};
-    const opt = {
-      size: o.size || 44, family: o.family || FONTS.silk, weight: o.weight || 700,
+    const opt = MC.ui(o.size || SZ.screen, {
       color: o.color || C.WEISS, align: o.align || 'center', alpha: o.alpha,
       shadow: o.shadow !== false,
-    };
+    });
+    if (o.family) opt.family = o.family;
+    if (o.weight) opt.weight = o.weight;
     opt.size = MC.fit(ctx, str, opt, o.maxW || 790, o.floor);
     MC.text(ctx, str, o.x != null ? o.x : 540, Math.round(y), opt);
     return opt.size;

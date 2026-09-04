@@ -16,6 +16,11 @@
    8 corners with the top face sliced 6/3/1 by depth and the side face sliced 3 whenever
    the block is far enough off centre to show one.
 
+   The two ENTITIES that carry the film are built out of exactly the same three faces:
+   MC.player is a native F5 profile of the bot (engine.js's isometric mcPlayer is NOT used
+   — it cannot be planted in a perspective world), and MC.arm is a foreshortened
+   first-person limb, wide at the fist and narrow at the elbow.
+
    Everything is a pure function of t. Cloud, star, hill, tree, crack and particle tables
    are built once, at module load, from rng()/hash2(). No wall clock, no unseeded randomness,
    no state that survives a frame. Nothing on DIRECTION.md §2's list is called, no canvas
@@ -33,16 +38,18 @@
 // ---------------------------------------------------------------------------------
 // THE SHARED VIEW OBJECT — read this first
 // ---------------------------------------------------------------------------------
-//   MC.world, MC.blocks, MC.arm, MC.player, MC.torch, MC.withView, MC.blockFace and
-//   MC.camX ALL read the same option object. Build ONE per frame and hand the same
-//   reference to every call, or the sky, the ground, the blocks and the entities will
-//   drift apart from each other:
+//   MC.world, MC.blocks, MC.player, MC.torch, MC.withView, MC.blockFace and MC.camX ALL
+//   read the same option object. Build ONE per frame and hand the same reference to every
+//   call, or the sky, the ground, the blocks and the entities will drift apart from each
+//   other. MC.arm is the ONE exception — it is camera-attached and takes its own options:
 //
 //       const view = { t: t, phase: 'tag', camX: 0, bob: 0 };
 //       MC.world(ctx, t, view);            // sky + ground + horizon
-//       MC.blocks(ctx, cells, view);       // the block field
+//       MC.blocks(ctx, cells, view);       // the block field + every entity cell
 //       MC.withView(ctx, view, c => { ...world-space extras... });
-//       MC.arm(ctx, t, { swing: 1 });      // camera-attached, NOT in the view transform
+//       MC.arm(ctx, t, { swing: 1 });      // camera-attached, NOT in the view transform,
+//                                          // and NOT drawn at all while a GUI is open —
+//                                          // see MC.armHidden (APPENDIX B5) below
 //       MC.goldWash(ctx, k);               // last, over everything above
 //
 //   view keys (all optional):
@@ -216,36 +223,66 @@
 //
 // ---------------------------------------------------------------------------------
 // MC.arm(ctx, t, o)                                               -> undefined
+// MC.armHidden  (bool, per-frame flag)
 // ---------------------------------------------------------------------------------
-//   The first-person arm: a real three-quarter LIMB, not a decal. Pivot (880, 1800) at
-//   -0.42 rad, 215 px across; a player_skin hand at the far end (the 200 px nearest the
-//   crosshair), a player_shirt sleeve below it running 290 px PAST the pivot so it leaves
-//   the frame at the bottom-right corner, plus the inner side face (texFace level 2) and
-//   the back of the hand (level 0) as two sheared quads, so it reads as a box. Bobs
-//   ±9 px at 0.9 Hz. Camera-attached: it is NOT inside the world's view transform.
-//   BUILD-GATE DEVIATION from §5.2's literal "pivot (800,1800), sleeve 150x320": at 150 px
-//   across on a 1080 px frame the arm is a violet pencil, and a 16 px tile stretched over
-//   460 px is vertical smear. Every column is now drawn in segments of roughly SQUARE texel
-//   aspect. Pass w/len/hand/tail/x/y to go back to any other geometry.
+//   THE VIEWER'S OWN RIGHT ARM, coming in from the bottom-right corner. A player_shirt
+//   sleeve of very nearly constant width, a hard cuff, and a player_skin FIST at the far
+//   end that steps out one notch wider than the wrist. On top of that: the inner (left)
+//   side face as a sheared strip a flat step darker (that step is what makes the limb a
+//   BOX rather than a decal), a knuckle band across the far third of the fist, two grooves
+//   running along it for the fingers, and a flat contact shade down the outer edge. Every
+//   face is drawn in segments of roughly SQUARE texel aspect, because a 16 px tile pulled
+//   over 500 px is vertical smear. Bobs ±9 px at 0.9 Hz. Camera-attached: it is NOT inside
+//   the world's view transform, so call it AFTER MC.blocks and BEFORE MC.goldWash / any
+//   dim / any GUI.
+//   RE-GATE, `taper`: the build-gate default was 0.52, i.e. the limb was barely half as
+//   wide at the frame corner as at the fingertips. That silhouette is a spade, not an arm;
+//   it also has the foreshortening backwards, because in first person the elbow is the end
+//   nearest the eye and the fist is held out in front. Three variants (0.52 / 0.78 / 0.92)
+//   were rendered side by side on gate page 8 and the default is now 0.88 — a limb that is
+//   almost straight-sided, with the fist a small step wider than the sleeve because a
+//   closed hand is.
+//   BUILD-GATE DEVIATION from §5.2's literal "pivot (800,1800), sleeve 150x320 at
+//   -0.42 rad": at 150 px across on a 1080 px frame the arm is a violet pencil, and at
+//   -0.42 rad it enters too steeply to read as the viewer's own limb. Pass
+//   w/len/hand/tail/taper/x/y/rot to go back to any other geometry.
+//
+//   APPENDIX B5 — THE ARM IS NOT DRAWN WHILE A GUI IS OPEN. Vanilla does not draw the
+//   held item behind an open screen. Two ways to obey it, and every scene that opens a
+//   panel MUST use one of them:
+//       MC.armHidden = true;            // per-frame flag, exactly like MC.hudMode
+//       MC.arm(ctx, t, { hidden: true });   // or per call
+//   Either one makes MC.arm a no-op.
+//   RE-GATE: MC.armHidden is now CLEARED FOR YOU at the end of every frame, by
+//   MC.hudReset() inside mc_hud's MC.hud() — which TL.overlay runs after every single
+//   frame of the film. So it behaves exactly like MC.hudMode: set it on EVERY frame you
+//   want the arm gone, and a scene that forgets to clear it cannot silently lose the arm
+//   for the remaining 800 frames. The one asymmetry with MC.hudMode: the arm is drawn by
+//   the SCENE, not by the overlay, so the flag must be set BEFORE the MC.arm call, not
+//   merely somewhere in the frame.
 //   o:
 //     swing   0..1   mining swing amount                     default 0
 //     swingHz number swings per second                       default 2 (S4 uses 4 = eighths)
 //     swingT0 number phase origin of the swing, in seconds   default 0
 //     bob     0..1   idle bob amount                         default 1
 //     drop    0..1   slide the arm out of frame (S6 14.50)   default 0 (1 = 760 px down)
+//     hidden  bool   B5: skip the call entirely              default false
 //     held    string|{top,side}  block texture in the fist   default none
-//     heldSize number fraction of the arm width the held block spans   default 0.56
-//     x, y    number pivot                                   default 880, 1800
-//     w       number arm width in px                         default 215
-//     len     number pivot -> knuckles along the arm axis    default 430
-//     hand    number length of the bare-skin section         default 200
-//     tail    number sleeve length past the pivot            default 290
-//     rot     number base rotation in radians                default -0.42
+//     heldSize number fraction of the arm width the held block spans   default 0.48
+//     x, y    number pivot (the elbow, off the bottom edge)  default 1000, 1890
+//     w       number FIST width in px — the limb's widest    default 252
+//     len     number pivot -> fingertips along the arm axis  default 520
+//     hand    number length of the bare-skin fist            default 128
+//     tail    number sleeve length past the pivot            default 300
+//     taper   0..1   limb width at the elbow / at the fist   default 0.88
+//     rot     number base rotation in radians                default -0.62
 //     alpha   0..1                                            default 1
 //     dark    0..1   flat black over the whole arm (night).   default 0, or 0.42 if
 //                    o.phase === 'nacht' — so passing the shared view's phase through works
 //     phase   only read for that default. NOTE: MC.arm takes its OWN option object, not the
 //                    shared view — spreading the view into it would set bob to 0.
+//   The fist rests around (700, 1480) and the limb leaves the frame at the bottom-right
+//   corner, i.e. inside §5.4's "the band y 1400..1700 is filled by the first-person arm".
 //   MC.armSwing(t, o) -> 0..1 returns the same swing phase the arm is using, so a scene
 //   can land a crack stage or the 6 px pitch nudge on the exact frame the arm bottoms out.
 //
@@ -274,32 +311,89 @@
 //       spread (default 1)}
 //
 // ---------------------------------------------------------------------------------
-// MC.player(ctx, wx, z, o)                                        -> {x, y, size}
+// MC.player(ctx, wx, z, o)                          -> {x, y, size, top} | null
 // ---------------------------------------------------------------------------------
-//   An F5 profile shot of the bot, planted on the ground plane at world (wx, z): the
-//   rgba(0,0,0,0.35) blob shadow first, then engine.js's mcPlayer, then the nametag.
-//   Call it inside MC.withView, or better as an ENTITY CELL of MC.blocks
-//   ({z: 3.4, draw: c => MC.player(c, 0.95, 3.4, opts)}) so that the blocks nearer than it
-//   hide it and the ones behind it do not. Put it near bottom-centre, where the
-//   iso/perspective disagreement is smallest (§6.2).
-//   o: everything mcPlayer takes (t, walk, swing, facing (default 'right'), bob, held,
-//      lift, alpha, dark, stepRate) plus
-//      size   number  default MC.blockPx(z) * 0.72. mcPlayer is ISOMETRIC and this world is
-//                     perspective, so no size is right in both axes: a figure whose HEIGHT
-//                     matches 2 blocks (size = blockPx) comes out 1.73x too wide, and one
-//                     whose head WIDTH is right (size = 0.58 * blockPx) is only 1.15 blocks
-//                     tall. 0.72 is the value at which the bot reads as a Minecraft player
-//                     standing in the field. S1's "size 150 at (540,1240)" is 0.45 of the
-//                     block there and reads noticeably doll-sized next to a pumpkin — pass
-//                     it explicitly if that is what you want.
-//      shadow 0..1    blob shadow alpha, default 0.35; 0 removes it
-//      name   string  nametag text, e.g. 'HugoAFK'. Drawn 40 px above the head in
+//   THE BOT, as an F5 side-on PROFILE, planted on the ground plane at world (wx, z), and
+//   drawn NATIVELY in this file's perspective projection. It does NOT call engine.js's
+//   mcPlayer any more: mcPlayer is an isometric construction, and dropping it into a
+//   perspective world is what produced a far arm floating detached at chest height, a
+//   near hand hanging off the hip as a separate tan box, two legs merged into one dark
+//   mass and a head a third too large. Every part is now built from the same three faces
+//   MC.blocks draws — an exact near face, one MC.texQuad side face, a top face where one
+//   is visible — so the bot sits in the same projection as the blocks around it.
+//
+//   Vanilla body plan, in skin pixels (16 px = 1 block), exactly as the game models it:
+//       legs 12 tall (4 deep x 4 wide) · torso 12 tall (4 deep x 8 wide)
+//       arms 12 tall (4 x 4), hung from the shoulder outside the torso · head 8 cubed
+//   Total 32 px = 2.000 blocks, head exactly a quarter of the height. (DIRECTION.md says
+//   "1.875 blocks (legs 0.75, torso 0.75, head 0.5)"; those three numbers sum to 2.000,
+//   which is the real vanilla model, and 2.000 is what is built.) Seen from the side the
+//   head is 0.5 deep over a 0.25-deep body, and that overhang is most of the read.
+//
+//   Call it as an ENTITY CELL of MC.blocks (§B4) so it occludes correctly:
+//       cells.push({ z: 3.4, draw: (c, _, v) => MC.player(c, 0.86, 3.4,
+//                     Object.assign({}, v, { name: 'HugoAFK', facing: 'right' })) });
+//   Spread the shared view into it, as with MC.torch: it resolves camX/idle/t/phase/haze
+//   out of its OWN option object. Called bare inside MC.withView it lands in front of (or
+//   behind) the whole field.
+//
+//   WHICH WAY TO FACE IT, AND WHERE TO STAND IT. The face is on ONE side of the head and
+//   the geometry decides whether you can see it: the +x face of a box is visible only
+//   from x > that face, i.e. only when the bot stands LEFT of the frame centre. So
+//       facing 'right' shows the face when the bot is LEFT of x 540,
+//       facing 'left'  shows the face when the bot is RIGHT of x 540,
+//   and the other placement shows the back of the head (player_head_side, hair mirrored
+//   to the correct side). Both are correct Minecraft; only one has eyes in it. §6.2's four
+//   F5 shots should be laid out so the bot faces the middle of the frame.
+//   o:
+//      t      number  the film clock (drives the walk phase and the idle bob)
+//      walk   0..1    full walk cycle: legs scissor, arms COUNTER-swing the legs
+//      stepRate number steps per second * PI                   default 4.4 (§S9)
+//      swing  0..1    mining chop on the near arm
+//      swingHz number chops per second                          default 2
+//      swingT0 number phase origin of the chop, in seconds      default 0
+//                     (the same phase MC.armSwing(t, o) returns, so a scene can land a
+//                      crack stage on the frame the bot's arm bottoms out)
+//      facing 'right' | 'left'                                  default 'right'
+//      bob    number  idle bob amplitude in blocks              default 0.010
+//      lift   number  blocks above the ground plane             default 0
+//      held   string|{top,side}  block in the near fist         default none
+//      scale  number  multiplies every body dimension           default 1 = the exact
+//                     projected size, i.e. 2.000 blocks tall at that depth. At z 3.4 that
+//                     is 624 px; a scene that wants the bot smaller shrinks `scale`, it
+//                     does not move it, because the depth also sets the occlusion.
+//      size   number  px per block — an alternative spelling of scale, kept because §S1
+//                     says "size 150": scale = size / MC.blockPx(z). Ignored if `scale` is
+//                     given. size 150 at z 3.4 is scale 0.48 and reads doll-sized.
+//      shadow 0..1    blob shadow alpha, default 0.35; 0 removes it. Its two radii are the
+//                     real projected footprint of a 0.68-block disc on the ground plane.
+//      alpha  0..1    default 1
+//      dark   0..1    flat black over every face                default 0
+//      fog    bool    re-fill every face at MC.fogAlpha(z, o)   default true (so the bot
+//                     hazes at night exactly like the blocks it stands among)
+//      warm   0..1    golden-hour warming on the visible side face. default = the view's
+//                     resolved gold blend, same rule as MC.blocks.
+//      name   string  nametag, e.g. 'HugoAFK'. Drawn 34 px above the top of the head in
 //                     VT323 32 weight 400 white on rgba(0,0,0,0.26). default none
-//      camX   taken from o (the shared view object), as everywhere else
+//      camX / idle / phase / toGold / haze — taken from o, i.e. from the shared view
+//   Returns {x, y} = the foot point on the ground plane, size = px per block, top = the
+//   screen y of the top of the head (for anchoring anything above it). Returns null for
+//   z <= 0.2.
+//   NOT for §S5's inventory portrait. RE-GATE, and this supersedes what this block said
+//   before: mc_gui.js now owns that figure as MC.portrait(ctx, x, y, w, h, o) — a
+//   FRONT-FACING flat elevation built from the player_* atlas tiles, drawn for you inside
+//   MC.inventory(). Do not call engine.js's mcPlayer for it either: MC.portrait is the one
+//   the film uses, and it is the only place a scene should draw the bot in screen space.
+//   MC.player is the world-space F5 entity and nothing else.
 //
 // MC.torch(ctx, wx, z, o)  -> undefined
 //   An oak fence post with a torch on it at world (wx, z), flickering at 7 Hz with a
-//   0.22-alpha ground pool. Put it in the depth sort as an ENTITY CELL of MC.blocks:
+//   0.22-alpha ground pool. The post is drawn from texFace level 0 (the brightest of the
+//   three, the same level the ground strips use) in stacked segments of square texel
+//   aspect, with a flat shade down its far edge and the per-depth fog on top: at level 1
+//   with the baked AO gradient and one tile pulled over 400 px it came out near-black, a
+//   burnt pole instead of a lit fence post. Put it in the depth sort as an ENTITY CELL of
+//   MC.blocks:
 //       cells.push({ z: 4.0, draw: (c, _, v) =>
 //         MC.torch(c, -1.25, 4.0, Object.assign({}, v, { seed: 1 })) });
 //   A torch at z 4 must be hidden by a block at z 3 and must cover one at z 5, and its
@@ -314,7 +408,10 @@
 //       camX (BLOCKS, default 0 — the shared view's camX; see the warning above),
 //       idle (bool, default true), h (post height in blocks, default 1.5),
 //       size (flame edge in px at z = 5, scaled with the block size, default 24),
-//       pool (0..1, ground pool alpha, default 0.22), seed (int, offsets the flicker)}
+//       pool (0..1, ground pool alpha, default 0.22), seed (int, offsets the flicker),
+//       fog (bool, default true — the POST takes the per-depth fog, the flame never does,
+//            because a torch is a light source and must stay bright through the haze),
+//       phase / toGold / haze — read for the fog colour, so spread the shared view}
 //
 =================================================================================== */
 
@@ -416,19 +513,23 @@
      (a reflection across its diagonal) so a side face can be sliced along the depth axis
      while its texture still reads upright on screen. */
   const _hi = new Map();
-  function hiFace(name, level, tp, flat) {
+  function hiFace(name, level, tp, flat, mir) {
     // `flat` defaults to `tp` only because the transposed side faces have always been flat.
     // It is a SEPARATE argument because texFace(name, level>0) bakes a vertical AO gradient
-    // into the tile, and anything drawn as several stacked segments (the first-person arm)
-    // restarts that gradient per segment and comes out banded like a staircase.
+    // into the tile, and anything drawn as several stacked segments (the first-person arm,
+    // the bot's limbs, a torch post) restarts that gradient per segment and comes out
+    // banded like a staircase.
+    // `mir` mirrors the tile across its vertical axis — the bot's head profile needs the
+    // hair at the BACK of the skull whichever way it faces.
     if (flat == null) flat = !!tp;
-    const key = name + level + (tp ? 't' : '') + (flat ? 'f' : '');
+    const key = name + level + (tp ? 't' : '') + (flat ? 'f' : '') + (mir ? 'm' : '');
     let c = _hi.get(key); if (c !== undefined) return c;
     const src = (typeof texFace === 'function') ? texFace(name, level, flat) : null;
     if (!src) { _hi.set(key, null); return null; }
     const S = 6, T = src.width * S;
     c = makeCanvas(T, T); const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
     if (tp) { x.setTransform(0, S, S, 0, 0, 0); x.drawImage(src, 0, 0); }
+    else if (mir) { x.setTransform(-S, 0, 0, S, T, 0); x.drawImage(src, 0, 0); }
     else x.drawImage(src, 0, 0, T, T);
     _hi.set(key, c); return c;
   }
@@ -744,7 +845,7 @@
        see it from a 13.8 deg down pitch, so it is skipped. */
     if (y1 < EYE - 0.02) {
       const n = zn < 6 ? 6 : zn < 12 ? 3 : 1;
-      MC.texQuad(ctx, hiFace(tex.top, 0), [fl, fTop], [fr, fTop], [nr, nTop], [nl, nTop], n);
+      MC.texQuad(ctx, hiFace(tex.top, 0, false, true), [fl, fTop], [fr, fTop], [nr, nTop], [nl, nTop], n);
       if (fa > 0.004) { ctx.globalAlpha = A * fa; ctx.fillStyle = sky.hor; quad(ctx, fl, fTop, fr, fTop, nr, nTop, nl, nTop); ctx.globalAlpha = A; }
     }
 
@@ -754,14 +855,20 @@
     if (Math.abs(cx - 540) > 300) {
       const left = cx > 540;                              // right of centre -> its LEFT face shows
       const sxn = left ? nl : nr, sxf = left ? fl : fr;
-      MC.texQuad(ctx, hiFace(left ? tex.left : tex.right, 2, true),
+      MC.texQuad(ctx, hiFace(left ? tex.left : tex.right, 2, true, true),
         [sxf, fTop], [sxf, fBot], [sxn, nBot], [sxn, nTop], 3);
       if (warm > 0.004) { ctx.globalAlpha = A * 0.18 * warm; ctx.fillStyle = '#FFA84A'; quad(ctx, sxf, fTop, sxf, fBot, sxn, nBot, sxn, nTop); ctx.globalAlpha = A; }
       if (fa > 0.004) { ctx.globalAlpha = A * fa; ctx.fillStyle = sky.hor; quad(ctx, sxf, fTop, sxf, fBot, sxn, nBot, sxn, nTop); ctx.globalAlpha = A; }
     }
 
-    /* front face — constant depth, so it is an EXACT axis-aligned rect: one drawImage */
-    const img = hiFace(tex.front, 1);
+    /* front face — constant depth, so it is an EXACT axis-aligned rect: one drawImage.
+       flat = true, like the top and side faces above and like the ground strips in §10.2,
+       and for the same reason: texFace bakes a per-TILE ambient-occlusion gradient, which is
+       a depth cue in an isometric diorama but a defect here. One tile spans 300-500 px in
+       this film, so the gradient repeats as a visible dark ramp down the foot of EVERY block
+       — that, more than the atlas, is what made the near pumpkins read as varnished barrels.
+       Minecraft shades a face flat by its facing direction and never gradients within one. */
+    const img = hiFace(tex.front, 1, false, true);
     const rw = nr - nl + 0.6, rh = nBot - nTop + 0.6;
     if (img) { ctx.imageSmoothingEnabled = false; ctx.drawImage(img, nl, nTop, rw, rh); }
     if (c.crack != null && c.crack >= 0) MC.break(ctx, (nl + nr) * 0.5, (nTop + nBot) * 0.5, nr - nl, c.crack, { h: nBot - nTop });
@@ -796,58 +903,129 @@
     return Math.sin(Math.PI * p) * amt;
   };
 
-  /* One column of a limb, drawn as `n` faces of roughly SQUARE texel aspect. A 16 px tile
-     stretched over 460 px reads as vertical smear — that single mistake is what made the
-     first version of this arm look like a violet pencil instead of a limb. */
-  function limbStrip(ctx, img, ox, oy, ux, uy, vLen, seg) {
-    if (!img || vLen <= 0) return;
-    const n = Math.max(1, Math.round(vLen / seg)), step = vLen / n;
-    for (let i = 0; i < n; i++) _face(ctx, img, ox, oy + i * step, ux, uy, 0, step + (i < n - 1 ? 0.6 : 0));
-  }
+  /* B5 · vanilla does not draw the held item behind an open screen. A scene that opens a
+     GUI sets MC.armHidden = true for that frame (or passes {hidden: true}) and every
+     MC.arm call becomes a no-op. It is a per-frame flag, not state: mc_hud's
+     MC.hudReset() clears it at the end of every frame (TL.overlay runs MC.hud()
+     unconditionally), so set it on every frame you want it — and set it BEFORE the MC.arm
+     call, because the arm is drawn by the scene and the reset happens afterwards. */
+  MC.armHidden = false;
 
   MC.arm = function (ctx, t, o) {
     o = o || {};
+    if (MC.armHidden || o.hidden) return;
     // flat = true on every arm face: the limb is drawn in stacked segments and texFace's
     // baked AO gradient would restart at every one of them.
     const shirtF = hiFace('player_shirt', 1, false, true), skinF = hiFace('player_skin', 1, false, true);
     if (!shirtF || !skinF) return;
-    const shirtS = hiFace('player_shirt', 2, false, true) || shirtF, skinS = hiFace('player_skin', 2, false, true) || skinF;
-    const skinT = hiFace('player_skin', 0, false, true) || skinF;
-    const px = o.x != null ? o.x : 880, py = o.y != null ? o.y : 1800;
-    const w = o.w != null ? o.w : 215, hw = Math.round(w / 2);
-    const L = o.len != null ? o.len : 430;          // pivot -> knuckles, along the arm axis
-    const HAND = o.hand != null ? o.hand : 200;     // the bare-skin section at the far end
-    const TAIL = o.tail != null ? o.tail : 290;     // how far the sleeve runs PAST the pivot
-    const dx = -Math.round(w * 0.165), dy = -Math.round(w * 0.094);   // depth vector, up-left
+    const px = o.x != null ? o.x : 1000, py = o.y != null ? o.y : 1890;
+    const W = o.w != null ? o.w : 252;              // the FIST width — the limb's widest point
+    const L = o.len != null ? o.len : 520;          // pivot -> fingertips, along the arm axis
+    const HAND = o.hand != null ? o.hand : 128;     // the bare-skin fist at the far end
+    const TAIL = o.tail != null ? o.tail : 300;     // how far the sleeve runs PAST the pivot
+    const TAPER = o.taper != null ? o.taper : 0.88; // limb width at the elbow, as a fraction of W
+    const SLV = 0.90;                               // the sleeve is a step thinner than the fist
+    const WR = L - HAND, SPAN = L + TAIL;
+    /* Foreshortening: the elbow is at the frame corner, nearest the eye, and the fist is
+       held out in front, so the limb narrows a little toward the fist... except that the
+       fist is a closed hand and steps back out wider than the wrist. Net: a SHALLOW taper.
+       RE-GATE: at the build-gate value of 0.52 the limb was half as wide at the corner as
+       at the fingertips, and the silhouette that produces is a spade, not an arm — the
+       three-variant bake-off on gate page 8 (0.52 / 0.78 / 0.92) settled it at 0.88. */
+    const wAt = s => W * (TAPER + (1 - TAPER) * ((s + TAIL) / SPAN));
+    const dx = -Math.round(W * 0.22), dy = -Math.round(W * 0.055);  // depth vector, up-left
     const bob = Math.sin((Math.PI * 2) * 0.9 * t) * 9 * (o.bob != null ? o.bob : 1);
     const sw = MC.armSwing(t, o);
     const drop = (o.drop || 0) * 760;
+    const rotNow = (o.rot != null ? o.rot : -0.62) - 0.38 * sw;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
     if (o.alpha != null) ctx.globalAlpha *= o.alpha;
     ctx.translate(px, py + bob + drop);
-    ctx.rotate((o.rot != null ? o.rot : -0.42) - 0.55 * sw);
-    ctx.translate(0, -34 * sw);
+    ctx.rotate(rotNow);
+    ctx.translate(0, -30 * sw);
 
-    /* The arm is right of the frame centre, so the face it shows is its INNER (left) one,
-       plus the back of the hand at the far end. Two extra quads and the limb stops being a
-       decal. The sleeve runs TAIL px past the pivot so it leaves the frame at the corner. */
-    limbStrip(ctx, skinS, -hw + dx, -L + dy, -dx, -dy, HAND, Math.abs(dx));
-    limbStrip(ctx, shirtS, -hw + dx, -L + HAND + dy, -dx, -dy, L + TAIL - HAND, Math.abs(dx));
-    _face(ctx, skinT, -hw, -L, w, 0, dx, dy);
-    limbStrip(ctx, skinF, -hw, -L, w, 0, HAND, w);
-    limbStrip(ctx, shirtF, -hw, -L + HAND, w, 0, L + TAIL - HAND, w);
-    // the cuff, and a flat contact shade down the outer edge — no gradients, no blur
-    ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fillRect(-hw, -L + HAND - 4, w, 6);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(hw - 16, -L, 16, L + TAIL);
-    // the held block sits IN the fist: about half the arm's width, its top face centred a
-    // third of the way down the bare-skin section. At the arm's own width it eclipses the
-    // hand entirely and reads as a cube floating in mid-air.
-    if (o.held) blockIcon(ctx, o.held, 0, -L + Math.round(HAND * 0.28), Math.round(w * (o.heldSize || 0.56)), { flat: true });
+    /* The top of the limb is a TRAPEZOID, so it needs MC.texQuad, not _face. It is drawn in
+       stacked segments of roughly square texel aspect (a 16 px tile pulled over 650 px is
+       vertical smear), each segment repeating the tile the way a real skin does. */
+    function topFace(img, sLo, sHi, kw) {
+      if (!img || sHi <= sLo) return;
+      const mid = wAt((sLo + sHi) / 2) * kw;
+      const n = Math.max(1, Math.round((sHi - sLo) / mid)), st = (sHi - sLo) / n;
+      for (let i = 0; i < n; i++) {
+        const a = sLo + i * st, b = a + st + (i < n - 1 ? 0.8 : 0);
+        const wa = wAt(a) * kw * 0.5, wb = wAt(b) * kw * 0.5;
+        MC.texQuad(ctx, img, [-wb, -b], [wb, -b], [wa, -a], [-wa, -a], 3);
+      }
+    }
+    /* The INNER (left) side of the limb, extruded along the depth vector. Both long edges
+       are the same slanted line, so every segment is an exact parallelogram -> _face. It is
+       drawn from the SAME tile as the top and then knocked back one flat step, because
+       texFace level 2 (0.58x) on skin comes out the colour of dark wood, not of a hand. */
+    function sideFace(img, sLo, sHi, kw) {
+      if (!img || sHi <= sLo) return;
+      const n = Math.max(1, Math.round((sHi - sLo) / Math.abs(dx))), st = (sHi - sLo) / n;
+      for (let i = 0; i < n; i++) {
+        const a = sLo + i * st, b = a + st;
+        const wa = wAt(a) * kw * 0.5, wb = wAt(b) * kw * 0.5;
+        _face(ctx, img, -wb + dx, -b + dy, -dx, -dy, wb - wa, (b - a) + (i < n - 1 ? 0.8 : 0));
+      }
+      const wA = wAt(sHi) * kw * 0.5, wB = wAt(sLo) * kw * 0.5;
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.moveTo(-wA + dx, -sHi + dy); ctx.lineTo(-wA, -sHi);
+      ctx.lineTo(-wB, -sLo); ctx.lineTo(-wB + dx, -sLo + dy);
+      ctx.closePath(); ctx.fill();
+    }
+    sideFace(shirtF, -TAIL, WR, SLV);
+    sideFace(skinF, WR, L, 1);
+    topFace(shirtF, -TAIL, WR, SLV);
+    topFace(skinF, WR, L, 1);
+
+    // the outer edge takes a flat contact shade so the limb has a rounded read against the
+    // bright ground — a tapered quad, no gradient, no blur.
+    const k = W * 0.085;
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.moveTo(wAt(L) * 0.5, -L); ctx.lineTo(wAt(L) * 0.5 - k, -L);
+    ctx.lineTo(wAt(-TAIL) * 0.5 - k, TAIL); ctx.lineTo(wAt(-TAIL) * 0.5, TAIL);
+    ctx.closePath(); ctx.fill();
+    // the cuff: the fist is a step wider than the sleeve, and it drops a hard shadow on it.
+    // That step plus this line is what makes the hand a separate object instead of a tip.
+    const hwW = wAt(WR) * 0.5;
+    ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fillRect(-hwW, -WR - 3, hwW * 2, 9);
+    /* the fist. Two finger grooves running ALONG the limb, because that is how curled
+       fingers lie when you look at the back of your own hand, and one knuckle band across
+       the far third. RE-GATE: at 0.09 the grooves were invisible and the fist read as a
+       blank tan plate; they are flat shades, no gradient and no blur, and they vanish at
+       thumbnail scale where the silhouette does the work anyway. */
+    const kn = WR + HAND * 0.62;
+    ctx.fillStyle = 'rgba(0,0,0,0.13)';
+    ctx.beginPath();
+    ctx.moveTo(-wAt(L) * 0.5, -L); ctx.lineTo(wAt(L) * 0.5, -L);
+    ctx.lineTo(wAt(kn) * 0.5, -kn); ctx.lineTo(-wAt(kn) * 0.5, -kn);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    for (const f of [-0.19, 0.19]) {
+      const s0 = WR + HAND * 0.18;
+      ctx.beginPath();
+      ctx.moveTo(f * wAt(L) - 4, -L); ctx.lineTo(f * wAt(L) + 4, -L);
+      ctx.lineTo(f * wAt(s0) + 4, -s0); ctx.lineTo(f * wAt(s0) - 4, -s0);
+      ctx.closePath(); ctx.fill();
+    }
+    // the held block sits IN the fist and is counter-rotated most of the way back upright,
+    // so it reads as carried rather than as a cube skewered on a stick.
+    if (o.held) {
+      const hs = Math.round(W * (o.heldSize != null ? o.heldSize : 0.48));
+      blockIcon(ctx, o.held, W * 0.12, -(L + hs * 0.45), hs, { flat: true, rotate: -rotNow * 0.7 });
+    }
     const dk = o.dark != null ? o.dark : (o.phase === 'nacht' ? 0.42 : 0);
     if (dk > 0.004) {
-      ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.globalAlpha *= dk;
-      ctx.fillRect(-hw + dx, -L + dy, w - dx, L + TAIL - dy);
+      ctx.save(); ctx.globalAlpha *= dk; ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.beginPath();
+      ctx.moveTo(-wAt(L) * 0.5 + dx, -L + dy); ctx.lineTo(wAt(L) * 0.5, -L);
+      ctx.lineTo(wAt(-TAIL) * 0.5, TAIL); ctx.lineTo(-wAt(-TAIL) * 0.5 + dx, TAIL + dy);
+      ctx.closePath(); ctx.fill(); ctx.restore();
     }
     ctx.restore();
   };
@@ -891,32 +1069,191 @@
     ctx.restore();
   };
 
-  /* ================================================================= entities */
+  /* ================================================================= entities
+
+     THE BOT. engine.js's mcPlayer is an ISOMETRIC construction and this world is a
+     PERSPECTIVE one; dropping the first into the second is what produced a detached far
+     arm, a tan box hanging off the hip, one dark mass where the legs are and a head a
+     third too big. So the figure is built here, natively, out of the same three faces
+     MC.blocks draws — near face (constant depth, an exact parallelogram), one side face
+     (a trapezoid through MC.texQuad) and a top face where one is visible.
+
+     Vanilla body plan, in skin pixels (16 px = 1 block), seen in F5 PROFILE. The camera
+     looks along +z, the bot faces +x, so its shoulder axis runs INTO the screen and what
+     you see is the side of the model:
+       legs   12 px tall, 4 deep (x), 4 wide (z)      y  0..12
+       torso  12 px tall, 4 deep (x), 8 wide (z)      y 12..24
+       arms   12 px tall, 4 deep (x), 4 wide (z)      hung from y 24, outside the torso
+       head    8 px cubed                             y 24..32
+     Total 32 px = 2.000 blocks, and the head is exactly a quarter of the height. From the
+     side the head (0.5) therefore overhangs the body (0.25) — that overhang IS the read.
+
+     Limbs swing about the shoulder / hip in the sagittal plane, i.e. about the z axis. At
+     constant z the projection is a uniform scale, so that rotation is an exact rotation on
+     screen: every limb corner is still projected through MC.proj's own formula.       */
+  const PS = {
+    skin: 'player_skin', face: 'player_face', side: 'player_head_side',
+    shirt: 'player_shirt', pants: 'player_pants', shoe: 'player_shoe',
+  };
+
   MC.player = function (ctx, wx, z, o) {
     o = o || {};
-    const camX = MC.camX(o), q = F / z;
-    const gx = 540 + (wx - camX) * q, gy = YH + EYE * q;
-    const size = o.size != null ? o.size : q * 0.72;
+    if (!(z > 0.2)) return null;
+    const camX = MC.camX(o), q = F / z, wxc = wx - camX;
+    const scale = o.scale != null ? o.scale : (o.size != null ? o.size / q : 1);
+    const gx = 540 + wxc * q, gy = YH + EYE * q;
+    const out = { x: gx, y: gy, size: q * scale, top: gy };
+    if (gx < -900 || gx > 1980 || scale <= 0) return out;
+
+    const t = o.t || 0, U = scale / 16;                 // one skin pixel, in blocks
+    const fw = (o.facing || 'right') === 'left' ? -1 : 1;
+    const walk = clamp(o.walk || 0);
+    const ph = t * (o.stepRate != null ? o.stepRate : 4.4) * Math.PI, sn = Math.sin(ph);
+    const sw = MC.armSwing(t, { swing: o.swing || 0, swingHz: o.swingHz != null ? o.swingHz : 2, swingT0: o.swingT0 });
+    const lift = (o.lift || 0) * scale
+      + ((o.bob != null ? o.bob : 0.010) * Math.sin(t * 1.7 + 0.6) + 0.035 * walk * Math.abs(sn)) * scale;
+    const sky = MC.skyOf(o), fogOn = o.fog !== false;
+    const warm = o.warm != null ? o.warm : sky.gold;
+    const dark = o.dark || 0;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    if (o.alpha != null) ctx.globalAlpha *= o.alpha;
+    const A = ctx.globalAlpha;
+
+    /* --- the blob shadow: the only shadow in the film (§2 bans block cast shadows). Its
+       two radii are the real projected footprint of a 0.68-block disc on the ground. */
     const sa = o.shadow != null ? o.shadow : 0.35;
     if (sa > 0.004) {
-      ctx.save(); ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.globalAlpha *= sa;
-      ctx.beginPath(); ctx.ellipse(gx, gy + size * 0.03, size * 0.54, size * 0.20, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      const r = 0.34 * scale, zA = Math.max(0.25, z - r), zB = z + r;
+      const yA = YH + K / zA, yB = YH + K / zB;
+      ctx.save(); ctx.globalAlpha = A * sa; ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.beginPath(); ctx.ellipse(gx, (yA + yB) / 2, r * q, Math.max(3, (yA - yB) / 2), 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.restore();
     }
-    const r = mcPlayer(ctx, gx, gy, {
-      size: size, t: o.t || 0, walk: o.walk || 0, swing: o.swing || 0,
-      facing: o.facing || 'right', bob: o.bob, held: o.held, lift: o.lift,
-      alpha: o.alpha, dark: o.dark, stepRate: o.stepRate, outline: o.outline,
+
+    /* --- one body box. x = chest-to-back, y = height above the ground, z = depth. -------
+       `ang` rotates it about (0, pvy) in the sagittal plane; `dk` is the flat shade the far
+       limbs take so they separate from the near ones instead of merging into one mass. */
+    function box(x0, x1, ya, yb, za, zb, b) {
+      const ang = b.ang || 0, pvy = b.pvy || 0;
+      const c = Math.cos(ang), s = Math.sin(ang);
+      const R = ang
+        ? (x, y) => [c * x - s * (y - pvy), pvy + s * x + c * (y - pvy)]
+        : (x, y) => [x, y];
+      const zn = z + za, zf = z + zb;
+      if (!(zn > 0.2)) return;
+      const PJ = (p, zz) => { const k = F / zz; return [540 + (wxc + p[0]) * k, YH + (EYE - p[1]) * k]; };
+      const fa = fogOn ? MC.fogAlpha(zn, o) : 0;
+      const dk = clamp((b.dk || 0) + dark);
+      const TL = R(x0, yb), TR = R(x1, yb), BR = R(x1, ya), BL = R(x0, ya);
+      const n0 = PJ(TL, zn), n1 = PJ(TR, zn), n2 = PJ(BR, zn), n3 = PJ(BL, zn);
+
+      /* side face — a trapezoid, so it goes through texQuad, sliced along depth. The
+         visible one is whichever x face points at the camera; when that is the face the
+         bot is looking along, it carries player_face and you see the profile's cheek. */
+      const cxs = (n0[0] + n1[0] + n2[0] + n3[0]) * 0.25;
+      const xs = cxs > 540 ? x0 : x1;
+      const facingSide = (xs === (fw > 0 ? x1 : x0));
+      const sName = typeof b.side === 'string' ? b.side : (facingSide ? b.side.face : b.side.back);
+      const s0 = PJ(R(xs, yb), zn), s1 = PJ(R(xs, ya), zn), s2 = PJ(R(xs, ya), zf), s3 = PJ(R(xs, yb), zf);
+      MC.texQuad(ctx, hiFace(sName, 2, true), s0, s1, s2, s3, 3);
+      if (warm > 0.004) { ctx.globalAlpha = A * 0.18 * warm; ctx.fillStyle = '#FFA84A'; quad(ctx, s0[0], s0[1], s1[0], s1[1], s2[0], s2[1], s3[0], s3[1]); }
+      if (dk > 0.004) { ctx.globalAlpha = A * dk; ctx.fillStyle = '#000000'; quad(ctx, s0[0], s0[1], s1[0], s1[1], s2[0], s2[1], s3[0], s3[1]); }
+      if (fa > 0.004) { ctx.globalAlpha = A * fa; ctx.fillStyle = sky.hor; quad(ctx, s0[0], s0[1], s1[0], s1[1], s2[0], s2[1], s3[0], s3[1]); }
+      ctx.globalAlpha = A;
+
+      /* top face — only where one is actually visible from 13.8 deg down */
+      if (b.top && yb < EYE - 0.02) {
+        const t0 = PJ(R(x0, yb), zf), t1 = PJ(R(x1, yb), zf), t2 = PJ(R(x1, yb), zn), t3 = PJ(R(x0, yb), zn);
+        MC.texQuad(ctx, hiFace(b.top, 0, false, true), t0, t1, t2, t3, 3);
+        if (dk > 0.004) { ctx.globalAlpha = A * dk; ctx.fillStyle = '#000000'; quad(ctx, t0[0], t0[1], t1[0], t1[1], t2[0], t2[1], t3[0], t3[1]); }
+        if (fa > 0.004) { ctx.globalAlpha = A * fa; ctx.fillStyle = sky.hor; quad(ctx, t0[0], t0[1], t1[0], t1[1], t2[0], t2[1], t3[0], t3[1]); }
+        ctx.globalAlpha = A;
+      }
+
+      /* near face — constant depth, so it is an exact parallelogram even when the limb is
+         swung. Segmented so one skin pixel stays roughly square instead of smearing. */
+      const img = hiFace(b.near, 1, false, true, b.mir);
+      if (img) {
+        const seg = Math.max(1, Math.round((yb - ya) / Math.max(1e-6, x1 - x0)));
+        for (let i = 0; i < seg; i++) {
+          const u = i / seg;
+          const ax = n0[0] + (n3[0] - n0[0]) * u, ay = n0[1] + (n3[1] - n0[1]) * u;
+          const bx = n1[0] + (n2[0] - n1[0]) * u, by = n1[1] + (n2[1] - n1[1]) * u;
+          let vx = (n3[0] - n0[0]) / seg, vy = (n3[1] - n0[1]) / seg;
+          if (i < seg - 1) { const l = Math.hypot(vx, vy); if (l > 0.01) { const g = (l + 0.7) / l; vx *= g; vy *= g; } }
+          _face(ctx, img, ax, ay, bx - ax, by - ay, vx, vy);
+        }
+      }
+      /* the near limbs get a flat contact shade down their two long edges. In a profile the
+         near arm sits exactly on top of the torso and the near leg exactly on the far one,
+         both in the same texture — without this they merge into one slab, which is half of
+         what was wrong with the isometric figure this replaced. */
+      if (b.edge > 0.004) {
+        const ux = n1[0] - n0[0], uy = n1[1] - n0[1], l = Math.hypot(ux, uy);
+        if (l > 6) {
+          const ew = Math.max(2, Math.round(l * 0.055)), ex = ux / l * ew, ey = uy / l * ew;
+          ctx.globalAlpha = A * b.edge; ctx.fillStyle = '#000000';
+          quad(ctx, n0[0], n0[1], n0[0] + ex, n0[1] + ey, n3[0] + ex, n3[1] + ey, n3[0], n3[1]);
+          quad(ctx, n1[0], n1[1], n1[0] - ex, n1[1] - ey, n2[0] - ex, n2[1] - ey, n2[0], n2[1]);
+        }
+      }
+      if (dk > 0.004) { ctx.globalAlpha = A * dk; ctx.fillStyle = '#000000'; quad(ctx, n0[0], n0[1], n1[0], n1[1], n2[0], n2[1], n3[0], n3[1]); }
+      if (fa > 0.004) { ctx.globalAlpha = A * fa; ctx.fillStyle = sky.hor; quad(ctx, n0[0], n0[1], n1[0], n1[1], n2[0], n2[1], n3[0], n3[1]); }
+      ctx.globalAlpha = A;
+      return { n0: n0, n1: n1, n2: n2, n3: n3 };
+    }
+
+    const yF = lift, yHip = lift + 12 * U, yShd = lift + 24 * U, yTop = lift + 32 * U;
+    const xB0 = -2 * U, xB1 = 2 * U, xH0 = -4 * U, xH1 = 4 * U;   // body / head depth in x
+    // the walk: arms counter-swing the legs, exactly as vanilla does
+    const la = 0.62 * walk * sn * fw, aa = 0.52 * walk * sn * fw;
+    const aLegN = la, aLegF = -la;
+    const aArmF = aa, aArmN = -aa + 1.55 * sw * fw;               // + the mining chop
+    const FAR = 0.22, CORE = 0.10, EDGE = 0.24;                   // depth separation shades
+
+    const armBox = (za, zb, ang, dk, ed, top) => {
+      box(xB0, xB1, yShd - 8 * U, yShd, za, zb, { near: PS.shirt, side: PS.shirt, top: top ? PS.shirt : null, ang: ang, pvy: yShd, dk: dk, edge: ed });
+      box(xB0, xB1, yShd - 12 * U, yShd - 8 * U, za, zb, { near: PS.skin, side: PS.skin, ang: ang, pvy: yShd, dk: dk, edge: ed });
+    };
+    const legBox = (za, zb, ang, dk, ed) => {
+      box(xB0, xB1, yF + 2 * U, yHip, za, zb, { near: PS.pants, side: PS.pants, ang: ang, pvy: yHip, dk: dk, edge: ed });
+      box(xB0, xB1, yF, yF + 2 * U, za, zb, { near: PS.shoe, side: PS.shoe, ang: ang, pvy: yHip, dk: dk, edge: ed });
+    };
+
+    // painter's order inside the figure: far side first, near limbs last
+    armBox(4 * U, 8 * U, aArmF, FAR, 0, false);
+    legBox(0, 4 * U, aLegF, FAR, 0);
+    box(xB0, xB1, yHip, yShd, -4 * U, 4 * U, { near: PS.shirt, side: PS.shirt, dk: CORE });
+    box(xH0, xH1, yShd, yTop, -4 * U, 4 * U, {
+      near: PS.side, mir: fw < 0, side: { face: PS.face, back: PS.side }, dk: CORE,
     });
-    if (o.name) {
-      const ny = (r ? r.y : gy) - size * 2 - 40;
-      const w = measureText(ctx, o.name, { size: 32, family: FONTS.term, weight: 400 });
-      ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.26)';
-      ctx.fillRect(Math.round(gx - w / 2 - 10), Math.round(ny - 22), Math.round(w + 20), 42);
-      ctx.restore();
-      MC.text(ctx, o.name, gx, ny, { size: 32, family: FONTS.term, weight: 400, color: C.WEISS, align: 'center' });
+    legBox(-4 * U, 0, aLegN, 0, EDGE);
+    armBox(-8 * U, -4 * U, aArmN, 0, EDGE, true);
+
+    /* the held block rides in the near fist, at the fist's own depth and a little forward
+       of the body so it never eclipses the torso */
+    if (o.held) {
+      const c2 = Math.cos(aArmN), s2 = Math.sin(aArmN), hy = yShd - 10 * U;
+      const hx = -s2 * (hy - yShd) + 2.5 * U * fw, hy2 = yShd + c2 * (hy - yShd);
+      const k = F / Math.max(0.25, z - 6 * U), hs = Math.max(6, 5.5 * U * k);
+      blockIcon(ctx, o.held, 540 + (wxc + hx) * k, YH + (EYE - hy2) * k - hs * 0.45, hs, { flat: true });
     }
-    return { x: gx, y: gy, size: size };
+    ctx.restore();
+
+    const headTop = YH + (EYE - yTop) * (F / Math.max(0.25, z - 4 * U));
+    out.top = headTop;
+    if (o.name) {
+      const ny = headTop - 34;
+      const opt = MC.tx(32, { color: C.WEISS, align: 'center' });
+      const w = measureText(ctx, o.name, opt);
+      ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.26)';
+      ctx.fillRect(Math.round(gx - w / 2 - 10), Math.round(ny - 26), Math.round(w + 20), 42);
+      ctx.restore();
+      MC.text(ctx, o.name, gx, ny, opt);
+    }
+    return out;
   };
 
   MC.torch = function (ctx, wx, z, o) {
@@ -926,9 +1263,25 @@
     if (x0 < -160 || x0 > 1240) return;
     const h = o.h != null ? o.h : 1.5;
     const gy = YH + EYE * q, ty = YH + (EYE - h) * q;
-    const log = hiFace('oak_log_side', 1);
-    const pw = Math.max(3, Math.round(0.16 * q));
-    if (log) { ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(log, Math.round(x0), Math.round(ty), pw, Math.round(gy - ty)); ctx.restore(); }
+    /* THE POST. It was drawn with texFace level 1 and the baked AO gradient, as ONE tile
+       pulled over 400 px: 0.8x brightness on a #634E2B bark, darkened again towards the
+       foot, with every texel smeared 10:1 vertically. It came out near-black — a burnt
+       pole, not a lit fence post. Now: level 0 flat (the brightest of the three, the same
+       level the ground strips use), stacked in segments of square texel aspect, with the
+       far edge taking a flat side shade so the post still has a round read. */
+    const log = hiFace('oak_log_side', 0, false, true);
+    const pw = Math.max(3, Math.round(0.22 * q));
+    if (log) {
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      const px0 = Math.round(x0), ph2 = Math.round(gy - ty), py0 = Math.round(ty);
+      const n = Math.max(1, Math.round(ph2 / pw)), st = ph2 / n;
+      for (let i = 0; i < n; i++) ctx.drawImage(log, px0, py0 + i * st, pw, st + (i < n - 1 ? 0.8 : 0));
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(px0 + pw - Math.max(1, Math.round(pw * 0.26)), py0, Math.max(1, Math.round(pw * 0.26)), ph2);
+      const fa = (o.fog !== false) ? MC.fogAlpha(z, o) : 0;
+      if (fa > 0.004) { ctx.globalAlpha *= fa; ctx.fillStyle = MC.skyOf(o).hor; ctx.fillRect(px0, py0, pw, ph2); }
+      ctx.restore();
+    }
     const fl = hash1(Math.floor(t * 7) * 37 + (o.seed || 0));
     const fs = Math.max(10, (o.size != null ? o.size : 24) * (q / 212) * (0.88 + fl * 0.26));
     const mx = x0 + pw / 2;
@@ -938,8 +1291,12 @@
     ctx.beginPath(); ctx.ellipse(mx, gy, q * 0.40, q * 0.15, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     ctx.save();
-    ctx.fillStyle = '#6B4A22';                                   // the stick the torch is on
-    ctx.fillRect(Math.round(mx - fs * 0.18), Math.round(ty - fs * 0.55), Math.round(fs * 0.36), Math.round(fs * 0.9));
+    // the stick the torch is on: a LIT brown, not a charred one — a vanilla torch reads as
+    // light wood under a flame, and at 40 px it is the only thing telling you it is a torch
+    ctx.fillStyle = '#A9793B';
+    ctx.fillRect(Math.round(mx - fs * 0.19), Math.round(ty - fs * 0.60), Math.round(fs * 0.38), Math.round(fs * 0.95));
+    ctx.fillStyle = 'rgba(0,0,0,0.24)';
+    ctx.fillRect(Math.round(mx + fs * 0.09), Math.round(ty - fs * 0.60), Math.round(fs * 0.10), Math.round(fs * 0.95));
     ctx.globalAlpha *= 0.88 + fl * 0.12;
     ctx.fillStyle = '#FFAA33';
     ctx.fillRect(Math.round(mx - fs / 2), Math.round(ty - fs * 1.25), Math.round(fs), Math.round(fs * 0.8));

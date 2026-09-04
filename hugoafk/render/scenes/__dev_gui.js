@@ -11,10 +11,14 @@
      t 0.25  page 1  server list (S2) + the two disconnect buttons (S6)
      t 0.50  page 2  loading screen (S3) + statistics rows
      t 0.75  page 3  control panel (S7): console, stats, thumb buttons
-     t 1.00  page 4  inventory (S5): panel, slots, chat input, suggestion box
+     t 1.00  page 4  inventory (S5): the full MC.inventory furniture + chat input
      t 1.25  page 5  Vormerken form (S10): logo, fields, Fertig, footer
      t 1.50  page 6  the written book (S8); page 2 of the book from t = 2 on
      t 1.75  page 7  the oak sign (S9) + the three-toast stack (S4)
+
+   Every string on these pages is set in the film's own copy, in normal German sentence
+   case, in the APPENDIX B1 faces: MC.ui() = Press Start 2P for interface, MC.tx() = VT323
+   for running text. FONTS.silk appears nowhere. Sizes taken from §4.4 go through MC.pss().
 */
 
 SCENES.__demo = {
@@ -31,13 +35,13 @@ SCENES.__demo = {
     };
     const night = () => sky(C.NACHT_TOP, C.NACHT_HORIZONT, '#2B2318');
     const day = () => sky(C.TAG_TOP, C.TAG_HORIZONT, '#4E7A2E');
-    const tag = s => MC.text(ctx, s, 40, 62, { size: 28, family: FONTS.term, weight: 400, color: C.GRAU, align: 'left' });
+    const tag = s => MC.text(ctx, s, 40, 62, MC.tx(28, { color: C.GRAU, align: 'left' }));
 
     /* ---------------------------------------------------------- 0 · pause menu */
     if (page === 0) {
       night(); MC.dim(ctx, 0.55);
-      tag('page 0 · pause menu 620x84 @ x230 y560/664/768 · button states');
-      MC.screenTitle(ctx, 'Spiel pausiert', 420, { size: 48 });
+      tag('page 0 · pause menu 620x84 @ x230 y560/664/768 · button states · PS2P 27');
+      MC.screenTitle(ctx, 'Spiel pausiert', 420, { size: MC.pss(48) });
       MC.button(ctx, 230, 560, 620, 84, 'Zurück zum Spiel', {});
       MC.button(ctx, 230, 664, 620, 84, 'Statistiken', {});
       MC.button(ctx, 230, 768, 620, 84, 'Vom Server trennen', { state: (t % 0.25) < 0.125 ? 'hover' : 'pressed' });
@@ -45,17 +49,17 @@ SCENES.__demo = {
       const strip = [
         ['normal', 'Live-Konsole', {}],
         ['hover (cursor)', 'Live-Konsole', { state: 'hover' }],
-        ['ghost press (bot)', 'BOT STARTEN', { state: 'ghost' }],
-        ['outline only', 'BOT STARTEN', { outline: true }],
+        ['ghost press (bot)', 'Bot starten', { state: 'ghost' }],
+        ['outline only', 'Bot starten', { outline: true }],
         ['pressed', 'Live-Konsole', { state: 'pressed' }],
         ['disabled', 'Statistiken', { state: 'disabled' }],
-        ['HUGO_ROT', 'BOT STOPPEN', { fill: C.HUGO_ROT }],
-        ['red + ghost', 'BOT STOPPEN', { fill: C.HUGO_ROT, state: 'ghost' }],
+        ['HUGO_ROT', 'Bot stoppen', { fill: C.HUGO_ROT }],
+        ['red + ghost', 'Bot stoppen', { fill: C.HUGO_ROT, state: 'ghost' }],
       ];
       for (let i = 0; i < strip.length; i++) {
         const bx = 110 + (i % 2) * 400, by = 960 + Math.floor(i / 2) * 150;
-        MC.button(ctx, bx, by, 380, 110, strip[i][1], Object.assign({ size: 34 }, strip[i][2]));
-        MC.text(ctx, strip[i][0], bx, by + 132, { size: 26, family: FONTS.term, weight: 400, color: C.GRAU, align: 'left' });
+        MC.button(ctx, bx, by, 380, 110, strip[i][1], Object.assign({ size: MC.pss(34) }, strip[i][2]));
+        MC.text(ctx, strip[i][0], bx, by + 132, MC.tx(26, { color: C.GRAU, align: 'left' }));
       }
       MC.loadingBar(ctx, 230, 1560, 560, 28, (t * 0.7) % 1);
       MC.craftArrow(ctx, 830, 1560, 30, {});
@@ -65,7 +69,7 @@ SCENES.__demo = {
       MC.panel(ctx, 130, 1780, 300, 120, { scale: go.scale, title: 'guiOpen' });
       MC.panel(ctx, 620, 1780, 300, 120, { scale: gc.scale, title: 'guiClose' });
       MC.text(ctx, 'dim ' + go.dim.toFixed(2) + ' / ' + gc.dim.toFixed(2), 470, 1760,
-        { size: 26, family: FONTS.term, weight: 400, color: C.GRAU, align: 'center' });
+        MC.tx(26, { color: C.GRAU, align: 'center' }));
       return;
     }
 
@@ -95,13 +99,13 @@ SCENES.__demo = {
       MC.screenTitle(ctx, 'Lade Welt…', 800, {});
       MC.loadingBar(ctx, 230, 900, 620, 28, ((t * 1.3) % 1));
       // tip line: "Tipp:" in §e, the rest in white, the pair centred as one measure
-      const o1 = { size: 44, family: FONTS.term, weight: 400, align: 'left' };
+      const o1 = MC.tx(44, { align: 'left' });
       const a = 'Tipp: ', b = 'HugoAFK läuft in der Cloud.';
       const wa = measureText(ctx, a, o1), wb = measureText(ctx, b, o1), x0 = 540 - (wa + wb) / 2;
       MC.text(ctx, a, x0, 990, Object.assign({}, o1, { color: C.GELB }));
       MC.text(ctx, b, x0 + wa, 990, Object.assign({}, o1, { color: C.WEISS }));
-      MC.text(ctx, 'Dein eigener PC darf aus sein.', 540, 1050, { size: 44, family: FONTS.term, weight: 400, color: C.GRAU, align: 'center' });
-      MC.text(ctx, 'HugoSMP · HugoAFK 1.0', 540, 1130, { size: 32, family: FONTS.term, weight: 400, color: C.GRAU, align: 'center' });
+      MC.text(ctx, 'Dein eigener PC darf aus sein.', 540, 1050, MC.tx(44, { color: C.GRAU, align: 'center' }));
+      MC.text(ctx, 'HugoSMP · HugoAFK 1.0', 540, 1130, MC.tx(32, { color: C.GRAU, align: 'center' }));
       MC.statRow(ctx, 130, 1300, 700, { label: 'Status', value: 'Online', valueColor: C.GRUEN });
       MC.statRow(ctx, 130, 1360, 700, { label: 'Sitzung', value: '132:07:12' });
       MC.statRow(ctx, 130, 1420, 700, { label: 'Farm', value: 'Pumpkin' });
@@ -112,7 +116,7 @@ SCENES.__demo = {
     if (page === 3) {
       day(); MC.dim(ctx, 0.55);
       tag('page 3 · control panel: console x110..900 y400..1000 · stats 1040/1090/1140 · 380x110 @ y1230');
-      MC.text(ctx, 'VON DEINEM HANDY', 110, 340, { size: 44, family: FONTS.silk, weight: 700, color: C.WEISS, align: 'left' });
+      MC.screenTitle(ctx, 'Von deinem Handy', 340, { align: 'left', x: 110 });
       const L = [
         '[System] Bot online', '[Chat] <Timo> läuft alles?', '[System] Inventar voll', '/sell',
         '[System] Inventar verkauft', '[System] Sea Pickle geerntet', '[System] Pumpkin geerntet',
@@ -123,38 +127,32 @@ SCENES.__demo = {
       MC.statRow(ctx, 130, 1040, 640, { label: 'Status', value: 'Online', valueColor: C.GRUEN });
       MC.statRow(ctx, 130, 1090, 640, { label: 'Sitzung', value: '132:07:12' });
       MC.statRow(ctx, 130, 1140, 640, { label: 'Farm', value: 'Pumpkin' });
-      MC.button(ctx, 110, 1230, 380, 110, 'Live-Konsole', { size: 34 });
-      MC.button(ctx, 510, 1230, 380, 110, 'BOT STOPPEN', { size: 34, fill: C.HUGO_ROT });
+      MC.button(ctx, 110, 1230, 380, 110, 'Live-Konsole', { size: MC.pss(34) });
+      MC.button(ctx, 510, 1230, 380, 110, 'Bot stoppen', { size: MC.pss(34), fill: C.HUGO_ROT });
       return;
     }
 
-    /* ---------------------------------------------------------- 4 · inventory */
+    /* ---------------------------------------------------------- 4 · inventory
+       The whole S5 screen through MC.inventory: panel, title, status word, the player
+       preview with the portrait in it, the armour column, the offhand slot, the crafting
+       2x2 with its arrow and result slot, the 9x3 main grid and the hotbar row. */
     if (page === 4) {
       day(); MC.dim(ctx, 0.55);
-      tag('page 4 · inventory panel 770x880 @ (130,420) · slots 72/6 · chat input y1340 · suggestion y1270');
-      MC.panel(ctx, 130, 420, 770, 880, { title: 'Inventar' });
-      MC.text(ctx, 'Voll', 865, 462, { size: 30, family: FONTS.silk, weight: 700, color: C.ROT, align: 'right' });
-      // player preview box + armour column
-      MC.rect(ctx, 165, 490, 260, 340, '#8B8B8B');
-      MC.inset(ctx, 165, 490, 260, 340, { width: 2 });
-      if (typeof mcPlayer === 'function' && typeof IMG !== 'undefined' && IMG.tex) {
-        mcPlayer(ctx, 330, 800, { size: 110, facing: 'right', t: t, bob: 0.012 });
-      }
-      for (let i = 0; i < 4; i++) MC.slot(ctx, 165, 520 + i * 78, 72, {});
-      // crafting 2x2 + arrow + result
-      for (let i = 0; i < 4; i++) MC.slot(ctx, 600 + (i % 2) * 80, 520 + Math.floor(i / 2) * 80, 70, {});
-      MC.craftArrow(ctx, 770, 570, 30, {});
-      MC.slot(ctx, 815, 555, 70, {});
-      // main 9x3 + hotbar row
+      tag('page 4 · inventory 770x880 @ (130,420) · preview 260x340 · armour/offhand/craft · slots 72/6');
       const items = ['pumpkin', 'sea_pickle', 'rotten_flesh', 'bone', 'string', 'gunpowder', 'emerald'];
-      for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) {
-        const k = r * 9 + c;
-        MC.slot(ctx, 165 + c * 78, 920 + r * 78, 72, {
-          item: items[k % items.length], count: 8 + (k % 56),
-          flash: (Math.floor(t * 30) % 27 === k) ? 1 : 0,
-        });
-      }
-      for (let c = 0; c < 9; c++) MC.slot(ctx, 165 + c * 78, 1160, 72, { item: c < 3 ? items[c] : null, count: c < 3 ? 64 : null });
+      const g = MC.inventory(ctx, 130, 420, {
+        t: t, status: 'Voll',
+        main: i => ({
+          item: items[i % items.length], count: 8 + (i % 56),
+          flash: (Math.floor(t * 30) % 27 === i) ? 1 : 0,
+        }),
+        hotbar: i => (i < 3 ? { item: items[i], count: 64, selected: i === 0 } : {}),
+        craft: i => (i === 0 ? { item: 'pumpkin', count: 4 } : {}),
+        result: { item: 'emerald' },
+        off: { item: 'bone' },
+      });
+      MC.text(ctx, 'preview ' + g.preview.x + ',' + g.preview.y + ' · offhand ' + g.off.x + ',' + g.off.y
+        + ' · result ' + g.result.x + ',' + g.result.y, 40, 104, MC.tx(26, { color: C.GRAU, align: 'left' }));
       MC.chatInput(ctx, { text: '/sell', t: t, suggest: ['/sell', '/sellall'], suggestIndex: 0 });
       return;
     }
@@ -167,26 +165,28 @@ SCENES.__demo = {
       MC.screenTitle(ctx, 'Vormerken', 640, {});
       MC.field(ctx, 190, 730, 700, 80, { label: 'Server', value: 'HugoSMP', t: t });
       MC.field(ctx, 190, 880, 700, 80, {
-        label: 'AFK-Client', value: 'HugoAFK.com', family: FONTS.silk, weight: 700, size: 52,
-        focused: true, caret: true, t: t, p: clamp((t % 1) * 1.6),
+        label: 'AFK-Client', value: 'HugoAFK.com', family: MC.F.ui, size: MC.pss(52),
+        // first pass through the page: the finished string, so its width can be checked.
+        // second pass: the same string typing itself in, so the caret can be checked.
+        focused: true, caret: true, t: t, p: (Math.floor(t / 2) % 2 === 0) ? 1 : clamp((t - p0) * 5),
       });
       MC.field(ctx, 190, 1030, 700, 80, { label: 'Start', value: '20.09.2026', t: t, borderColor: (t % 1) > 0.5 ? C.GELB : null });
       MC.button(ctx, 190, 1180, 700, 88, 'Fertig', { state: 'hover' });
-      MC.text(ctx, 'Bleib online. Auch offline.', 540, 1330, { size: 34, family: FONTS.silk, weight: 700, color: C.GRAU, align: 'center' });
+      MC.text(ctx, 'Bleib online. Auch offline.', 540, 1330, MC.ui(MC.pss(34), { color: C.GRAU, align: 'center' }));
       return;
     }
 
     /* ---------------------------------------------------------- 6 · the book */
     if (page === 6) {
       day(); MC.dim(ctx, 0.60);
-      tag('page 6 · book 700x840 @ (190,400) · Silkscreen 40 ink, measure 615, no shadow');
+      tag('page 6 · book 700x840 @ (190,400) · PS2P 31 ink, measure 615 (19 chars), no shadow');
       const sw = MC.pageSwap(ctx, t, p0 + 0.10, { x: 190, y: 400, w: 700, h: 840 });
       const two = (Math.floor(t / 2) % 2) === 1;
       const lines = (two || sw.page === 1) ? [
         { s: '— HugoSMP-Team' },
-        { s: 'Schriftlich bestätigt.', size: 32 },
+        { s: 'Schriftlich bestätigt.', size: MC.pss(32) },
         '', '', '',
-        { s: 'Seite 2 von 2', size: 24, color: C.TINTE_MATT },
+        { s: 'Seite 2 von 2', size: MC.pss(24), color: C.TINTE_MATT },
       ] : [
         { s: 'Vom HugoSMP-Team' },
         { parts: [{ s: 'erlaubt', color: C.TINTE_GRUEN }, { s: ' und' }] },

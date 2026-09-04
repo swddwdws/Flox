@@ -39,9 +39,9 @@ SCENES.__demo = {
     const lines = CH.map((l, i) => Object.assign({ t0: i * 0.07, life: Infinity }, l));
     lines.push({ text: '[HugoAFK] Bis morgen.', color: C.GRAU, t0: 1.05, life: 0.35 });
 
-    const label = s => MC.text(ctx, s, 40, 1902, {
-      size: 26, family: FONTS.silk, weight: 700, color: C.GELB, align: 'left', baseline: 'alphabetic',
-    });
+    // APPENDIX B1: interface text is Press Start 2P (MC.ui), running text VT323 (MC.tx).
+    const label = s => MC.text(ctx, s, 40, 1902,
+      MC.ui(MC.pss(26), { color: C.GELB, align: 'left', baseline: 'alphabetic' }));
 
     /* ================================================================ 0.0 - 1.0 */
     if (t < 1.0) {
@@ -109,13 +109,13 @@ SCENES.__demo = {
       MC.f3On = true;
       if (t < 2.5) {
         // the pause-menu variant: this is the film's frame 0 — chat visible behind the dim
-        MC.text(ctx, 'Spiel pausiert', 540, 420, { size: 48, family: FONTS.silk, weight: 700, color: C.WEISS, align: 'center' });
+        MC.text(ctx, 'Spiel pausiert', 540, 420, MC.ui(MC.pss(48), { align: 'center' }));
         const labels = ['Zurück zum Spiel', 'Statistiken', 'Vom Server trennen'];
         for (let i = 0; i < 3; i++) {
           const by = 560 + i * 104;
           MC.rect(ctx, 230, by, 620, 84, C.BUTTON);
           MC.bevel(ctx, 230, by, 620, 84, { width: 2, light: C.BUTTON_KANTE_H, dark: C.BUTTON_KANTE_D });
-          MC.text(ctx, labels[i], 540, by + 42, { size: 36, family: FONTS.silk, weight: 700, color: C.WEISS, align: 'center' });
+          MC.text(ctx, labels[i], 540, by + 42, MC.ui(MC.pss(36), { align: 'center' }));
         }
         MC.cursorState = { x: 700, y: 790 };
         label('dev_hud 3a/4 · hudMode 2 · Pausemenue · Chat an');
@@ -124,7 +124,8 @@ SCENES.__demo = {
         MC.hudChat = false;
         MC.rect(ctx, 130, 420, 770, 880, C.PANEL);
         MC.bevel(ctx, 130, 420, 770, 880, { width: 4 });
-        MC.text(ctx, 'Inventar', 165, 462, { size: 34, family: FONTS.silk, weight: 700, color: C.GUI_TITEL, align: 'left', shadow: false });
+        MC.text(ctx, 'Inventar', 165, 462,
+          MC.ui(MC.pss(34), { color: C.GUI_TITEL, align: 'left', shadow: false }));
         label('dev_hud 3b/4 · hudMode 2 · Panel · Chat aus');
       }
       return;
