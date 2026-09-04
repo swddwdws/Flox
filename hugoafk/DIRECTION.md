@@ -856,3 +856,42 @@ Check, in this order: (1) do off-centre blocks still read as blocks, or as flat 
 3. **"Hand-build a back-view player from `isoBox` for the sign walk."** `mcPlayer` cannot show a back view, but a side-on profile reads the walk cycle better, is authentic, and costs nothing. A 30-line hand-built player is new risk in a film that already carries ten scenes and a new ground renderer.
 4. **"Shorten the book to 2 s and hand the second to golden hour."** The retention concern is real but the cause is misdiagnosed: the problem was that the world *froze* behind the parchment, not that the beat was three seconds. The book stays at 20.00–23.00 so it sits inside the score's break at 20.5–23.5, and the fix is applied where it belongs — the world keeps living behind the dim, the bot is visibly still working, and the light shifts to golden hour across 22.40–23.00 so the beat ends on a change rather than a hold.
 5. **"Subdivide every block's top face into 8 strips (~2200 drawImages/frame)."** Accepted only for near blocks. The affine error is a function of `1/(z(z+1))`: 25 % at z = 3, under 4 % at z = 12. A global 8× multiplier pays everywhere for a defect that exists in the front two rows. The graded rule (6 / 3 / 1 strips) buys the same image for a fifth of the cost.
+---
+
+## APPENDIX B · BUILD-GATE AMENDMENTS
+
+These override the sections they name. They were found by rendering the gate frames and
+looking at them, and they apply to every scene file.
+
+**B1 · The interface face is Press Start 2P, not Silkscreen (overrides §4).**
+Silkscreen-Bold.ttf is CAPS ONLY — verified by rendering it. "HugoAFK.com" comes out
+"HUGOAFK.COM", "Spiel pausiert" comes out "SPIEL PAUSIERT", "Inventar" comes out
+"INVENTAR". Minecraft's own font has lowercase, so an all-caps interface is a tell that
+breaks the illusion, and one of the strings it breaks is the product's own name.
+Press Start 2P and VT323 both carry real lowercase. Therefore:
+  - interface (titles, buttons, toasts, book ink, sign text, GUI titles) = `MC.F.ui`
+    (Press Start 2P), weight 400 — use the helper `MC.ui(size, o)`
+  - running text (chat, console, F3, MOTD, field labels) = `MC.F.txt` (VT323), weight 400
+    — use the helper `MC.tx(size, o)`
+  - Silkscreen is out of the film. `FONTS.silk` must not appear in any scene file.
+Metrics: Press Start 2P advances ~1.0 x fontsize per character, Silkscreen ~0.76. Every
+size in §4.4 must be divided by 1.31 to keep the measured width — `MC.pss(48)` does it.
+Copy is written in normal German sentence case and rendered as written; nothing is
+upper-cased in code.
+
+**B2 · Moon position on the cover frame (overrides §S1).**
+§S1's moon at (770, 400) collides with `Spiel pausiert` (§5.3 puts the title at y 420).
+Use moonX 872 / moonY 262.
+
+**B3 · The `24/7` label (overrides §S4).**
+§S4's y 1730 collides with the heart row (§5.2, icons y 1694..1730). Use y 1664.
+
+**B4 · Entity draw order.**
+Never draw an entity before or after `MC.blocks` and hope the depths work out. Pass it as
+an entity cell — `{z, draw: (ctx, cell, view) => ...}` — so it is invoked at its own place
+in the painter's sort. This is how the bot, the torches, the oak sign and item pops occlude
+correctly against the block field.
+
+**B5 · The first-person arm is hidden while a GUI is open.**
+Vanilla does not draw the held item behind an open screen. Any scene that opens a panel
+must stop calling `MC.arm`.

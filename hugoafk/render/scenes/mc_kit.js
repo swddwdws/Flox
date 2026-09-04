@@ -75,6 +75,32 @@ MC.screenX = (wx, z, camX) => 540 + (wx - (camX || 0)) * MC.FOCAL / z;
 /* per-frame HUD flag, read by TL.overlay: 0 none · 1 full · 2 behind an open GUI */
 MC.hudMode = 0;
 
+/* ------------------------------------------------------------------ 2b · faces (§4, AMENDED)
+   BUILD-GATE AMENDMENT. §4 named Silkscreen as the interface face. Rendered at size, the
+   TTF turns out to be CAPS ONLY: "HugoAFK.com" comes out "HUGOAFK.COM" and "Spiel pausiert"
+   comes out "SPIEL PAUSIERT". Minecraft's own font has lowercase, so an all-caps interface
+   is exactly the kind of tell that breaks the illusion — and the product's own name is one
+   of the strings it breaks.
+
+   Of the three pixel faces on disk, Press Start 2P and VT323 both carry real lowercase.
+   Press Start 2P is therefore the interface face and VT323 stays the running-text face;
+   Silkscreen is out of the film.
+
+   Metrics: Press Start 2P advances almost exactly 1.0 x fontsize per character, Silkscreen
+   about 0.76. So a string set in Silkscreen at size S needs Press Start 2P at S / 1.31 to
+   occupy the same width — every size in §4.4 divides by 1.31. MC.pss() does that for you.
+   Both faces ship weight 400 ONLY: drawText defaults to 700, so every call must pass
+   weight 400 or Chromium synthesises faux bold and the pixel grid turns to mush. */
+MC.F = {
+  ui: FONTS.pixel,      // Press Start 2P — titles, buttons, toasts, book, sign, GUI titles
+  txt: FONTS.term,      // VT323 — chat, console, F3, MOTD, field labels
+  w: 400,               // the ONLY weight either face has
+};
+MC.pss = s => Math.round(s / 1.31);     // a §4.4 Silkscreen size -> the same width in Press Start 2P
+// ready-made option objects; spread and override
+MC.ui = (size, o) => Object.assign({ size: size, family: MC.F.ui, weight: 400, color: MC.C.WEISS }, o || {});
+MC.tx = (size, o) => Object.assign({ size: size, family: MC.F.txt, weight: 400, color: MC.C.WEISS }, o || {});
+
 /* ------------------------------------------------------------------ 3 · type (§4)
    Every glyph in the film is drawn twice. The shadow is a flat, hard offset — never
    blurred, never softened, never randomised. That single property is what makes a line
@@ -95,10 +121,11 @@ MC.text = function (ctx, str, x, y, o) {
   return drawText(ctx, str, x, y, o);
 };
 
-/* measure-and-shrink pass. Nothing load-bearing may drop below 34 px; if a string cannot
-   fit at 34 it is a copy problem, not a layout problem, so it is reported loudly. */
+/* measure-and-shrink pass. §4.4's 34 px floor was set for Silkscreen; Press Start 2P is
+   1.31x wider per character, so the equivalent floor is 26 px. Below that a string is a copy
+   problem, not a layout problem, so it is reported loudly rather than silently shrunk. */
 MC.fit = function (ctx, str, o, maxW, floor) {
-  const f = floor || 34;
+  const f = floor || 26;
   let size = o.size;
   while (size > f && measureText(ctx, str, Object.assign({}, o, { size: size, tracking: (o.trackF || 0) * size })) > maxW) size -= 2;
   if (size <= f && measureText(ctx, str, Object.assign({}, o, { size: size })) > maxW) {
@@ -130,12 +157,12 @@ MC.title = function (ctx, t, o) {
   const maxW = o.maxW || 790;
   ctx.save(); ctx.globalAlpha *= a;
   if (o.title) {
-    const opt = { size: o.size || 76, family: FONTS.silk, weight: 700, color: o.color || MC.C.WEISS, align: 'center' };
+    const opt = MC.ui(o.size || MC.pss(76), { color: o.color || MC.C.WEISS, align: 'center' });
     opt.size = MC.fit(ctx, o.title, opt, maxW);
     MC.text(ctx, o.title, 540, o.ty != null ? o.ty : 820, opt);
   }
   if (o.sub) {
-    const opt = { size: o.subSize || 44, family: FONTS.silk, weight: 700, color: o.subColor || MC.C.GRAU, align: 'center' };
+    const opt = MC.ui(o.subSize || MC.pss(44), { color: o.subColor || MC.C.GRAU, align: 'center' });
     opt.size = MC.fit(ctx, o.sub, opt, maxW);
     MC.text(ctx, o.sub, 540, o.sy != null ? o.sy : (o.ty != null ? o.ty + 96 : 916), opt);
   }
