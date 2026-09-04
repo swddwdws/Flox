@@ -3,12 +3,19 @@
 
 /* ===========================================================================
    s01 — a real HugoSMP night farm, built out of textured Minecraft blocks.
-     · terrain with a BODY: grass on dirt on stone, two grass terraces stepping
-       up at the back, a raised cobble deck on the right
-     · a bounded farm plot — pumpkin rows on farmland with stems between them,
-       a sea-pickle water channel, two cobblestone paths, an oak fence
-     · three oak trees (log + ragged leaf canopy), a pond, torches, a chest
-     · the AFK player (mcPlayer) on the walkway with a pumpkin in his hand —
+   RESTAGED (v2): a lower, closer viewpoint on the same farm, seen from the
+   other side — the furrows now run DOWN-LEFT instead of down-right, the field
+   is cut by a shoreline at the front-left, and the player stands right of
+   centre on the lit main path instead of left of centre.
+     · terrain with a BODY: grass on dirt on stone, a raised grass ridge behind
+       the field on the right, a two-step drop into a lake at the front-left
+       (the cliff faces show the dirt/stone body of the plateau)
+     · a bounded farm plot — pumpkin furrows on farmland with stems between
+       them, a sea-pickle irrigation channel, two cobblestone paths, an oak
+       fence along the BACK edge, a raised stone deck with a chest mid-field
+     · three oak trees (log + ragged leaf canopy) — one big one in the near
+       foreground at the left, cut by the frame edge — plus the lake, torches
+     · the AFK player (mcPlayer) on the main path with a pumpkin in his hand —
        idle bob plus an occasional mining swing, under a HugoAFK name tag
    Night look: the blocks are drawn at full texture brightness into their own
    layer and ONE lighting pass ('source-atop') dims the whole world and carves
@@ -16,9 +23,9 @@
    dimming every block and it is the only way the torches read as THE light.
    =========================================================================== */
 
-const s01_s02_ISO  = { size: 56, cx: CX, cy: 1400 };
-const s01_s02_UMAX = 12, s01_s02_VMIN = -13, s01_s02_VMAX = 20;   // visible (ix-iy) / (ix+iy) window
-const s01_s02_BOTP = { ix: 0, iy: 2 };                             // the AFK player's tile
+const s01_s02_ISO  = { size: 64, cx: 512, cy: 1302 };
+const s01_s02_UMAX = 11, s01_s02_VMIN = -15, s01_s02_VMAX = 21;   // visible (ix-iy) / (ix+iy) window
+const s01_s02_BOTP = { ix: 3, iy: 1 };                             // the AFK player's tile (on the main path)
 
 const s01_s02_TEX = {
   grass:   { top: 'grass_top', side: 'grass_side' },
@@ -36,50 +43,65 @@ const s01_s02_TEX = {
   chest:   'chest',
 };
 const s01_s02_HOT = { pumpkin: 1, leaves: 1, chest: 1, water: 1 };  // hot violet outline in the wireframe state
-const s01_s02_EDGY = { pumpkin: 1, log: 1, leaves: 1, chest: 1, deck: 1, cobble: 1, stone: 1 };
+const s01_s02_EDGY = { pumpkin: 1, log: 1, leaves: 1, chest: 1, deck: 1, cobble: 1, stone: 1, sand: 1 };
 
-const s01_s02_PLOT = { x0: -8, x1: 11, y0: -3, y1: 6 };            // the farm plot
-const s01_s02_DECK = { x0: 3, x1: 6, y0: -4, y1: -2 };             // raised cobble deck (sell station)
-const s01_s02_POND = { x0: 5, x1: 7, y0: 7, y1: 9 };               // little pond at the front
+// the farm plot — furrows run along +iy now, so on screen they fall DOWN-LEFT
+const s01_s02_PLOT = { x0: -3, x1: 10, y0: -7, y1: 6 };
+const s01_s02_DECK = { x0: -4, x1: -3, y0: -4, y1: -3 };           // raised stone deck (sell station), mid-field
 const s01_s02_TREES = [
-  { ix: -6, iy:  2, trunk: 5, big: 1 },
-  { ix:  2, iy: -4, trunk: 5, big: 1 },
-  { ix: 10, iy:  1, trunk: 4, big: 0 },
+  { ix:  2, iy:  8, trunk: 6, big: 1 },   // near foreground, lower left — cut by the frame
+  { ix: -4, iy:  0, trunk: 5, big: 1 },   // mid ground, left of the deck
+  { ix:  0, iy: -7, trunk: 3, big: 1 },   // back right, breaking the horizon line
 ];
-// scattered boulders and bushes so the back of the field is not a bare green plane
+// scattered boulders and bushes so the ridge and the shore are not bare planes
 const s01_s02_SCATTER = (() => {
   const o = [];
-  for (let ix = -12; ix <= 10; ix++) for (let iy = -12; iy <= 10; iy++) {
+  for (let ix = -14; ix <= 13; ix++) for (let iy = -14; iy <= 13; iy++) {
     const h = hash2(ix * 19 + 101, iy * 23 + 7);
     if (h > 0.965) o.push({ ix, iy, kind: h > 0.985 ? 'cobble' : 'stone' });
     else if (h < 0.016) o.push({ ix, iy, kind: 'leaves' });
   }
   return o;
 })();
-const s01_s02_TORCHES = [
-  { ix: -2, iy: 2, iz: 0 }, { ix: 3, iy: 2, iz: 0 },               // beside the player
-  { ix: -5, iy: 0, iz: 0 }, { ix: 3, iy: 0, iz: 0 },               // back path
-  { ix: -4, iy: 6, iz: 0 }, { ix: 2, iy: 6, iz: 0 }, { ix: 8, iy: 6, iz: 0 },   // front path
-  { ix: 6, iy: -4, iz: 1 },                                        // on the deck
-];
-const s01_s02_CHESTP = { ix: 4, iy: -3, iz: 1 };
-const s01_s02_FENCE = (() => { const o = []; for (let ix = -4; ix <= 9; ix++) o.push({ ix, iy: 7 }); return o; })();
+const s01_s02_CHESTP = { ix: -4, iy: -4, iz: 1 };
+// fence along the BACK edge of the plot (a down-right line, against the down-left furrows)
+const s01_s02_FENCE = (() => {
+  const o = [];
+  for (let ix = -8; ix <= 6; ix++) if (ix !== 0) o.push({ ix, iy: -7 });      // skip the tree tile
+  return o;
+})();
 
-// terrain height — the plate steps DOWN twice towards the camera, so the two
-// risers show grass over dirt over stone; the deck is the one step up.
+// terrain height — a raised grass ridge sits behind the field on the right and
+// the plateau breaks off twice towards the front-left, into the lake. The step
+// lines run DOWN-RIGHT, across the down-left furrows.
 function s01_s02_hAt(ix, iy) {
+  const u = ix - iy, v = ix + iy;
   if (ix >= s01_s02_DECK.x0 && ix <= s01_s02_DECK.x1 && iy >= s01_s02_DECK.y0 && iy <= s01_s02_DECK.y1) return 1;
-  const vv = ix + iy + (hash2(ix * 7 + 3, iy * 11 + 5) - 0.5) * 2.2;
-  if (vv >= 12.4) return -2;
-  if (vv >= 7.2) return -1;
+  const n = (hash2(ix * 7 + 3, iy * 11 + 5) - 0.5) * 2.2;
+  const d = v - 0.95 * u + n;                       // grows towards the front-left
+  if (d >= 17.6) return -2;                         // lake bed
+  if (d >= 12.6) return -1;                         // shore terrace
+  if (v + n * 0.5 <= -11 && u >= -1) return 1;      // grass ridge behind the field
   return 0;
 }
-// what a plot tile is made of, row by row
+// what a plot furrow is made of, column by column (keyed by ix — furrows fall down-left)
 const s01_s02_ROW = {
-  '-3': 'crop', '-2': 'soil', '-1': 'grass', '0': 'cobble', '1': 'soil',
-  '2': 'grass', '3': 'water', '4': 'soil', '5': 'crop', '6': 'cobble',
+  '-3': 'grass', '-2': 'cobble', '-1': 'soil', '0': 'crop', '1': 'soil',
+  '2': 'grass', '3': 'cobble', '4': 'soil', '5': 'crop', '6': 'water',
+  '7': 'crop', '8': 'soil', '9': 'crop', '10': 'cobble',
 };
-const s01_s02_PUMPPAR = { '-2': 1, '1': 0, '4': 1 };               // pumpkin on every other tile, staggered
+const s01_s02_PUMPPAR = { '-1': 0, '1': 1, '4': 0, '8': 1 };       // pumpkin on every other tile, staggered
+
+const s01_s02_TORCHES = (() => {
+  const raw = [
+    { ix: 3, iy: -6 }, { ix: 3, iy: -2 }, { ix: 3, iy: 2 }, { ix: 3, iy: 6 },   // main path
+    { ix: -2, iy: -5 }, { ix: -2, iy: 1 }, { ix: -2, iy: 5 },                    // back path
+    { ix: 10, iy: 3 },                                                           // front path
+    { ix: -3, iy: -4 },                                                          // on the deck
+    { ix: 1, iy: 8 },                                                            // on the shore, under the big tree
+  ];
+  return raw.map(o => ({ ix: o.ix, iy: o.iy, iz: s01_s02_hAt(o.ix, o.iy) }));
+})();
 
 /* ------------------------------------------------- build the world once ---
    Columns are filled 4 blocks deep and every block that is exactly covered by
@@ -92,33 +114,34 @@ const s01_s02_WORLD = (() => {
   const inBox = (ix, iy, b) => ix >= b.x0 && ix <= b.x1 && iy >= b.y0 && iy <= b.y1;
   const treeAt = (ix, iy) => s01_s02_TREES.some(tr => tr.ix === ix && tr.iy === iy);
 
-  for (let ix = -22; ix <= 22; ix++) for (let iy = -22; iy <= 22; iy++) {
+  for (let ix = -24; ix <= 24; ix++) for (let iy = -24; iy <= 24; iy++) {
     const u = ix - iy, v = ix + iy;
     if (Math.abs(u) > s01_s02_UMAX || v < s01_s02_VMIN || v > s01_s02_VMAX) continue;
     const h = s01_s02_hAt(ix, iy);
     let kind = 'grass', pump = false;
     if (h === 1 && inBox(ix, iy, s01_s02_DECK)) kind = 'deck';
     else if (!treeAt(ix, iy)) {
-      if (inBox(ix, iy, s01_s02_POND) && hash2(ix * 3 + 61, iy * 5 + 13) > 0.16) kind = 'water';
+      const dm = v - 0.95 * u;
+      if (h <= -2) kind = hash2(ix * 3 + 61, iy * 5 + 13) > 0.10 ? 'water' : 'sand';
+      else if (h === -1) kind = (dm >= 16.4 || hash2(ix * 5 + 17, iy * 7 + 29) > 0.90) ? 'sand' : 'grass';
       else if (inBox(ix, iy, s01_s02_PLOT)) {
-        kind = s01_s02_ROW[String(iy)] || 'grass';
+        kind = s01_s02_ROW[String(ix)] || 'grass';
         if (kind === 'soil') {
-          const par = s01_s02_PUMPPAR[String(iy)];
-          pump = (((ix % 2) + 2) % 2) === par &&
+          const par = s01_s02_PUMPPAR[String(ix)];
+          pump = (((iy % 2) + 2) % 2) === par &&
             (Math.abs(ix - s01_s02_BOTP.ix) > 1 || Math.abs(iy - s01_s02_BOTP.iy) > 1);
           if (!pump) kind = 'crop';                                // stems between the pumpkins
         }
       }
-      // dirt bank around the pond
-      if (kind === 'grass' && ix >= s01_s02_POND.x0 - 1 && ix <= s01_s02_POND.x1 + 1 &&
-          iy >= s01_s02_POND.y0 - 1 && iy <= s01_s02_POND.y1 + 1) kind = 'dirt';
+      // trampled dirt bank one step above the shore terrace
+      if (kind === 'grass' && h === 0 && dm >= 11.4) kind = 'dirt';
     }
     put(ix, iy, h, kind);
     put(ix, iy, h - 1, 'dirt');
     put(ix, iy, h - 2, 'stone');
     put(ix, iy, h - 3, 'stone');
     if (pump) { put(ix, iy, h + 1, 'pumpkin'); pumpkins.push({ ix, iy, iz: h + 1 }); }
-    if (kind === 'water' && iy === 3) pickles.push({ ix, iy, iz: h });
+    if (kind === 'water' && (ix === 6 || hash2(ix * 9 + 5, iy * 13 + 2) > 0.78)) pickles.push({ ix, iy, iz: h });
   }
   // oak trees: a log stem, two wide leaf layers with the corners cut, a cap —
   // a few outer leaves are dropped so the silhouette is ragged, not a green box
@@ -139,8 +162,8 @@ const s01_s02_WORLD = (() => {
     const u = sc.ix - sc.iy, v = sc.ix + sc.iy;
     if (Math.abs(u) > s01_s02_UMAX || v < s01_s02_VMIN || v > s01_s02_VMAX) continue;
     if (inBox(sc.ix, sc.iy, s01_s02_PLOT) || inBox(sc.ix, sc.iy, s01_s02_DECK)) continue;
-    if (inBox(sc.ix, sc.iy, s01_s02_POND)) continue;
     const h = s01_s02_hAt(sc.ix, sc.iy);
+    if (h <= -1) continue;                                          // nothing floating in the lake
     if (!occ.has(K(sc.ix, sc.iy, h + 1))) put(sc.ix, sc.iy, h + 1, sc.kind);
   }
   put(s01_s02_CHESTP.ix, s01_s02_CHESTP.iy, s01_s02_CHESTP.iz + 1, 'chest');
@@ -151,16 +174,19 @@ const s01_s02_WORLD = (() => {
   const vis = solid
     .filter(b => !occ.has(K(b.ix + 1, b.iy + 1, b.iz + 1)))
     .filter(b => {                                                   // screen cull
-      const x = CX + (b.ix - b.iy) * S * 0.866, y = s01_s02_ISO.cy + (b.ix + b.iy) * S * 0.5 - b.iz * S;
-      return x > -150 && x < W + 150 && y > 800 && y < H + 120;
+      const x = s01_s02_ISO.cx + (b.ix - b.iy) * S * 0.866, y = s01_s02_ISO.cy + (b.ix + b.iy) * S * 0.5 - b.iz * S;
+      return x > -200 && x < W + 200 && y > 560 && y < H + 200;
     })
-    .map(b => Object.assign(b, { edge: s01_s02_EDGY[b.kind] === 1 }))
+    .map(b => Object.assign(b, {
+      edge: s01_s02_EDGY[b.kind] === 1,
+      rad: Math.min(1, Math.hypot(b.ix - s01_s02_BOTP.ix, b.iy - s01_s02_BOTP.iy) / 17),
+    }))
     .sort((a, b) => (a.ix + a.iy + a.iz) - (b.ix + b.iy + b.iz));
   return { vis, pumpkins, pickles };
 })();
-const s01_s02_PUMPKINS = s01_s02_WORLD.pumpkins.filter(c => c.ix + c.iy >= -3);
+const s01_s02_PUMPKINS = s01_s02_WORLD.pumpkins.filter(c => c.ix + c.iy >= 0);
 // front rows only — used once the copy is up so the item pops stay in the lower third
-const s01_s02_PUMPKINS_FRONT = s01_s02_PUMPKINS.filter(c => c.ix + c.iy >= 1);
+const s01_s02_PUMPKINS_FRONT = s01_s02_PUMPKINS.filter(c => c.ix + c.iy >= 6);
 
 // violet re-paint of SPRITES.pumpkin — every palette key of the icon must be covered
 const s01_s02_PUMPPAL_V = {
@@ -218,8 +244,8 @@ const s01_s02_HILLS = (() => {
   };
   const out = [];
   const conf = [
-    { base: 852, amp: 104, step: 26, seed: 5,  col: '#161E4C', trees: 1 },
-    { base: 906, amp: 74, step: 22, seed: 41, col: '#0B1028', trees: 1 },
+    { base: 736, amp: 104, step: 26, seed: 63, col: '#161E4C', trees: 1 },
+    { base: 792, amp: 74, step: 22, seed: 17, col: '#0B1028', trees: 1 },
   ];
   for (const cf of conf) {
     const cols = [];
@@ -244,7 +270,7 @@ const s01_s02_CLOUDS = (() => {
     const cells = [], n = 4 + Math.floor(hash1(i * 31 + 5) * 5);
     for (let k = 0; k < n; k++) cells.push({ dx: k, dy: Math.round(hash2(i, k) * 1.9), w: 1 + Math.round(hash2(i + 7, k) * 2) });
     out.push({
-      y: 560 + hash1(i * 13 + 2) * 250, sp: 4 + hash1(i * 17 + 1) * 7,
+      y: 452 + hash1(i * 13 + 2) * 240, sp: -(4 + hash1(i * 17 + 1) * 7),
       cell: 26 + hash1(i * 23 + 4) * 20, ph: hash1(i * 41) * 1600,
       a: 0.045 + hash1(i * 29 + 6) * 0.05, cells,
     });
@@ -261,17 +287,17 @@ function s01_s02_clouds(ctx, t) {
   ctx.restore();
 }
 function s01_s02_sky(ctx, t) {
-  linearFill(ctx, 0, 0, 0, 1000,
+  linearFill(ctx, 0, 0, 0, 930,
     [[0, 'rgba(40,25,78,0.98)'], [0.28, 'rgba(25,18,54,0.95)'], [0.62, 'rgba(14,12,34,0.93)'], [0.86, 'rgba(9,9,24,0.92)'], [1, 'rgba(8,8,20,0.7)']],
-    [0, 0, W, 1000]);
-  nightSky(ctx, t, { count: 165, seed: 21, alpha: 0.62, hMul: 0.46, drift: true });
-  // square Minecraft moon + halo
-  dot(ctx, 806, 396, 230, '#A9BEF5', 0.12);
-  dot(ctx, 806, 396, 108, '#CBD8FA', 0.13);
+    [0, 0, W, 930]);
+  nightSky(ctx, t, { count: 165, seed: 47, alpha: 0.62, hMul: 0.40, drift: true });
+  // square Minecraft moon + halo — now high on the LEFT
+  dot(ctx, 244, 336, 226, '#A9BEF5', 0.12);
+  dot(ctx, 244, 336, 104, '#CBD8FA', 0.13);
   ctx.save();
-  ctx.globalAlpha = 0.84; ctx.fillStyle = '#D9E2F9'; ctx.fillRect(766, 356, 80, 80);
+  ctx.globalAlpha = 0.84; ctx.fillStyle = '#D9E2F9'; ctx.fillRect(206, 298, 76, 76);
   ctx.globalAlpha = 0.26; ctx.fillStyle = '#94A6D8';
-  ctx.fillRect(786, 376, 20, 20); ctx.fillRect(818, 398, 14, 14); ctx.fillRect(772, 408, 14, 14);
+  ctx.fillRect(240, 314, 18, 18); ctx.fillRect(214, 340, 14, 14); ctx.fillRect(252, 348, 12, 12);
   ctx.restore();
   s01_s02_clouds(ctx, t);
   // hazy hill layers + a distant treeline
@@ -286,15 +312,15 @@ function s01_s02_sky(ctx, t) {
     ctx.restore();
   }
   // ground fog on the horizon
-  linearFill(ctx, 0, 850, 0, 1120,
+  linearFill(ctx, 0, 736, 0, 1006,
     [[0, 'rgba(72,64,132,0)'], [0.42, 'rgba(74,66,136,0.22)'], [1, 'rgba(22,19,44,0)']],
-    [0, 850, W, 270]);
+    [0, 736, W, 270]);
 }
 
 /* ------------------------------------------------------------ the lighting
    One overlay for the whole world layer: a cool night wash that is punched
    open (destination-out) and warmed (lighter) where the torches burn. */
-const s01_s02_LIT = { x0: -320, y0: 820, w: 1740, h: 1300 };
+const s01_s02_LIT = { x0: -280, y0: 660, w: 1660, h: 1420 };
 let s01_s02_litC = null;
 function s01_s02_lightOverlay(t) {
   const LW = 248, LH = 186;
@@ -303,10 +329,10 @@ function s01_s02_lightOverlay(t) {
   x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.filter = 'none';
   x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, LW, LH);
   const g = x.createLinearGradient(0, 0, 0, LH);
-  g.addColorStop(0.00, 'rgba(13,16,42,0.93)');       // distance = haze + darkness
-  g.addColorStop(0.15, 'rgba(11,13,36,0.85)');
-  g.addColorStop(0.46, 'rgba(9,11,30,0.72)');
-  g.addColorStop(1.00, 'rgba(6,7,20,0.57)');
+  g.addColorStop(0.00, 'rgba(13,16,42,0.94)');       // distance = haze + darkness
+  g.addColorStop(0.15, 'rgba(11,13,36,0.89)');
+  g.addColorStop(0.46, 'rgba(9,11,30,0.79)');
+  g.addColorStop(1.00, 'rgba(6,7,20,0.68)');
   x.fillStyle = g; x.fillRect(0, 0, LW, LH);
   const sx = LW / s01_s02_LIT.w, sy = LH / s01_s02_LIT.h;
   const pts = [];
@@ -327,7 +353,7 @@ function s01_s02_lightOverlay(t) {
   }
   x.globalCompositeOperation = 'lighter';
   for (const p of pts) {
-    const r = 34 * p.fl;
+    const r = 33 * p.fl;
     const rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
     rg.addColorStop(0, 'rgba(138,54,8,0.44)'); rg.addColorStop(0.42, 'rgba(82,28,4,0.18)');
     rg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -345,7 +371,7 @@ function s01_s02_player(ctx, t, wire, alpha, iso) {
   if (wire) {
     dot(ctx, p.x, p.y - iso.size * 1.0, iso.size * 2.6, T().secondary, 0.34);
     mcPlayer(ctx, p.x, p.y, {
-      size: iso.size, t, walk: 0, swing, facing: 'right', bob: 0.020,
+      size: iso.size, t, walk: 0, swing, facing: 'left', bob: 0.020,
       dark: 0.90, outline: TOKENS.violetHot, outlineAlpha: 0.9, outlineWidth: 2,
       held: 'violet_block',
     });
@@ -357,7 +383,7 @@ function s01_s02_player(ctx, t, wire, alpha, iso) {
     ctx.beginPath(); ctx.ellipse(p.x, p.y + iso.size * 0.07, iso.size * 0.36, iso.size * 0.18, 0, 0, TAU); ctx.fill();
     ctx.restore();
     mcPlayer(ctx, p.x, p.y, {
-      size: iso.size, t, walk: 0, swing, facing: 'right', bob: 0.020,
+      size: iso.size, t, walk: 0, swing, facing: 'left', bob: 0.020,
       outline: '#0A0910', outlineAlpha: 0.38, outlineWidth: 1.2,
       held: { top: 'pumpkin_top', side: 'pumpkin_side' },
     });
@@ -389,18 +415,19 @@ function s01_s02_fencePost(ctx, f, wire, iso) {
   const o = wire
     ? { color: '#0C0818', top: '#160F2A', outline: T().secondary, outlineAlpha: 0.4, outlineWidth: 1.1 }
     : { tex: { top: 'oak_log_top', side: 'oak_log_side' }, outline: '#120B04', outlineAlpha: 0.4, outlineWidth: 1 };
-  s01_s02_boxAt(ctx, f.ix, f.iy, 1.0, 0.22, 0.22, 1.0, o, iso);        // post
-  s01_s02_boxAt(ctx, f.ix + 0.5, f.iy, 0.86, 1.0, 0.1, 0.12, o, iso);  // top rail towards +ix
-  s01_s02_boxAt(ctx, f.ix + 0.5, f.iy, 0.46, 1.0, 0.1, 0.12, o, iso);  // lower rail
+  const hz = s01_s02_hAt(f.ix, f.iy);
+  s01_s02_boxAt(ctx, f.ix, f.iy, hz + 1.0, 0.22, 0.22, 1.0, o, iso);        // post
+  s01_s02_boxAt(ctx, f.ix + 0.5, f.iy, hz + 0.86, 1.0, 0.1, 0.12, o, iso);  // top rail towards +ix
+  s01_s02_boxAt(ctx, f.ix + 0.5, f.iy, hz + 0.46, 1.0, 0.1, 0.12, o, iso);  // lower rail
 }
 // terrain + props in painter order, split at the player's depth. Nothing in here
 // moves, so both halves are baked into two canvases on the first frame and the
-// per-frame cost drops from ~520 textured blocks to two drawImage calls.
+// per-frame cost drops from ~700 textured blocks to two drawImage calls.
 function s01_s02_terrainPass(ctx, iso, half) {          // half: -1 = behind the bot, +1 = in front
   const s = iso.size, pv = s01_s02_BOTP.ix + s01_s02_BOTP.iy + 1;
   const props = [];
   for (const tr of s01_s02_TORCHES) props.push({ k: tr.ix + tr.iy + tr.iz, f: c => s01_s02_torchPost(c, tr, false, iso) });
-  for (const f of s01_s02_FENCE) props.push({ k: f.ix + f.iy, f: c => s01_s02_fencePost(c, f, false, iso) });
+  for (const f of s01_s02_FENCE) props.push({ k: f.ix + f.iy + s01_s02_hAt(f.ix, f.iy), f: c => s01_s02_fencePost(c, f, false, iso) });
   props.sort((a, b) => a.k - b.k);
   let pi = 0;
   for (const b of s01_s02_WORLD.vis) {
@@ -414,7 +441,7 @@ function s01_s02_terrainPass(ctx, iso, half) {          // half: -1 = behind the
   }
   while (pi < props.length) { const pr = props[pi++]; if ((pr.k <= pv ? -1 : 1) === half) pr.f(ctx); }
   if (half < 0) return;
-  for (const w of s01_s02_WORLD.pickles) {              // sea pickles in the water channel
+  for (const w of s01_s02_WORLD.pickles) {              // sea pickles in the channel and the lake
     const p = isoPos(w.ix, w.iy, w.iz, iso), n = 1 + Math.floor(hash2(w.ix, w.iy) * 3);
     for (let i = 0; i < n; i++) {
       const a = hash2(w.ix * 5 + i, w.iy * 7 + 1), b2 = hash2(w.ix * 11 + i, w.iy * 3 + 9);
@@ -423,7 +450,7 @@ function s01_s02_terrainPass(ctx, iso, half) {          // half: -1 = behind the
     }
   }
 }
-const s01_s02_BAKE = { x: -230, y: 730, w: 1540, h: 1470 };
+const s01_s02_BAKE = { x: -200, y: 560, w: 1500, h: 1580 };
 let s01_s02_baked = null;
 function s01_s02_bake() {
   if (s01_s02_baked) return s01_s02_baked;
@@ -444,7 +471,9 @@ function s01_s02_worldTex(ctx, t, iso) {
   s01_s02_player(ctx, t, false, 1, iso);
   ctx.drawImage(K.front, B.x, B.y);
 }
-// violet wireframe version of exactly the same build
+// violet wireframe version of exactly the same build — it now lights up in a RING
+// spreading out from the bot: the bot is what is still running, so the farm comes
+// back around him instead of sweeping in from the back of the field.
 function s01_s02_worldCubes(ctx, t, wire, revealP, iso) {
   iso = iso || s01_s02_ISO;
   if (!wire) { s01_s02_worldTex(ctx, t, iso); return; }
@@ -453,9 +482,9 @@ function s01_s02_worldCubes(ctx, t, wire, revealP, iso) {
   for (const b of s01_s02_WORLD.vis) {
     if (b.kind === 'stone' || b.kind === 'dirt') continue;            // buried body: no wire needed
     const ord = (b.ix + b.iy - s01_s02_VMIN) / span;
-    const a = clamp((revealP - ord * 0.45) / 0.55) * (0.55 + 0.45 * ord);
+    const a = clamp((revealP - b.rad * 0.62) / 0.38) * (0.55 + 0.45 * ord);
     if (a <= 0.02) continue;
-    const pl = 0.5 + 0.5 * Math.sin(t * 2.4 + b.ix * 0.8 + b.iy * 0.55);
+    const pl = 0.5 + 0.5 * Math.sin(t * 2.4 - b.ix * 0.55 + b.iy * 0.8);
     const hotK = s01_s02_HOT[b.kind] === 1;
     cube(ctx, b.ix, b.iy, b.iz, {
       size: iso.size, cx: iso.cx, cy: iso.cy, alpha: a,
@@ -488,35 +517,37 @@ function s01_s02_flames(ctx, t, iso) {
   }
 }
 
-// items popping out of the pumpkins every 16th note.
+// items popping out of the pumpkins every 16th note — they now arc up-LEFT,
+// across the furrows, instead of straight up.
 // cullY (scene-local y): once the copy is up, keep the pops under the text — items
 // spawn only from the front rows and fade out before they reach the headline block.
 const s01_s02_DROPS = ['pumpkin', 'sea_pickle', 'emerald', 'pumpkin', 'gold_ingot', 'pumpkin'];
 function s01_s02_items(ctx, t, wire, alpha, cullY) {
   const t0 = 0.12, step = 0.25, k1 = Math.floor((t - t0) / step);
   const src = cullY ? s01_s02_PUMPKINS_FRONT : s01_s02_PUMPKINS;
+  if (!src.length) return;
   for (let k = Math.max(0, k1 - 3); k <= k1; k++) {
     const st = t0 + k * step, life = (t - st) / 0.9;
     if (life <= 0 || life >= 1) continue;
     const cell = src[Math.floor(hash1(k * 13 + 5) * src.length)];
     const p = isoPos(cell.ix, cell.iy, cell.iz + 1.1, s01_s02_ISO);
     const e = E.outCubic(life);
-    const x = p.x + (hash2(k, 3) - 0.5) * 54, y = p.y - 12 - e * 118;
+    const x = p.x - e * 58 + (hash2(k, 3) - 0.5) * 34, y = p.y - 10 - e * 126;
     let a = clamp((1 - life) * 1.5) * (life < 0.12 ? life / 0.12 : 1) * alpha;
     if (cullY) a *= clamp((y - cullY) / 130);
     if (a <= 0.01) continue;
     const sp = wire ? SPRITES.pumpkin : SPRITES[s01_s02_DROPS[k % s01_s02_DROPS.length]];
     dot(ctx, x, y, 46, wire ? TOKENS.violetHot : '#FFB25A', a * 0.38);
-    pixelSprite(ctx, x, y, 4.0, sp.rows, wire ? s01_s02_PUMPPAL_V : sp.pal,
+    pixelSprite(ctx, x, y, 4.2, sp.rows, wire ? s01_s02_PUMPPAL_V : sp.pal,
       { alpha: a, rotate: (hash2(k, 9) - 0.5) * 0.7 });
   }
 }
 
 // fireflies over the farm — the lit frames are never completely still
 const s01_s02_FLIES = (() => {
-  const r = rng(8123), o = [];
+  const r = rng(4407), o = [];
   for (let i = 0; i < 26; i++) o.push({
-    x: 40 + r() * 1000, y: 1120 + r() * 720, ax: 26 + r() * 60, ay: 12 + r() * 30,
+    x: 20 + r() * 960, y: 980 + r() * 840, ax: 26 + r() * 60, ay: 12 + r() * 30,
     fx: 0.24 + r() * 0.5, fy: 0.3 + r() * 0.6, ph: r() * 9, tw: 0.7 + r() * 1.5,
   });
   return o;
@@ -533,12 +564,24 @@ function s01_s02_flies(ctx, t, alpha) {
 }
 
 /* ------------------------------------------------------------ s01 pieces */
+// Secondary content: new chat, same register, same sense — he is switching the PC
+// off, she asks about the farm, [HugoAFK] answers that the bot stays online.
 const s01_s02_CHAT = [
-  { t: -0.62, s: '<Nico> so, ich mach den pc aus', c: '#FFFFFF' },   // fully typed at f0 → the cover frame carries the whole hook
-  { t: 0.16, s: '<Mira> und deine kürbisfarm?', c: '#FFFFFF' },
-  { t: 0.40, s: '<Nico> läuft weiter :)', c: '#FFFFFF' },
+  { t: -0.62, s: '<Jonas> so, pc geht gleich aus', c: '#FFFFFF' },  // fully typed at f0 → the cover frame carries the whole hook
+  { t: 0.16, s: '<Lea> und die kürbisfarm?', c: '#FFFFFF' },
+  { t: 0.40, s: '<Jonas> läuft ohne mich :)', c: '#FFFFFF' },
   { t: 0.54, s: '[HugoAFK] Bot bleibt online.', c: TOKENS.violetHot, cps: 105 },   // readable before the 0.92 glitch ramp
 ];
+const s01_s02_CHATY = 336;
+let s01_s02_chatX = null;
+function s01_s02_chatOrigin(ctx) {            // right-hand block, held inside x 90..900
+  if (s01_s02_chatX != null) return s01_s02_chatX;
+  const o = { size: 40, family: FONTS.term, weight: 400 };
+  let m = 0;
+  for (const l of s01_s02_CHAT) m = Math.max(m, measureText(ctx, l.s, o));
+  s01_s02_chatX = Math.max(120, Math.min(366, 882 - m));
+  return s01_s02_chatX;
+}
 function s01_s02_chat(ctx, t) {
   const lines = [];
   for (const l of s01_s02_CHAT) {
@@ -548,7 +591,7 @@ function s01_s02_chat(ctx, t) {
     lines.push({ t: l.s.slice(0, n), c: l.c, a: 1 });
   }
   if (!lines.length) return;
-  mcChat(ctx, 112, 330, lines, { size: 40, lineHeight: 54, pad: 14, bgColor: 'rgba(0,0,0,0.5)' });
+  mcChat(ctx, s01_s02_chatOrigin(ctx), s01_s02_CHATY, lines, { size: 40, lineHeight: 54, pad: 14, bgColor: 'rgba(0,0,0,0.5)' });
 }
 function s01_s02_power(ctx, x, y, r, a, g) {
   ctx.save(); ctx.globalAlpha *= a; ctx.globalCompositeOperation = 'lighter';
@@ -569,7 +612,9 @@ SCENES.s01 = {
       const o = s01_s02_off(), x = o.x;
       s01_s02_sky(x, t);
 
-      const cam = { zoom: 1.015 + 0.045 * remap(t, 0, 1.0), y: -14 * remap(t, 0, 1.0), ox: CX, oy: 1420 };
+      // the camera trucks LEFT across the field while it settles down onto it
+      const cp = remap(t, 0, 1.0);
+      const cam = { zoom: 1.02 + 0.038 * cp, x: 24 - 40 * cp, y: 12 - 26 * cp, ox: 660, oy: 1180 };
       const wl = s01_s02_worldLayer();
       withCamera(wl.x, cam, c => {
         s01_s02_worldTex(c, t, s01_s02_ISO);
@@ -579,9 +624,9 @@ SCENES.s01 = {
       });
       x.drawImage(wl.c, 0, 0);
       // atmospheric haze where the field meets the horizon — pushes the back away
-      linearFill(x, 0, 880, 0, 1230,
+      linearFill(x, 0, 764, 0, 1114,
         [[0, 'rgba(56,52,112,0)'], [0.24, 'rgba(56,52,116,0.17)'], [0.55, 'rgba(38,36,84,0.09)'], [1, 'rgba(18,16,40,0)']],
-        [0, 880, W, 350]);
+        [0, 764, W, 350]);
       withCamera(x, cam, c => {
         s01_s02_flames(c, t, s01_s02_ISO);
         s01_s02_flies(c, t, 1);
@@ -590,9 +635,10 @@ SCENES.s01 = {
       });
       s01_s02_chat(x, t);
 
-      // red power button pulse just before the shutdown
+      // red power button pulse just before the shutdown — now over the field,
+      // up and right, where the bot's path leaves the frame
       const pw = win(t, 0.86, 0.94, 0.99, 1.02, E.outBack, E.outQuad);
-      if (pw > 0.01) s01_s02_power(x, CX, 960, 78 * (0.85 + 0.15 * pw), pw, 0.6 + 0.4 * Math.sin(t * 40));
+      if (pw > 0.01) s01_s02_power(x, 706, 968, 78 * (0.85 + 0.15 * pw), pw, 0.6 + 0.4 * Math.sin(t * 40));
 
       if (t < CRT0) ctx.drawImage(o.c, 0, 0);
       else crtCollapse(ctx, o.c, 1 - remap(t, CRT0, CRT1), { glow: TOKENS.violetHot });
@@ -616,23 +662,26 @@ SCENES.s01 = {
       ctx.restore();
     }
 
-    nightSky(ctx, t, { count: 72, seed: 21, alpha: 0.30 * remap(t, 1.6, 2.4), hMul: 0.58, drift: true });
+    nightSky(ctx, t, { count: 72, seed: 47, alpha: 0.30 * remap(t, 1.6, 2.4), hMul: 0.58, drift: true });
     // faint violet aurora above the wireframe world, so the upper third is not dead black
     const aur = remap(t, 1.5, 2.3);
     if (aur > 0.01) {
-      radialFill(ctx, CX, 300, 940, [[0, rgba(TOKENS.deepViolet, 0.30 * aur)], [0.58, rgba(TOKENS.deepViolet, 0.11 * aur)], [1, 'rgba(0,0,0,0)']], 'lighter');
-      radialFill(ctx, CX - 260, 140, 640, [[0, rgba(T().secondary, 0.11 * aur)], [1, 'rgba(0,0,0,0)']], 'lighter');
+      radialFill(ctx, CX + 170, 250, 900, [[0, rgba(TOKENS.deepViolet, 0.30 * aur)], [0.58, rgba(TOKENS.deepViolet, 0.11 * aur)], [1, 'rgba(0,0,0,0)']], 'lighter');
+      radialFill(ctx, CX - 300, 520, 620, [[0, rgba(T().secondary, 0.11 * aur)], [1, 'rgba(0,0,0,0)']], 'lighter');
     }
 
     const revealP = ez(t, 1.38, 2.1, E.outCubic);
     const botA = ez(t, 1.30, 1.56, E.outCubic) * (0.82 + 0.18 * Math.sin(t * 7));
-    // continuous camera: a slow creep out of the reveal, then the push into the cut —
-    // no frame between 1.3 and 3.0 sits still.
+    // continuous camera: a slow slide to the left out of the reveal, then the push
+    // into the cut — no frame between 1.3 and 3.0 sits still.
     const creep = remap(t, 1.26, 3.0), push = ez(t, 2.30, 3.0, E.inQuad);
-    const zoom = 1 + 0.075 * creep + 0.125 * push;
-    withCamera(ctx, { zoom, x: 10 * Math.sin((t - 1.3) * 1.4), y: -13 * creep - 16 * push, ox: CX, oy: 1500 }, c => {
+    const zoom = 1.02 + 0.06 * creep + 0.14 * push;
+    withCamera(ctx, {
+      zoom, x: -20 * creep - 26 * push + 7 * Math.sin((t - 1.3) * 1.1),
+      y: 9 * creep + 20 * push, ox: 726, oy: 1560,
+    }, c => {
       // ground glow so the wireframe does not float in nothing
-      radialFill(c, CX, 1520, 700, [[0, rgba(TOKENS.deepViolet, 0.34 * revealP)], [1, 'rgba(0,0,0,0)']], 'lighter');
+      radialFill(c, 600, 1500, 720, [[0, rgba(TOKENS.deepViolet, 0.34 * revealP)], [1, 'rgba(0,0,0,0)']], 'lighter');
       s01_s02_worldCubes(c, t, true, revealP);
       s01_s02_player(c, t, true, botA, s01_s02_ISO);
       s01_s02_items(c, t, true, revealP, t > 1.42 ? 1200 : 0);
@@ -708,8 +757,8 @@ function s01_s02_shine(ctx, L, pos, alpha) {
   const c = s01_s02_shineC, x = c.getContext('2d');
   x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.filter = 'none';
   x.clearRect(0, 0, c.width, c.height);
-  const sx = lerp(-L.w * 0.5, L.w * 1.5, pos);
-  const g = x.createLinearGradient(sx - 150, 0, sx + 150, L.h);
+  const sx = lerp(L.w * 1.5, -L.w * 0.5, pos);                 // sweeps right -> left now
+  const g = x.createLinearGradient(sx - 150, L.h, sx + 150, 0);
   g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,0.85)'); g.addColorStop(1, 'rgba(255,255,255,0)');
   x.fillStyle = g; x.fillRect(0, 0, c.width, c.height);
   x.globalCompositeOperation = 'destination-in'; x.drawImage(IMG.logo, 0, 0, L.w, L.h);
@@ -730,52 +779,81 @@ const s01_s02_BURST = (() => {
   return out;
 })();
 const s01_s02_dust = new Particles({
-  seed: 913, count: 80, size: [2, 7], vel: { x: 10, y: -30 },
+  seed: 913, count: 80, size: [2, 7], vel: { x: -24, y: -26 },
   area: { x0: -80, y0: -80, x1: W + 80, y1: H + 80 },
   color: '#C77DFF', alpha: 0.45, drift: 44, twinkle: 1.2,
 });
 const s01_s02_kick = t => t < 3.46 ? 0 : pulse(t, 0.5, 7, 3.5);
 
-// voxel motes rising behind the lockup — the farm's particles carried into the logo
-// beat, and the thing that keeps the picture moving between the kicks
+// voxel motes drifting diagonally behind the lockup, in three parallax depth bands — the
+// farm's particles carried into the logo beat, and the thing that keeps the picture moving
+// between the kicks (this is what fills the 3.3-4.6 hold, where the frame is otherwise empty)
 const s01_s02_MOTES = (() => {
   const r = rng(2609), out = [];
-  for (let i = 0; i < 44; i++) out.push({
-    x: 40 + r() * (W - 80), sz: 9 + r() * 20, sp: 62 + r() * 110, ph: r() * 2400,
-    sway: 14 + r() * 30, swf: 0.5 + r() * 0.9,
-    col: r() < 0.72 ? '#A855F7' : '#C77DFF', a: 0.16 + r() * 0.22,
-  });
+  // three parallax depth bands instead of one even scatter: far dust, a mid stream and a few
+  // near blocks that only cross the lower third — the diagonal drift reads as a real stream
+  const BANDS = [
+    { n: 36, sz: [6, 13], sp: [38, 74], a: [0.10, 0.20], sway: [8, 20], lane: [-680, W + 140], yLo: 0.00 },
+    { n: 30, sz: [15, 30], sp: [84, 148], a: [0.20, 0.34], sway: [16, 38], lane: [-720, W + 160], yLo: 0.00 },
+    { n: 14, sz: [34, 60], sp: [162, 232], a: [0.22, 0.38], sway: [22, 52], lane: [-780, W + 200], yLo: 0.46 },
+  ];
+  for (let b = 0; b < BANDS.length; b++) {
+    const B = BANDS[b];
+    for (let i = 0; i < B.n; i++) out.push({
+      band: b,
+      x: B.lane[0] + r() * (B.lane[1] - B.lane[0]),
+      sz: B.sz[0] + r() * (B.sz[1] - B.sz[0]),
+      sp: B.sp[0] + r() * (B.sp[1] - B.sp[0]),
+      ph: r() * 2400,
+      sway: B.sway[0] + r() * (B.sway[1] - B.sway[0]), swf: 0.5 + r() * 0.9,
+      col: r() < 0.72 ? '#A855F7' : '#C77DFF',
+      a: B.a[0] + r() * (B.a[1] - B.a[0]),
+      yLo: B.yLo,
+    });
+  }
   return out;
 })();
 function s01_s02_motes(ctx, t, alpha) {
   if (alpha <= 0.01) return;
-  const span = H + 320;
+  const span = H + 340;
+  const LX = s01_s02_SCX, LY = s01_s02_LOCKY;
   for (const m of s01_s02_MOTES) {
-    const y = H + 160 - (((t * m.sp + m.ph) % span) + span) % span;
-    const x = m.x + Math.sin(t * m.swf + m.ph) * m.sway;
+    const prog = (((t * m.sp + m.ph) % span) + span) % span;    // 0 at the bottom edge
+    const y = H + 170 - prog;
+    if (y < m.yLo * H) continue;                                // the near band stays low in frame
+    const x = m.x + prog * 0.36 + Math.sin(t * m.swf + m.ph) * m.sway;
+    if (x < -70 || x > W + 70) continue;
+    // nothing heavy sits on the lockup: the bigger the block, the wider it keeps clear of it
+    const clear = clamp((Math.hypot((x - LX) / 1.35, y - LY) - 190 - m.sz * 3.4) / 150);
+    if (clear <= 0.02) continue;
     cube(ctx, 0, 0, 0, {
-      size: m.sz, cx: x, cy: y, color: m.col, alpha: m.a * alpha,
+      size: m.sz, cx: x, cy: y, color: m.col, alpha: m.a * alpha * clear,
       topF: 1.35, leftF: 0.8, rightF: 0.52,
     });
   }
 }
 
+// the "violettes Voxel-Gitter" behind the lockup: an isometric block lattice that
+// lights up in a wave running from the lower left to the upper right.
 function s01_s02_grid(ctx, t) {
   const p = ez(t, 4.6, 5.8, E.outCubic);
   if (p <= 0) return;
-  const cell = 78, cols = 15, rows = 17, x0 = s01_s02_SCX - cols * cell / 2, y0 = 300;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.4;
-  for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
-    const cx = x0 + i * cell + cell / 2, cy = y0 + j * cell + cell / 2;
-    const d = Math.hypot(cx - s01_s02_SCX, (cy - s01_s02_LOCKY) * 0.8) / 900;
-    const a = clamp((p - d * 0.75) / 0.35);
-    if (a <= 0.02) continue;
-    const tw = 0.45 + 0.55 * Math.sin(t * 2.6 + i * 0.7 + j * 0.9);
-    ctx.strokeStyle = rgba(T().secondary, 0.21 * a * (0.5 + 0.5 * tw));
-    ctx.strokeRect(x0 + i * cell + 6, y0 + j * cell + 6, cell - 12, cell - 12);
-    if (hash2(i, j) > 0.9) {
-      ctx.fillStyle = rgba(TOKENS.violetHot, 0.13 * a * tw);
-      ctx.fillRect(x0 + i * cell + 6, y0 + j * cell + 6, cell - 12, cell - 12);
+  const c = 84, hw = c * ISO.w, hh = c * ISO.h, gx = s01_s02_SCX + 44, gy = 940;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.5;
+  for (let a = -15; a <= 15; a++) for (let b = -15; b <= 15; b++) {
+    const cx = gx + (a - b) * hw, cy = gy + (a + b) * hh;
+    if (cx < -130 || cx > W + 130 || cy < 200 || cy > H - 90) continue;
+    const ord = clamp((cx / W) * 0.55 + (1 - cy / H) * 0.45);
+    const al = clamp((p - ord * 0.6) / 0.4);
+    if (al <= 0.02) continue;
+    const tw = 0.45 + 0.55 * Math.sin(t * 2.6 + a * 0.8 - b * 0.7);
+    ctx.strokeStyle = rgba(T().secondary, 0.26 * al * (0.5 + 0.5 * tw));
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hh + 5); ctx.lineTo(cx + hw - 9, cy);
+    ctx.lineTo(cx, cy + hh - 5); ctx.lineTo(cx - hw + 9, cy); ctx.closePath(); ctx.stroke();
+    if (hash2(a + 20, b + 20) > 0.86) {
+      ctx.fillStyle = rgba(TOKENS.violetHot, 0.16 * al * tw);
+      ctx.fill();
     }
   }
   ctx.restore();
@@ -788,45 +866,63 @@ SCENES.s02 = {
 
     /* -------- backdrop */
     const SCX = s01_s02_SCX;
+    // the light no longer sits symmetrically on the lockup: a violet pool rakes up from the
+    // lower left, the red rim sits high right — the hold reads as a lit stage, not a vignette
     const bgp = 0.16 + 0.07 * k;
-    radialFill(ctx, SCX, s01_s02_LOCKY, 900,
-      [[0, rgba(TOKENS.deepViolet, bgp)], [0.55, rgba(TOKENS.deepViolet, bgp * 0.35)], [1, 'rgba(0,0,0,0)']], 'lighter');
-    radialFill(ctx, SCX, s01_s02_LOCKY - 190, 620,
-      [[0, rgba(T().primary, 0.10 + 0.06 * k)], [1, 'rgba(0,0,0,0)']], 'lighter');
-    nightSky(ctx, t, { count: 70, seed: 21, alpha: 0.22, hMul: 0.6, drift: true });
+    radialFill(ctx, SCX - 230, s01_s02_LOCKY + 400, 1000,
+      [[0, rgba(TOKENS.deepViolet, bgp * 1.06)], [0.55, rgba(TOKENS.deepViolet, bgp * 0.34)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    radialFill(ctx, SCX + 270, s01_s02_LOCKY - 320, 660,
+      [[0, rgba(T().primary, 0.105 + 0.06 * k)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    radialFill(ctx, SCX, s01_s02_LOCKY, 430,
+      [[0, rgba(TOKENS.deepViolet, bgp * 0.42)], [1, 'rgba(0,0,0,0)']], 'lighter');
+    nightSky(ctx, t, { count: 70, seed: 47, alpha: 0.22, hMul: 0.6, drift: true });
 
     // background camera: a constant slow drift from the impact on, then the push of the
     // last bar — the backdrop is never still between the kicks
     const bdrift = remap(t, 3.2, 4.6), bpush = ez(t, 4.6, 6.0, E.inOutCubic);
-    withCamera(ctx, { zoom: 1 + 0.022 * bdrift + 0.05 * bpush, x: 7 * Math.sin((t - 3.2) * 0.85), y: -5 * bdrift - 10 * bpush }, c => {
+    withCamera(ctx, { zoom: 1 + 0.022 * bdrift + 0.05 * bpush, x: -9 * Math.sin((t - 3.2) * 0.85), y: 6 * bdrift + 10 * bpush }, c => {
       s01_s02_grid(c, t);
       s01_s02_motes(c, t, 0.9 * remap(t, 3.16, 3.7));
       // the farm from s01 keeps running behind the logo — violet wireframe horizon
       const fp = ez(t, 4.45, 5.8, E.outCubic);
       if (fp > 0.01) {
         c.save(); c.globalAlpha *= 0.58 * fp;
-        radialFill(c, CX, 1920, 760, [[0, rgba(TOKENS.deepViolet, 0.34)], [1, 'rgba(0,0,0,0)']], 'lighter');
-        s01_s02_worldCubes(c, t, true, fp, { size: 82, cx: CX, cy: 2075 });
+        radialFill(c, 700, 1980, 780, [[0, rgba(TOKENS.deepViolet, 0.34)], [1, 'rgba(0,0,0,0)']], 'lighter');
+        s01_s02_worldCubes(c, t, true, fp, { size: 76, cx: 706, cy: 2036 });
         c.restore();
       }
     });
     s01_s02_dust.draw(ctx, t, { alpha: 0.30 + 0.20 * k, scale: 1 });
 
-    /* -------- shockwave rings */
+    /* -------- shockwave rings (unchanged: the hit the scene is built around) */
     const swl = remap(t, HIT, HIT + 0.55);
     if (swl > 0 && swl < 1) {
       shockwave(ctx, SCX, s01_s02_LOCKY, swl, { radius: 1150, color: T().primary, width: 20, alpha: 0.85 });
       shockwave(ctx, SCX, s01_s02_LOCKY, remap(t, HIT + 0.05, HIT + 0.7), { radius: 1300, color: T().secondary, width: 12, alpha: 0.7 });
     }
 
-    /* -------- logo lockup */
-    const eH = ez(t, 3.0, HIT, E.outQuint), eA = ez(t, 3.0, HIT, E.outQuint);
-    const bnc = t >= HIT ? Math.exp(-13 * (t - HIT)) * Math.sin((t - HIT) * 40) * 11 : 0;
-    const dyH = -(1 - eH) * 1000 - bnc;
-    const dyA = (1 - eA) * 1000 + bnc;
+    /* -------- logo lockup — the two halves now CLAP together horizontally:
+       HUGO comes in from the left, AFK from the right, both from slightly too
+       far away (scale 1.16 -> 1.0) and slightly tilted, and they snap flat on
+       the same 3.12 frame as before. */
+    const e = ez(t, 3.0, HIT, E.outQuint), inv = 1 - e;
+    const rec = t >= HIT ? Math.exp(-13 * (t - HIT)) * Math.sin((t - HIT) * 40) * 13 : 0;
+    const dxH = -inv * 1220 - rec, dxA = inv * 1220 + rec;
+    const dyH = -inv * inv * 130, dyA = inv * inv * 130;
+    const rotH = -inv * 0.05, rotA = inv * 0.05;
+    const scH = 1 + inv * 0.16;
     const breathe = t > 3.3 ? 0.010 * (1 - Math.cos((t - 3.3) * TAU / 1.6)) : 0;
     const sc = 1 + breathe + 0.028 * k + 0.05 * Math.exp(-16 * Math.max(0, t - HIT)) + 0.03 * ez(t, 5.75, 6.0, E.inQuad);
-    const hy = L.y + dyH, ay = L.y + L.M.afk.offsetY * L.s + dyA;
+
+    const hgH = L.M.hugo.h * L.s, afH = L.M.afk.h * L.s, afY = L.y + L.M.afk.offsetY * L.s;
+    const hcx = L.x + L.w / 2, hcy = L.y + hgH / 2, acx = L.x + L.w / 2, acy = afY + afH / 2;
+    const half = (img, iy, ih, dx, dy, rot, cxp, cyp, alpha) => {
+      ctx.save();
+      if (alpha != null) ctx.globalAlpha *= alpha;
+      ctx.translate(cxp + dx, cyp + dy); ctx.rotate(rot); ctx.scale(scH, scH); ctx.translate(-cxp, -cyp);
+      ctx.drawImage(img, L.x, iy, L.w, ih);
+      ctx.restore();
+    };
 
     // slow sway on top of the breathe — the biggest bright object in frame keeps moving
     // between the kicks (amplitude budgeted into the safe-area maths above)
@@ -852,33 +948,34 @@ SCENES.s02 = {
       ctx.drawImage(Mt.c, L.x - Mt.pad, L.y - Mt.pad);
       ctx.restore();
     }
-    // motion trail while the halves travel
-    if (t < HIT) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.16;
+    // motion trails along the travel — horizontal now
+    const smear = clamp(inv * 4);                    // the trail dies with the travel
+    if (t < HIT && smear > 0.01) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let i = 1; i <= 5; i++) {
-        const f = i / 5 * 190;
-        ctx.drawImage(IMG.logoHugo, L.x, hy - f, L.M.hugo.w * L.s, L.M.hugo.h * L.s);
-        ctx.drawImage(IMG.logoAfk, L.x, ay + f, L.M.afk.w * L.s, L.M.afk.h * L.s);
+        const f = i / 5 * 240 * smear;
+        half(IMG.logoHugo, L.y, hgH, dxH - f, dyH, rotH, hcx, hcy, 0.17 * smear);
+        half(IMG.logoAfk, afY, afH, dxA + f, dyA, rotA, acx, acy, 0.17 * smear);
       }
       ctx.restore();
     }
-    ctx.drawImage(IMG.logoHugo, L.x, hy, L.M.hugo.w * L.s, L.M.hugo.h * L.s);
-    ctx.drawImage(IMG.logoAfk, L.x, ay, L.M.afk.w * L.s, L.M.afk.h * L.s);
+    half(IMG.logoHugo, L.y, hgH, dxH, dyH, rotH, hcx, hcy);
+    half(IMG.logoAfk, afY, afH, dxA, dyA, rotA, acx, acy);
 
     // one specular sweep across the lockup
     const shp = remap(t, 4.85, 5.45);
     if (shp > 0 && shp < 1) s01_s02_shine(ctx, L, shp, 0.55 * Math.sin(shp * Math.PI));
     ctx.restore();
 
-    /* -------- voxel shard burst (in front) */
+    /* -------- voxel shard burst (in front) — flattened along the clap axis */
     if (t >= HIT && t < HIT + 1.2) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < s01_s02_BURST.length; i++) {
         const b = s01_s02_BURST[i], p = (t - HIT) / b.life;
         if (p >= 1) continue;
-        const e = E.outQuint(p), r = b.r0 + b.sp * e;
-        const x = SCX + Math.cos(b.ang) * r;
-        const y = s01_s02_LOCKY + Math.sin(b.ang) * r * 0.82 - b.rise * 120 * e + 820 * p * p;
+        const eb = E.outQuint(p), r = b.r0 + b.sp * eb;
+        const x = SCX + Math.cos(b.ang) * r * 1.12;
+        const y = s01_s02_LOCKY + Math.sin(b.ang) * r * 0.68 - b.rise * 120 * eb + 820 * p * p;
         const s = b.sz * (1 - p * 0.55);
         ctx.save(); ctx.globalAlpha = 0.9 * Math.pow(1 - p, 1.3);
         ctx.translate(x, y); ctx.rotate(b.rot * p);

@@ -3,7 +3,17 @@
                                               schwarze Pause mit violettem Ladebalken, Rematerialisierung + Haken
    s07  17.5–20.5  "Steuerung vom Handy."   — Handy fliegt mit 3D-Kippen ein, Live-Konsole (VT323),
                                               Statuszeile ONLINE + Laufzeit, Finger-Tap auf STOPP, Neustart
-   Alles ist eine reine Funktion von t. Alle Modul-Namen sind mit s06_s07_ präfixiert. */
+   Alles ist eine reine Funktion von t. Alle Modul-Namen sind mit s06_s07_ präfixiert.
+
+   NEUINSZENIERUNG (v2): identische Timings, Typo, Farben und Strings — aber ein anderer Blick:
+     s06 steht jetzt auf der Terrassenkante einer zweistufigen Hangfarm. Die Beete laufen quer
+         zur alten Richtung (Spalten statt Reihen), die Kamera schiebt langsam auf den Bot-Platz
+         zu und liegt leicht schief; der Bot steht links der Mitte an der Abbruchkante, rechts
+         öffnet sich die tiefer liegende Wiese mit Teich. Der "Gleiche Stelle"-Marker ist ein
+         Beacon: Bodenraute + Lichtsäule + gemessenes Schild, an dem auch der Ladebalken hängt.
+     s07 hält das Handy schräg (Gierung +0.33, Rolle -0.085) rechts der Mitte; es steigt von
+         unten ins Bild statt von rechts. Die Konsole hat eine Statuszeile mit getauschten
+         Seiten, einen Aktivitätsstreifen und eine Zeilen-Gutter-Spur. */
 
 /* ------------------------------------------------------------------ tiny helpers */
 // shrink a line until it fits maxW (keeps the -0.04 em tracking of the style guide)
@@ -35,28 +45,24 @@ function s06_s07_mix(h1, h2, k) {
   const a = hexToRgb(h1), b = hexToRgb(h2), h = v => ('0' + Math.round(v).toString(16)).slice(-2);
   return '#' + h(lerp(a[0], b[0], k)) + h(lerp(a[1], b[1], k)) + h(lerp(a[2], b[2], k));
 }
-// painter order for isometric cells: back to front = (ix + iy + iz) ascending
-// (cubeField sorts by ix+iy-iz, which puts stacked blocks in the wrong order — see report)
-function s06_s07_isoSort(cells) {
-  return cells.slice().sort((a, b) => (a.ix + a.iy + (a.iz || 0)) - (b.ix + b.iy + (b.iz || 0)));
-}
 
-/* ================================================================== s06 — die HugoSMP-Nachtfarm
-   Zweiter Durchgang: eine echte Minecraft-Welt statt bunter Würfel.
-     · Gelände mit Tiefe: Grasplateau der Farm, Hügelstufe dahinter, Wiese davor, die eine
-       Blockstufe abfällt — alles aus TEXTURIERTEN Blöcken (gebackenes AO in der Engine)
-     · begrenzte Farm-Parzelle: Kürbisreihen auf Ackerland mit Stielen dazwischen,
-       ein Wassergraben mit Sea Pickles, zwei Kopfsteinwege, ein Eichenzaun
-     · drei Eichen (Stamm + ausgefranste Blätterkrone), Fackeln, eine Kiste, Findlinge
-     · der AFK-SPIELER (mcPlayer) steht auf der reservierten Kachel und erntet
+/* ================================================================== s06 — die HugoSMP-Hangfarm
+   Eine echte Minecraft-Welt, jetzt als Terrassenlandschaft quer durchs Bild:
+     · links (u = ix-iy <= -1.5) das obere Plateau mit der begrenzten Farm-Parzelle,
+       deren Beete als SPALTEN laufen (Stiele, Kürbisse, Wassergraben, Kopfsteinweg)
+     · in der Mitte eine mittlere Terrasse, rechts die tiefer liegende Wiese mit Teich,
+       zweitem kleinen Kürbisbeet und einem Weg, der über beide Stufen nach vorn führt
+     · der AFK-SPIELER (mcPlayer) steht auf dem Kopfsteinweg direkt an der Abbruchkante
    Nachtlook: die Blöcke gehen in eine eigene Ebene, EIN Lichtdurchgang ('source-atop')
    dunkelt die Welt ab und schneidet warme Pfützen um die Fackeln heraus. */
 
-const s06_ISO  = { size: 66, cx: CX, cy: 1200 };
-const s06_UMAX = 10, s06_VMIN = -5, s06_VMAX = 23;      // visible (ix-iy) / (ix+iy) window
-const s06_PT   = { ix: 4, iy: -1 };                     // the reserved tile — the AFK player's spot
-const s06_CHK  = { x: 700, y: 1000 };                   // where the green check lands (left of the player)
-const s06_PLOT = { x0: -2, x1: 6, y0: -1, y1: 5 };      // the bounded farm plot
+const s06_ISO  = { size: 74, cx: 528, cy: 1194 };       // closer camera than v1 (66 -> 74)
+const s06_UMAX = 13, s06_VMAX = 27;                     // visible (ix-iy) / (ix+iy) window
+const s06_PT   = { ix: 1, iy: 3 };                      // the reserved tile — screen ≈ (400, 1194)
+const s06_CHK  = { x: 664, y: 1054 };                   // where the green check lands (right of the bot)
+const s06_PLOT = { x0: -4, x1: 1, y0: 1, y1: 7 };       // the bounded upper farm plot
+const s06_PATCH = { x0: 4, x1: 7, y0: 0, y1: 2 };       // the small wild patch on the lower meadow
+const s06_POND = { x0: 2, x1: 4, y0: -4, y1: -2 };      // pond on the meadow, right of the terrace
 
 const s06_TEX = {
   grass:   { top: 'grass_top', side: 'grass_side' },
@@ -73,45 +79,64 @@ const s06_TEX = {
   chest:   { top: 'oak_planks', side: 'chest' },
 };
 const s06_HOT = { pumpkin: 1, leaves: 1, water: 1, chest: 1 };   // hot violet outline in the wireframe
-// what a plot row is made of (iy runs from the back path to the front path)
-const s06_ROW = { '-1': 'cobble', '0': 'soil', '1': 'crop', '2': 'water', '3': 'soil', '4': 'crop', '5': 'cobble' };
-const s06_PAR = { '0': 0, '3': 1 };                     // pumpkin on every other tile, staggered
+// the plot runs in COLUMNS now (constant ix): the furrows cross the frame the other way —
+// back path, stems, two dense pumpkin columns, the irrigation channel, then the front path
+const s06_ROW = { '-4': 'cobble', '-3': 'crop', '-2': 'soil', '-1': 'soil', '0': 'water', '1': 'cobble' };
 
-// tall, compact oaks — a long visible trunk reads as a tree, a fat canopy just reads as a hill.
-// Their canopies are kept off the player's column (ix-iy ≈ 5) so he is never hidden by leaves.
-// Two of them stand where their crowns break the horizon line into the night sky (x < 200 and
-// x > 880, i.e. outside every text column), which is what makes them read as trees at all.
+/* terrain: two terrace steps that run DOWN the screen (constant ix-iy), so the farm plateau
+   holds the left third, a middle terrace carries the path and the meadow drops away right. */
+function s06_hAt(ix, iy) {
+  if (ix >= s06_PLOT.x0 - 1 && ix <= s06_PLOT.x1 + 1 && iy >= s06_PLOT.y0 - 1 && iy <= s06_PLOT.y1 + 1) return 2;
+  const u = ix - iy + (hash2(ix * 7 + 3, iy * 11 + 5) - 0.5) * 1.9;
+  return u <= -1.5 ? 2 : u <= 2.5 ? 1 : 0;
+}
+/* back edge of the world: one ragged screen line at y ≈ 1009 whatever the terrace height,
+   rising towards both frame edges (|ix-iy| > 6) so the land reads as a shallow valley and the
+   two oaks have somewhere to stand — the rise stays outside every text column. */
+function s06_vMin(ix, iy) {
+  const u = Math.abs(ix - iy);
+  return -5 + 2 * s06_hAt(ix, iy) + Math.round(hash1((ix - iy) * 131 + 17) * 2)
+       - Math.min(3, Math.max(0, Math.round((u - 6) * 0.7)));
+}
+function s06_inWin(ix, iy, m) {
+  m = m || 0;
+  return Math.abs(ix - iy) <= s06_UMAX + m && ix + iy >= s06_vMin(ix, iy) - m && ix + iy <= s06_VMAX + m;
+}
+// first tile of a screen column (u = ix-iy) that is inside the window — used to seat the oaks
+function s06_backV(u) {
+  for (let v = -12; v <= 20; v++) {
+    if (((((u + v) % 2) + 2) % 2) !== 0) continue;
+    const ix = (u + v) / 2, iy = (v - u) / 2;
+    if (v >= s06_vMin(ix, iy)) return v;
+  }
+  return 0;
+}
+// tall, compact oaks. Two of them break the horizon far left / far right (x < 200, x > 880),
+// i.e. outside every text column; the third frames the lower right corner.
 const s06_TREES = [
-  { ix: -3, iy:  4, trunk: 4, R: 1 },                   // hero oak, west edge
-  { ix:  4, iy: -3, trunk: 4, R: 1 },                   // hero oak, east of the player
-  { ix:  5, iy: 10, trunk: 3, R: 1 },                   // foreground oak, lower left
-];
-const s06_POND = { x0: -6, x1: -4, y0: 1, y1: 3 };      // a little pond west of the farm
+  { u: -7, back: 0, trunk: 3, R: 1 },                   // oak at the farm's west corner (x ≈ 79)
+  { u:  6, back: 0, trunk: 3, R: 1 },                   // oak over the meadow, far right (x ≈ 913)
+  { u:  8, back: 4, trunk: 4, R: 1 },                   // foreground oak, right edge
+].map(tr => {
+  const v = s06_backV(tr.u) + tr.back * 2;
+  return { ix: (tr.u + v) / 2, iy: (v - tr.u) / 2, trunk: tr.trunk, R: tr.R };
+});
 const s06_TORCH = [
-  { ix:  1, iy: -1 }, { ix: 6, iy: -1 },                // on the path, flanking the player
-  { ix:  0, iy: -2 }, { ix: 5, iy: -2 },                // on the fence behind him
-  { ix: -2, iy:  5 }, { ix: -3, iy: 1 },                // the front path and the plot corner
-  { ix:  4, iy:  7 }, { ix: -4, iy: -1 },               // the meadow and the path out of the farm
-];
-// oak fence: along the back edge of the plot and up its left flank
+  { ix: 1, iy: 1 }, { ix: 1, iy: 4 }, { ix: 1, iy: 7 },  // down the terrace path, past the bot's spot
+  { ix: 2, iy: 0 },                                      // at the plot fence
+  { ix: 3, iy: 0 }, { ix: 4, iy: 6 },                    // middle terrace
+  { ix: 5, iy: -2 }, { ix: 7, iy: 3 },                   // pond edge and meadow
+].filter(p => s06_inWin(p.ix, p.iy, 0));
+// oak fence: along the back edge of the plot and down its front flank
 const s06_FENCE = (() => {
   const o = [];
-  for (let ix = 0; ix <= 6; ix++) o.push({ ix: ix, iy: -2 });
-  for (let iy = 0; iy <= 3; iy++) o.push({ ix: -3, iy: iy });
-  return o;
+  for (let ix = -1; ix <= 2; ix++) o.push({ ix: ix, iy: 0 });
+  for (let iy = 5; iy <= 8; iy++) o.push({ ix: 2, iy: iy });
+  return o.filter(p => s06_inWin(p.ix, p.iy, 0) && !s06_TREES.some(tr => tr.ix === p.ix && tr.iy === p.iy));
 })();
-const s06_CHEST = { ix: -1, iy: -2 };
-// the cobble path continues out of the farm, back over the rise
-const s06_PATHOUT = (() => { const o = []; for (let ix = -6; ix <= -3; ix++) o.push({ ix: ix, iy: -1 }); return o; })();
-
-// terrain height: the farm sits on a grass plain that terraces down at the front
-function s06_hAt(ix, iy) {
-  if (ix >= s06_PLOT.x0 - 1 && ix <= s06_PLOT.x1 + 1 && iy >= s06_PLOT.y0 - 1 && iy <= s06_PLOT.y1 + 1) return 1;
-  const v = ix + iy + (hash2(ix * 7 + 3, iy * 11 + 5) - 0.5) * 2.4;
-  if (v <= 9.5) return 1;
-  if (v <= 15.0) return 0;
-  return -1;
-}
+const s06_CHEST = { ix: 3, iy: 6 };
+// the cobble path leaves the farm across both terrace steps towards the lower right
+const s06_ISPATH = (ix, iy) => iy === 7 && ix >= 2 && ix <= 8;
 
 /* ------------------------------------------------- build the world once ---
    One block per flat tile; a column only grows downwards where the terrain really
@@ -120,15 +145,16 @@ const s06_WORLD = (() => {
   const occ = new Set(), K = (a, b, c) => a + '|' + b + '|' + c;
   const solid = [], pumpkins = [], pickles = [];
   const put = (ix, iy, iz, kind) => { const k = K(ix, iy, iz); if (occ.has(k)) return; occ.add(k); solid.push({ ix: ix, iy: iy, iz: iz, kind: kind }); };
-  const inWin = (ix, iy, m) => Math.abs(ix - iy) <= s06_UMAX + (m || 0) && ix + iy >= s06_VMIN - (m || 0) && ix + iy <= s06_VMAX + (m || 0);
   const treeAt = (ix, iy) => { for (const tr of s06_TREES) if (tr.ix === ix && tr.iy === iy) return true; return false; };
 
   for (let ix = -32; ix <= 32; ix++) for (let iy = -32; iy <= 32; iy++) {
-    if (!inWin(ix, iy, 2)) continue;
+    if (!s06_inWin(ix, iy, 2)) continue;
     const h = s06_hAt(ix, iy);
     const inPlot = ix >= s06_PLOT.x0 && ix <= s06_PLOT.x1 && iy >= s06_PLOT.y0 && iy <= s06_PLOT.y1;
-    let row = inPlot ? s06_ROW[String(iy)] : null;
-    if (!row && iy === -1 && ix >= -6 && ix < s06_PLOT.x0) row = 'cobble';   // the path out of the farm
+    const inPatch = ix >= s06_PATCH.x0 && ix <= s06_PATCH.x1 && iy >= s06_PATCH.y0 && iy <= s06_PATCH.y1;
+    let row = inPlot ? s06_ROW[String(ix)] : null;
+    if (!row && s06_ISPATH(ix, iy)) row = 'cobble';                          // the path out of the farm
+    if (!row && inPatch) row = 'soil';                                       // the wild patch below
     if (!row && ix >= s06_POND.x0 && ix <= s06_POND.x1 && iy >= s06_POND.y0 && iy <= s06_POND.y1) row = 'water';
     if (!row && ix >= s06_POND.x0 - 1 && ix <= s06_POND.x1 + 1 && iy >= s06_POND.y0 - 1 && iy <= s06_POND.y1 + 1) row = 'sand';
     if (!row && !inPlot && hash2(ix * 13 + 7, iy * 29 + 3) > 0.955) row = 'dirt';
@@ -136,7 +162,9 @@ const s06_WORLD = (() => {
     if (row && !treeAt(ix, iy)) {
       kind = row;
       if (row === 'soil') {
-        pump = (((ix % 2) + 2) % 2) === s06_PAR[String(iy)];
+        // planted on a diagonal checkerboard so every pumpkin stands alone on its farmland
+        pump = inPlot ? ((((ix + iy) % 2) + 2) % 2) === 0 && hash2(ix * 9 + 4, iy * 13 + 6) > 0.12
+                      : hash2(ix * 9 + 4, iy * 13 + 6) > 0.42;               // scattered on the wild patch
         if (!pump) kind = 'crop';                       // stems between the pumpkins
       }
     }
@@ -163,19 +191,21 @@ const s06_WORLD = (() => {
       put(tr.ix + dx, tr.iy + dy, h + tr.trunk + 2, 'leaves');
     }
   }
-  // boulders and bushes on the grass — never inside the farm rows
+  // boulders and bushes on the grass — never inside the farm rows, never on the back edge
   for (let ix = -32; ix <= 32; ix++) for (let iy = -32; iy <= 32; iy++) {
-    if (!inWin(ix, iy, 0) || ix + iy < -2) continue;   // nothing tall on the back edge (text sits there)
+    if (!s06_inWin(ix, iy, 0) || ix + iy < s06_vMin(ix, iy) + 2) continue;
     if (ix >= s06_PLOT.x0 - 1 && ix <= s06_PLOT.x1 + 1 && iy >= s06_PLOT.y0 - 1 && iy <= s06_PLOT.y1 + 1) continue;
+    if (s06_ISPATH(ix, iy)) continue;
     const h = s06_hAt(ix, iy);
     if (occ.has(K(ix, iy, h + 1))) continue;
     const hs = hash2(ix * 19 + 101, iy * 23 + 7);
-    if (hs > 0.962) put(ix, iy, h + 1, hs > 0.984 ? 'cobble' : 'stone');
-    else if (hs < 0.034) put(ix, iy, h + 1, 'leaves');
+    const front = ix + iy > 11 ? 0.055 : 0.0;                 // a denser foreground field
+    if (hs > 0.962 - front) put(ix, iy, h + 1, hs > 0.984 ? 'cobble' : 'stone');
+    else if (hs < 0.034 + front) put(ix, iy, h + 1, 'leaves');
   }
   // occlusion cull + painter order (ix + iy + iz ascending)
   const vis = solid
-    .filter(b => inWin(b.ix, b.iy, 0) && !occ.has(K(b.ix + 1, b.iy + 1, b.iz + 1)))
+    .filter(b => s06_inWin(b.ix, b.iy, 0) && !occ.has(K(b.ix + 1, b.iy + 1, b.iz + 1)))
     .sort((a, b) => (a.ix + a.iy + a.iz) - (b.ix + b.iy + b.iz));
   return { vis: vis, pumpkins: pumpkins, pickles: pickles };
 })();
@@ -190,7 +220,7 @@ function s06_boxAt(ctx, ix, iy, hTop, bw, bd, bh, o) {
 
 /* ONE night pass for the whole world layer: a cool haze that is punched open
    (destination-out) and warmed (lighter) where the torches burn. */
-const s06_LIT = { x0: -160, y0: 640, w: 1400, h: 1400 };
+const s06_LIT = { x0: -220, y0: 460, w: 1560, h: 1500 };
 let s06_litC = null;
 function s06_lightOverlay() {
   const LW = 210, LH = 168;
@@ -212,14 +242,14 @@ function s06_lightOverlay() {
   }
   x.globalCompositeOperation = 'destination-out';
   for (const p of pts) {
-    const r = 34 * p.fl, rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    const r = 32 * p.fl, rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
     rg.addColorStop(0, 'rgba(0,0,0,0.98)'); rg.addColorStop(0.30, 'rgba(0,0,0,0.66)');
     rg.addColorStop(0.66, 'rgba(0,0,0,0.19)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
     x.fillStyle = rg; x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.fill();
   }
   x.globalCompositeOperation = 'lighter';
   for (const p of pts) {
-    const r = 38 * p.fl, rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    const r = 36 * p.fl, rg = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
     rg.addColorStop(0, 'rgba(156,64,12,0.52)'); rg.addColorStop(0.42, 'rgba(92,34,6,0.20)');
     rg.addColorStop(1, 'rgba(0,0,0,0)');
     x.fillStyle = rg; x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.fill();
@@ -228,23 +258,39 @@ function s06_lightOverlay() {
 }
 
 /* ------------------------------------------------------------ night horizon
-   A blocky treeline just above the back edge of the terrain (y ≈ 980) plus haze,
-   so the farm sits in a landscape instead of floating in black. */
+   Blocky hills plus a treeline just above the back edge of the terrain (y ≈ 928),
+   so the hangfarm sits in a landscape instead of floating in black. */
 const s06_FAR = (() => {
   const o = [];
-  for (let i = 0; i < 44; i++) {
-    const x = hash1(i * 91 + 13) * (W + 200) - 100;
-    o.push({ x: Math.round(x), s: 11 + Math.round(hash1(i * 13 + 5) * 13), d: hash1(i * 7 + 2) });
+  for (let i = 0; i < 52; i++) {
+    const x = hash1(i * 131 + 7) * (W + 260) - 130;
+    o.push({ x: Math.round(x), s: 10 + Math.round(hash1(i * 17 + 3) * 15), d: hash1(i * 29 + 11) });
   }
   return o.sort((a, b) => a.d - b.d);
 })();
+const s06_HILLS = (() => {
+  const o = [];
+  for (let i = 0; i < 4; i++) o.push({ x: -60 + i * 330 + hash1(i * 37 + 5) * 150, w: 260 + hash1(i * 53 + 9) * 300, h: 52 + hash1(i * 71 + 3) * 54 });
+  return o;
+})();
 function s06_horizon(ctx) {
-  const yH = 968;
-  linearFill(ctx, 0, yH - 130, 0, yH + 60, [[0, 'rgba(40,32,80,0)'], [0.6, 'rgba(46,36,92,0.30)'], [1, 'rgba(18,14,40,0)']], [0, yH - 130, W, 190]);
+  const yH = 1000;
+  linearFill(ctx, 0, yH - 150, 0, yH + 60, [[0, 'rgba(40,32,80,0)'], [0.6, 'rgba(46,36,92,0.30)'], [1, 'rgba(18,14,40,0)']], [0, yH - 150, W, 210]);
   ctx.save();
+  // stepped, blocky hills far behind the farm
+  for (let i = 0; i < s06_HILLS.length; i++) {
+    const hl = s06_HILLS[i];
+    ctx.fillStyle = i % 2 ? '#120F30' : '#0E0C26';
+    for (let x = 0; x < hl.w; x += 24) {
+      const q = (x - hl.w / 2) / (hl.w / 2);
+      const hh = Math.max(0, Math.round(hl.h * (1 - q * q) / 12) * 12);
+      if (hh <= 0) continue;
+      ctx.fillRect(Math.round(hl.x + x), yH - hh, 25, hh + 8);
+    }
+  }
   for (const tr of s06_FAR) {
-    ctx.fillStyle = tr.d > 0.5 ? '#151238' : '#0D0B26';
-    const y = yH - tr.d * 10;
+    ctx.fillStyle = tr.d > 0.5 ? '#171341' : '#0D0B26';
+    const y = yH - tr.d * 8;
     ctx.fillRect(tr.x - 2, y - tr.s * 0.55, 5, tr.s * 0.6);
     ctx.fillRect(tr.x - tr.s * 0.5, y - tr.s * 1.30, tr.s, tr.s * 0.80);
     ctx.fillRect(tr.x - tr.s * 0.3, y - tr.s * 1.75, tr.s * 0.6, tr.s * 0.55);
@@ -255,8 +301,8 @@ function s06_horizon(ctx) {
 }
 
 /* ---------------------------------------------------------------- the player
-   The AFK player stands on the reserved tile, idles and takes a mining swing
-   whenever he is connected. */
+   The AFK player stands on the reserved tile at the terrace edge, faces the drop
+   and takes a mining swing whenever he is connected. */
 function s06_playerA(t) {                                  // 1 = solid, 0 = gone
   if (t < 15.40) return 1;
   if (t < 16.42) return 1 - clamp(remap(t, 15.40, 15.74));
@@ -267,7 +313,7 @@ function s06_player(ctx, t, wire) {
   if (a <= 0.01) return;
   const p = isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), s06_ISO);
   const cyc = ((t * 1.0) % 2.6 + 2.6) % 2.6;
-  const swing = (t < 15.32 || t > 16.88) && cyc < 0.80 ? Math.sin(cyc / 0.80 * Math.PI) : 0;
+  const swing = (t < 15.32 || t > 16.88) && cyc > 1.35 && cyc < 2.15 ? Math.sin((cyc - 1.35) / 0.80 * Math.PI) : 0;
   ctx.save(); ctx.globalAlpha *= a;
   if (wire < 0.5) {                                        // contact shadow
     ctx.save(); ctx.globalAlpha *= 0.45; ctx.fillStyle = '#000000';
@@ -275,7 +321,7 @@ function s06_player(ctx, t, wire) {
     ctx.restore();
   }
   mcPlayer(ctx, p.x, p.y, {
-    size: s06_ISO.size, t: t, walk: 0, swing: swing, facing: 'left', bob: 0.020,
+    size: s06_ISO.size, t: t, walk: 0, swing: swing, facing: 'right', bob: 0.020,
     dark: wire > 0.5 ? 0.88 : 0.30,
     outline: wire > 0.5 ? TOKENS.violetHot : '#0A0910',
     outlineAlpha: wire > 0.5 ? 0.85 : 0.34, outlineWidth: wire > 0.5 ? 1.8 : 1.1,
@@ -298,7 +344,8 @@ function s06_nametag(ctx, t) {
 }
 
 /* the player crumbling into real Minecraft voxels and flying back together.
-   Timing is unchanged: dissolve from 15.40, rematerialise from 16.42. */
+   Timing is unchanged (dissolve from 15.40, rematerialise from 16.42); the choreography is new:
+   the blocks are torn off UP-RIGHT in a spiral and come back in from the lower left. */
 const s06_VOX = (() => {
   const r = rng(9127), o = [];
   for (let i = 0; i < 58; i++) {
@@ -312,17 +359,19 @@ const s06_VOX = (() => {
 function s06_voxState(i, t) {
   const h = hash1(i * 7 + 3), hx = hash2(i, 11), hy = hash2(i, 29);
   if (t < 15.40) return null;
-  if (t < 16.42) {                                          // dissolve upward
+  if (t < 16.42) {                                          // torn off up and to the right
     const st = 15.40 + h * 0.18, q = remap(t, st, st + 0.42);
     if (q <= 0) return { dx: 0, dy: 0, sc: 1, a: 1 };
     const e = E.outCubic(q);
-    return { dx: (hx - 0.5) * 150 * e, dy: -(300 + hy * 190) * e, sc: lerp(1, 0.32, q), a: clamp(1 - q * q * 1.12) };
+    const swirl = Math.sin(q * 4.4 + h * TAU) * 34 * e;
+    return { dx: (56 + hx * 168) * e + swirl, dy: -(210 + hy * 200) * e, sc: lerp(1, 0.32, q), a: clamp(1 - q * q * 1.12) };
   }
-  const st2 = 16.42 + h * 0.20, q2 = remap(t, st2, st2 + 0.32);   // fly back together
+  const st2 = 16.42 + h * 0.20, q2 = remap(t, st2, st2 + 0.32);   // fly back in from the lower left
   const fade = 1 - clamp(remap(t, 16.60, 16.88));
-  if (q2 <= 0) return { dx: (hx - 0.5) * 130, dy: -(240 + hy * 140), sc: 0.4, a: 0 };
+  const ox = -(120 + hx * 150), oy = 90 + hy * 150;
+  if (q2 <= 0) return { dx: ox, dy: oy, sc: 0.4, a: 0 };
   const e2 = E.outCubic(q2);
-  return { dx: (hx - 0.5) * 130 * (1 - e2), dy: -(240 + hy * 140) * (1 - e2), sc: lerp(0.4, 1, e2), a: clamp(q2 * 1.7) * fade };
+  return { dx: ox * (1 - e2), dy: oy * (1 - e2), sc: lerp(0.4, 1, e2), a: clamp(q2 * 1.7) * fade };
 }
 function s06_voxels(ctx, t) {
   if (t < 15.40) return;
@@ -392,17 +441,16 @@ function s06_flames(ctx, t, k) {
 
 /* ---------------------------------------------------------------- the world draw
    The terrain never changes, so it is baked ONCE into two canvases, split at the
-   player's depth: everything behind him, then the player, then everything in front.
-   That turns ~1250 textured faces per frame into two drawImage calls. */
-// both canvases are cropped to the band their content really occupies, so the two
-// per-frame blits cost about half a full frame instead of two
-const s06_BOXA = { y: 650, h: 1280 }, s06_BOXB = { y: 1200, h: 730 };
+   player's depth: everything behind him, then the player, then everything in front. */
+// the bake boxes reach past the frame edges: the camera drifts and rolls, so the baked
+// world has to carry a margin on all four sides or a wedge of black creeps in at the edge
+const s06_BOXA = { x: -100, y: 340, w: 1280, h: 1580 }, s06_BOXB = { x: -100, y: 860, w: 1280, h: 1060 };
 let s06_bakeA = null, s06_bakeB = null;
 function s06_bakeWorld() {
   if (s06_bakeA) return;
-  s06_bakeA = makeCanvas(W, s06_BOXA.h); s06_bakeB = makeCanvas(W, s06_BOXB.h);
+  s06_bakeA = makeCanvas(s06_BOXA.w, s06_BOXA.h); s06_bakeB = makeCanvas(s06_BOXB.w, s06_BOXB.h);
   const A = s06_bakeA.getContext('2d'), B = s06_bakeB.getContext('2d');
-  A.translate(0, -s06_BOXA.y); B.translate(0, -s06_BOXB.y);
+  A.translate(-s06_BOXA.x, -s06_BOXA.y); B.translate(-s06_BOXB.x, -s06_BOXB.y);
   const S = s06_ISO.size, O = s06_ISO;
   const kOf = (ix, iy) => ix + iy + s06_hAt(ix, iy) + 0.5;
   const PK = kOf(s06_PT.ix, s06_PT.iy);
@@ -426,7 +474,7 @@ function s06_bakeWorld() {
   for (const f of s06_FENCE) cmds.push({ k: kOf(f.ix, f.iy), v: f.ix + f.iy, f: g => s06_fencePost(g, f, 0) });
   for (const tr of s06_TORCH) cmds.push({ k: kOf(tr.ix, tr.iy), v: tr.ix + tr.iy, f: g => s06_torchPost(g, tr, 0) });
   cmds.push({ k: kOf(s06_CHEST.ix, s06_CHEST.iy), v: s06_CHEST.ix + s06_CHEST.iy, f: g => s06_chestProp(g, 0) });
-  // sea pickles growing in the water channel
+  // sea pickles growing in the water channel and the pond
   for (const w of s06_WORLD.pickles) {
     const p = isoPos(w.ix, w.iy, w.iz, O), n = 1 + Math.floor(hash2(w.ix, w.iy) * 3);
     cmds.push({ k: w.ix + w.iy + w.iz + 0.6, v: w.ix + w.iy, f: g => {
@@ -452,9 +500,9 @@ function s06_bakeWorld() {
 function s06_worldTex(ctx, t, wire) {
   s06_bakeWorld();
   ctx.save(); ctx.globalAlpha *= 1 - wire;
-  ctx.drawImage(s06_bakeA, 0, s06_BOXA.y);
+  ctx.drawImage(s06_bakeA, s06_BOXA.x, s06_BOXA.y);
   s06_player(ctx, t, wire);
-  ctx.drawImage(s06_bakeB, 0, s06_BOXB.y);
+  ctx.drawImage(s06_bakeB, s06_BOXB.x, s06_BOXB.y);
   ctx.restore();
 }
 // violet wireframe version of exactly the same build — the farm stays standing while the bot is gone
@@ -464,8 +512,8 @@ function s06_worldWire(ctx, t, wire) {
   for (const b of s06_WORLD.vis) {
     if (b.kind === 'stone' || b.kind === 'dirt') continue;      // buried body: no wire needed
     const q = isoPos(b.ix, b.iy, b.iz, O);
-    // the skeleton is brightest around the farm and dissolves into the dark towards the edges
-    const fall = clamp(1 - (Math.hypot((q.x - 640) * 0.86, q.y - 1250) - 280) / 360);
+    // the skeleton is brightest around the bot's terrace and dissolves into the dark at the edges
+    const fall = clamp(1 - (Math.hypot((q.x - 450) * 0.80, q.y - 1215) - 320) / 420);
     if (fall <= 0.03) continue;
     const pl = 0.5 + 0.5 * Math.sin(t * 2.4 + b.ix * 0.8 + b.iy * 0.55);
     const hotK = s06_HOT[b.kind] === 1;
@@ -486,14 +534,14 @@ function s06_worldWire(ctx, t, wire) {
   ctx.restore();
 }
 
-/* pumpkin items popping out of the farm — before the reset and again once the bot is back */
+/* pumpkin items popping out of the farm — before the reset and again once the bot is back.
+   Only the wild patch on the lower meadow pops: it sits in the open right corridor, clear of
+   the chat plate (x < 715), of the marker cluster (y < 1150) and of the bot himself. */
 const s06_POPS = [15.00, 15.25, 16.98, 17.23, 17.48];
-// only pumpkins in the open lower-left corridor pop: clear of the player (x~820),
-// of the check (x~792) and of the chat plate
 const s06_POPCELLS = (() => {
   const o = s06_WORLD.pumpkins.filter(c => {
     const p = isoPos(c.ix, c.iy, c.iz, s06_ISO);
-    return p.x > 230 && p.x < 720 && p.y > 1160 && p.y < 1460;
+    return p.x > 700 && p.x < 1010 && p.y > 1200 && p.y < 1560;
   });
   return o.length ? o : s06_WORLD.pumpkins;
 })();
@@ -505,64 +553,129 @@ function s06_items(ctx, t, wire) {
     const cell = s06_POPCELLS[Math.floor(hash1(k * 17 + 5) * s06_POPCELLS.length)];
     if (!cell) continue;
     const g = isoPos(cell.ix, cell.iy, cell.iz, s06_ISO), e = E.outCubic(life);
-    const dx = -(30 + hash2(k, 3) * 48);
+    const dx = 30 + hash2(k, 3) * 48;                        // the arc now leaves to the RIGHT
     const x0 = g.x, y0 = g.y - s06_ISO.size * 0.55;
-    const x = x0 + dx * e, y = y0 - e * 140 + life * life * 30;
+    const x = x0 + dx * e, y = y0 - e * 150 + life * life * 30;
     const a = clamp((1 - life) * 1.8) * clamp(life / 0.10) * (1 - wire);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (let t2 = 1; t2 <= 4; t2++) {
       const e2 = E.outCubic(Math.max(0, life - t2 * 0.055));
-      dot(ctx, x0 + dx * e2, y0 - e2 * 140, 28 - t2 * 4, '#FFB25A', a * 0.13 / t2);
+      dot(ctx, x0 + dx * e2, y0 - e2 * 150, 28 - t2 * 4, '#FFB25A', a * 0.13 / t2);
     }
     dot(ctx, x, y, 50, '#FFB25A', a * 0.26);
     ctx.restore();
     ctx.save(); ctx.globalAlpha *= a;
-    ctx.translate(x, y); ctx.rotate((hash2(k, 9) - 0.5) * 0.3 + life * 0.35);
+    ctx.translate(x, y); ctx.rotate((hash2(k, 9) - 0.5) * 0.3 - life * 0.35);
     blockIcon(ctx, s06_TEX.pumpkin, 0, -12, 40);
     ctx.restore();
   }
 }
 
-/* the reserved tile: a dashed violet marker on the ground while the bot is away */
+/* ---------------------------------------------------------- "Gleiche Stelle" marker
+   The reserved tile is now a proper beacon so the promise reads at a glance:
+   ground diamond + corner ticks + a violet light column + a measured, framed label plate
+   that the loading bar hangs under during the black pause. All in world space (camera). */
+const s06_MARK = { dx: 232, dy: -64, barY: -142, dotY: -192 };   // label / bar offsets from the tile
+function s06_markAnchor() { return isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), s06_ISO); }
+function s06_markA(t) { return win(t, 15.55, 15.75, 16.62, 16.86); }
 function s06_spot(ctx, t) {
-  const a = win(t, 15.55, 15.75, 16.62, 16.86) * (0.5 + 0.5 * pulse(t, 0.5, 5, 15.5));
-  if (a <= 0.01) return;
-  const O = s06_ISO, p = isoPos(s06_PT.ix, s06_PT.iy, s06_hAt(s06_PT.ix, s06_PT.iy), O);
+  const base = s06_markA(t);
+  if (base <= 0.01) return;
+  const beat = 0.5 + 0.5 * pulse(t, 0.5, 5, 15.5);
+  const O = s06_ISO, p = s06_markAnchor();
   const w = O.size * 0.866, h = O.size * 0.5;
-  ctx.save(); ctx.globalAlpha *= a;
-  ctx.strokeStyle = TOKENS.violetHot; ctx.lineWidth = 3; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -t * 26;
-  ctx.beginPath(); ctx.moveTo(p.x, p.y - h); ctx.lineTo(p.x + w, p.y); ctx.lineTo(p.x, p.y + h); ctx.lineTo(p.x - w, p.y); ctx.closePath(); ctx.stroke();
+  const dia = (k, close) => {
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - h * k); ctx.lineTo(p.x + w * k, p.y); ctx.lineTo(p.x, p.y + h * k); ctx.lineTo(p.x - w * k, p.y);
+    if (close !== false) ctx.closePath();
+  };
+  ctx.save(); ctx.globalAlpha *= base;
+
+  // the tile itself: a soft violet plate + a rotating dashed ring + a wider quiet ring
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = rgba(TOKENS.secondary, 0.16 + 0.12 * beat); dia(0.98); ctx.fill();
+  dot(ctx, p.x, p.y, O.size * 1.5, TOKENS.secondary, 0.20 + 0.10 * beat);
+  ctx.restore();
+  ctx.strokeStyle = rgba(TOKENS.violetHot, 0.95); ctx.lineWidth = 3.5;
+  ctx.setLineDash([16, 11]); ctx.lineDashOffset = -t * 34; dia(1.0); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; dot(ctx, p.x, p.y, O.size * 1.3, TOKENS.secondary, 0.24); ctx.restore();
-  // a small pixel label so "same spot" is readable, not just implied (kept inside x 90..900)
-  // clamped so that even at the camera's widest zoom the plate stays inside x 90..900
-  const lx = Math.min(p.x, 772), ly = p.y - O.size * 1.5 - 8 * Math.sin((t - 15.5) * 2.4);
-  ctx.fillStyle = 'rgba(8,4,16,0.74)'; ctx.fillRect(lx - 80, ly - 19, 160, 38);
-  drawText(ctx, 'GLEICHE STELLE', lx, ly, { size: 21, family: FONTS.silk, weight: 700, color: TOKENS.violetHot, align: 'center', tracking: 2 });
+  ctx.strokeStyle = rgba(TOKENS.secondary, 0.34 + 0.24 * beat); ctx.lineWidth = 2; dia(1.42); ctx.stroke();
+  // four corner ticks on the diamond's axes
+  ctx.strokeStyle = rgba(TOKENS.violetHot, 0.85); ctx.lineWidth = 4; ctx.lineCap = 'round';
+  const tick = [[0, -h], [w, 0], [0, h], [-w, 0]];
+  for (const [tx, ty] of tick) {
+    const nx = tx / (Math.abs(tx) + Math.abs(ty)), ny = ty / (Math.abs(tx) + Math.abs(ty));
+    ctx.beginPath();
+    ctx.moveTo(p.x + tx * 1.22 - ny * 13, p.y + ty * 1.22 + nx * 13);
+    ctx.lineTo(p.x + tx * 1.22 + ny * 13, p.y + ty * 1.22 - nx * 13);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+
+  // the light column standing on the tile
+  const bh = O.size * 2.0;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const bg = ctx.createLinearGradient(0, p.y - bh, 0, p.y);
+  bg.addColorStop(0, 'rgba(0,0,0,0)');
+  bg.addColorStop(0.55, rgba(TOKENS.secondary, 0.16 + 0.08 * beat));
+  bg.addColorStop(1, rgba(TOKENS.violetHot, 0.30 + 0.12 * beat));
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(p.x - w * 0.34, p.y); ctx.lineTo(p.x + w * 0.34, p.y);
+  ctx.lineTo(p.x + w * 0.16, p.y - bh); ctx.lineTo(p.x - w * 0.16, p.y - bh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = rgba(TOKENS.violetHot, 0.30 + 0.14 * beat);
+  ctx.fillRect(p.x - 2, p.y - bh, 4, bh);
+  // sparks climbing the column
+  for (let i = 0; i < 7; i++) {
+    const q = (((t - 15.5) * 0.55 + i / 7) % 1 + 1) % 1;
+    const sz = 7 - q * 3, a = Math.sin(q * Math.PI) * 0.85;
+    ctx.fillStyle = rgba(TOKENS.violetHot, a);
+    ctx.fillRect(p.x + Math.sin(q * 5.6 + i) * 13 - sz / 2, p.y - q * bh - sz / 2, sz, sz);
+  }
+  ctx.restore();
+
+  /* the label plate — measured, framed and connected to the tile by a leader */
+  const lo = { size: 26, family: FONTS.silk, weight: 700, align: 'center', tracking: 3 };
+  const tw = measureText(ctx, 'GLEICHE STELLE', lo);
+  const cxp = p.x + s06_MARK.dx, cyp = p.y + s06_MARK.dy;
+  const pw = tw + 46, ph = 50;
+  ctx.strokeStyle = rgba(TOKENS.secondary, 0.55); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(p.x + w * 0.35, p.y - 4); ctx.lineTo(cxp - pw / 2 - 12, cyp); ctx.stroke();
+  ctx.fillStyle = 'rgba(6,3,14,0.88)'; roundRect(ctx, cxp - pw / 2, cyp - ph / 2, pw, ph, 5); ctx.fill();
+  ctx.strokeStyle = rgba(TOKENS.violetHot, 0.55 + 0.35 * beat); ctx.lineWidth = 2;
+  roundRect(ctx, cxp - pw / 2, cyp - ph / 2, pw, ph, 5); ctx.stroke();
+  ctx.fillStyle = rgba(TOKENS.violetHot, 0.9);                     // pointer towards the beacon
+  ctx.beginPath(); ctx.moveTo(cxp - pw / 2 - 11, cyp); ctx.lineTo(cxp - pw / 2 + 1, cyp - 9); ctx.lineTo(cxp - pw / 2 + 1, cyp + 9); ctx.closePath(); ctx.fill();
+  glowText(ctx, 'GLEICHE STELLE', cxp, cyp + 1, Object.assign({ color: TOKENS.violetHot }, lo), 18, 0.35 + 0.25 * beat);
   ctx.restore();
 }
 
-/* red warning HUD: brackets + Press Start 2P label; calms down once the bot is back */
+/* red warning HUD: a left-anchored chip with brackets + Press Start 2P label;
+   calms down once the bot is back */
 function s06_s07_warnHud(ctx, t) {
   const p = ez(t, 14.97, 15.26, E.outExpo);
   if (p <= 0.001) return;
   const alarm = 1 - remap(t, 16.42, 16.70);                 // 1 = red alert, 0 = resolved
   const pu = (0.45 + 0.55 * pulse(t, 0.5, 5.5, 15.0)) * alarm + (1 - alarm) * 0.5;
-  const bx = 196, by = 326, bw = 688, bh = 132;
+  const bx = 126, by = 320, bw = 636, bh = 128;
   ctx.save();
   ctx.globalAlpha *= clamp(p * 2) * (0.68 + 0.32 * alarm);
   ctx.fillStyle = 'rgba(6,3,10,0.55)'; roundRect(ctx, bx, by, bw, bh, 6); ctx.fill();
   if (alarm > 0.02) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= (0.16 + 0.22 * pu) * alarm;
     ctx.fillStyle = T().primary; roundRect(ctx, bx, by, bw, bh, 6); ctx.fill(); ctx.restore();
-    // hazard stripes on both ends of the plate
+    // hazard stripes packed into the right end of the plate
     ctx.save(); roundRect(ctx, bx, by, bw, bh, 6); ctx.clip();
     ctx.strokeStyle = rgba(T().primary, (0.35 * pu + 0.15) * alarm); ctx.lineWidth = 7;
-    for (let k = -3; k < 6; k++) {
+    for (let k = 0; k < 7; k++) {
       const o = k * 26 - (t * 22 % 26);
-      ctx.beginPath(); ctx.moveTo(bx + o, by + bh); ctx.lineTo(bx + o + bh, by); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(bx + bw - 118 + o, by + bh); ctx.lineTo(bx + bw - 118 + o + bh, by); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx + bw - 168 + o, by + bh); ctx.lineTo(bx + bw - 168 + o + bh, by); ctx.stroke();
     }
+    ctx.restore();
+    // blinking alarm square at the left edge
+    ctx.save(); ctx.globalAlpha *= alarm;
+    ctx.fillStyle = rgba(T().primary, 0.35 + 0.65 * pu);
+    ctx.fillRect(bx + 26, by + bh / 2 - 13, 26, 26);
     ctx.restore();
   }
   brackets(ctx, bx, by, bw, bh, p, {
@@ -570,12 +683,13 @@ function s06_s07_warnHud(ctx, t) {
     color: alarm > 0.5 ? T().primary : s06_s07_mix(TOKENS.ok, T().primary, alarm * 2),
   });
   const o = {
-    size: 44, family: FONTS.pixel, weight: 400, align: 'center', trackF: 0.02,
+    size: 44, family: FONTS.pixel, weight: 400, align: 'left', trackF: 0.02,
     color: alarm > 0.02 ? s06_s07_mix('#B8AFC9', s06_s07_mix(T().primary, '#FFFFFF', 0.25 + 0.45 * pu), alarm) : '#B8AFC9',
   };
-  o.size = s06_s07_fit(ctx, 'WORLD RESET', o, 500); o.tracking = 0.02 * o.size;
-  if (alarm > 0.05) glowText(ctx, 'WORLD RESET', CX, by + bh / 2 + 2, o, 26, 0.45 * pu * alarm);
-  else drawText(ctx, 'WORLD RESET', CX, by + bh / 2 + 2, o);
+  o.size = s06_s07_fit(ctx, 'WORLD RESET', o, 430); o.tracking = 0.02 * o.size;
+  const lx = bx + 74;
+  if (alarm > 0.05) glowText(ctx, 'WORLD RESET', lx, by + bh / 2 + 2, o, 26, 0.45 * pu * alarm);
+  else drawText(ctx, 'WORLD RESET', lx, by + bh / 2 + 2, o);
   ctx.restore();
 }
 
@@ -596,20 +710,25 @@ function s06_s07_chat(ctx, t) {
     lines.push({ t: s, c: l.c, a: a });
   }
   if (!lines.length) return;
-  const slide = (1 - E.outCubic(clamp((t - s06_s07_CHAT[lines.length - 1].t) / 0.16))) * 16;
-  ctx.save(); ctx.translate(0, slide);
-  mcChat(ctx, 132, 1198, lines, { size: 36, lineHeight: 48, family: FONTS.term, bgColor: 'rgba(5,3,12,0.72)', pad: 14, extraW: 12 });
+  const slide = (1 - E.outCubic(clamp((t - s06_s07_CHAT[lines.length - 1].t) / 0.16))) * 22;
+  ctx.save(); ctx.translate(-slide, 0);                       // the log now slides in from the left
+  const x = 138, y = 1214, lh = 46;
+  ctx.fillStyle = rgba(TOKENS.secondary, 0.55);
+  ctx.fillRect(x - 22, y - 12, 4, lines.length * lh + 16);
+  mcChat(ctx, x, y, lines, { size: 34, lineHeight: lh, family: FONTS.term, bgColor: 'rgba(5,3,12,0.72)', pad: 12, extraW: 14 });
   ctx.restore();
 }
 
-/* violet loading bar during the black pause */
+/* violet loading bar during the black pause — it hangs on the marker beacon */
 function s06_s07_loading(ctx, t) {
   const a = win(t, 15.92, 16.06, 16.40, 16.52);
   if (a <= 0.01) return;
   const p = clamp(remap(t, 15.94, 16.42) * 1.03);        // linear: the bar must visibly travel
-  const len = 460, x0 = CX - len / 2, by = 936, th = 14;
+  const anc = s06_markAnchor();
+  const cxb = anc.x + s06_MARK.dx, by = anc.y + s06_MARK.barY, th = 14;
+  const len = 372, x0 = cxb - len / 2;
   ctx.save(); ctx.globalAlpha *= a;
-  progressBar(ctx, CX, by, len, p, { color: TOKENS.secondary, thickness: th, track: '#FFFFFF' });
+  progressBar(ctx, cxb, by, len, p, { color: TOKENS.secondary, thickness: th, track: '#FFFFFF' });
   // specular highlight running along the filled part
   if (p > 0.02) {
     const hx = x0 - 110 + ((t - 15.94) * 720) % (len + 220);
@@ -626,7 +745,7 @@ function s06_s07_loading(ctx, t) {
     const on = 0.25 + 0.75 * Math.max(0, Math.sin((t - 15.95) * 7.4 - k * 0.9));
     ctx.fillStyle = rgba(TOKENS.violetHot, 0.25 + 0.7 * on);
     const s = 12 + 4 * on;
-    ctx.fillRect(CX - 30 + k * 30 - s / 2, 974 - s / 2, s, s);
+    ctx.fillRect(cxb - 30 + k * 30 - s / 2, anc.y + s06_MARK.dotY - s / 2, s, s);
   }
   ctx.restore();
 }
@@ -662,8 +781,8 @@ SCENES.s06 = {
     linearFill(ctx, 0, 260, 0, 1040,
       [[0, 'rgba(30,22,62,0.0)'], [0.34, 'rgba(30,23,64,0.55)'], [0.72, 'rgba(19,15,44,0.72)'], [1, 'rgba(11,9,28,0.6)']],
       [0, 260, W, 780]);
-    nightSky(ctx, t, { count: 110, seed: 33, color: '#CFC6E8', alpha: 0.34 * (1 - dark * 0.8), hMul: 0.52, drift: true });
-    radialFill(ctx, CX, 1180, 820,
+    nightSky(ctx, t, { count: 110, seed: 57, color: '#CFC6E8', alpha: 0.34 * (1 - dark * 0.8), hMul: 0.52, drift: true });
+    radialFill(ctx, 420, 1190, 820,
       [[0, rgba(TOKENS.secondary, (0.11 + 0.05 * pulse(t, 0.5, 6, 15.0)) * worldA)], [0.55, rgba(TOKENS.deepViolet, 0.05 * worldA)], [1, 'rgba(0,0,0,0)']], 'lighter');
     // red alarm wash on the beats of the warning
     const al = (1 - remap(t, 15.30, 15.70)) * (0.35 + 0.65 * pulse(t, 0.5, 5.5, 15.0));
@@ -673,13 +792,15 @@ SCENES.s06 = {
 
     s06_s07_dust(ctx, t, 0.34 * (1 - dark * 0.7));
 
-    /* --- the world: two baked, night-lit canvases with the player between them */
+    /* --- the world: two baked, night-lit canvases with the player between them.
+       The camera pushes in on the bot's spot on a slight tilt and drifts up-right. */
+    const push = E.inOutCubic(clamp(remap(t, 15.0, 17.5)));
     const cam = {
-      zoom: 1.03 + 0.026 * Math.sin((t - 15) * 0.85) + 0.035 * impulse(t, 15.40, 6) + 0.022 * impulse(t, 16.42, 5),
-      y: -13 * Math.sin((t - 15) * 0.62),
-      x: 9 * Math.sin((t - 15) * 0.41 + 1.1),
-      rot: 0.004 * Math.sin((t - 15) * 0.5),
-      ox: CX, oy: 1180,
+      zoom: 1.005 + 0.085 * push + 0.030 * impulse(t, 15.40, 6) + 0.020 * impulse(t, 16.42, 5),
+      x: lerp(28, -18, push) + 7 * Math.sin((t - 15) * 0.55),
+      y: lerp(22, -16, push) + 6 * Math.sin((t - 15) * 0.42 + 1.2),
+      rot: -0.021 + 0.004 * Math.sin((t - 15) * 0.7),
+      ox: 400, oy: 1194,
     };
     withCamera(ctx, cam, c => {
       c.save(); c.globalAlpha *= worldA;
@@ -696,7 +817,7 @@ SCENES.s06 = {
       s06_voxels(c, t);
       s06_nametag(c, t);
       c.restore();
-      c.save(); c.globalAlpha *= Math.min(1, worldA * 3.4); s06_spot(c, t); c.restore();
+      c.save(); c.globalAlpha *= Math.min(1, worldA * 3.4); s06_spot(c, t); s06_s07_loading(c, t); c.restore();
       c.save(); c.globalAlpha *= worldA; s06_items(c, t, wire); c.restore();
     });
 
@@ -711,7 +832,6 @@ SCENES.s06 = {
       ctx.restore();
     }
 
-    s06_s07_loading(ctx, t);
     s06_s07_check(ctx, t);
     s06_s07_warnHud(ctx, t);
 
@@ -742,9 +862,9 @@ SCENES.s06 = {
 };
 
 /* ================================================================== s07 phone */
-const s06_s07_PW = 480, s06_s07_PH = 700;               // phone body in px
+const s06_s07_PW = 496, s06_s07_PH = 676;               // phone body in px
 const s06_s07_OW = 620, s06_s07_OH = 900;               // offscreen size
-const s06_s07_PCY = 1060;                               // phone centre on screen (STOPP button lands ~y 1218–1310)
+const s06_s07_PCX = CX + 72, s06_s07_PCY = 1032;        // phone centre: right of the frame's middle
 let s06_s07_pc = null, s06_s07_px = null;
 function s06_s07_poff() {
   if (!s06_s07_pc) { s06_s07_pc = makeCanvas(s06_s07_OW, s06_s07_OH); s06_s07_px = s06_s07_pc.getContext('2d'); }
@@ -756,7 +876,7 @@ function s06_s07_poff() {
 
 /* slow drifting voxel dust in the background */
 const s06_s07_DUST = (() => {
-  const r = rng(4711), o = [];
+  const r = rng(2903), o = [];
   for (let i = 0; i < 18; i++) o.push({ x: 40 + r() * 1000, y: 200 + r() * 1500, s: 12 + r() * 18, sp: 0.4 + r() * 0.7, ph: r() * TAU });
   return o;
 })();
@@ -772,24 +892,25 @@ function s06_s07_dust(ctx, t, alpha, tint) {
   ctx.restore();
 }
 
-/* console feed — realistic client log, nothing invented beyond the product's features */
+/* console feed — realistic client log, nothing invented beyond the product's features.
+   Same arrival timecodes as before, restaged content (other players, other order). */
 const s06_s07_LOG = [
-  { t: 17.50, s: '[System] Bot gestartet.' },
-  { t: 17.50, s: '[Chat] <Nico> hi' },
+  { t: 17.50, s: '[System] Verbunden.' },
+  { t: 17.50, s: '[Chat] <Lena> moin' },
   { t: 17.50, s: '[System] AFK aktiv.' },
+  { t: 17.50, s: '[System] Pickle-Farm aktiv.' },
   { t: 17.50, s: '[System] Inventar voll.' },
   { t: 17.50, s: '/sell' },
-  { t: 17.50, s: '[System] Inventar verkauft.' },
-  { t: 17.74, s: '[System] Laufzeit 04:12:33' },
-  { t: 17.99, s: '[Chat] <Mira> alles gut?' },
+  { t: 17.74, s: '[System] Inventar verkauft.' },
+  { t: 17.99, s: '[Chat] <Tom> alles ok?' },
   { t: 18.24, s: '[System] Spawner geleert.' },
-  { t: 18.49, s: '/sell' },
-  { t: 18.74, s: '[System] Inventar verkauft.' },
+  { t: 18.49, s: '[System] Inventar voll.' },
+  { t: 18.74, s: '/sell' },
   { t: 19.06, s: '[System] Bot gestoppt.' },
   { t: 19.60, s: '[System] Bot gestartet.' },
   { t: 19.84, s: '[System] AFK aktiv.' },
-  { t: 20.08, s: '[Chat] <Nico> nice' },
-  { t: 20.32, s: '[System] Spawner geleert.' },
+  { t: 20.08, s: '[Chat] <Lena> nice' },
+  { t: 20.32, s: '[System] Inventar voll.' },
 ];
 const s06_s07_STOP = 19.06, s06_s07_START = 19.60;
 // session runtime: runs in tenths so the counter visibly ticks, freezes while the bot is stopped
@@ -803,15 +924,15 @@ function s06_s07_hms(sec) {
   const p = n => (n < 10 ? '0' : '') + n;
   return p(h) + ':' + p(m) + ':' + p(s) + '.' + Math.floor(sec * 10) % 10;
 }
-// colour split for one console line: {tag, rest, tagC, restC}
+// colour split for one console line: {tag, rest, tagC, restC, gut}
 function s06_s07_logColor(s) {
-  if (s[0] === '/') return { tag: '', rest: s, tagC: '', restC: TOKENS.violetHot };
+  if (s[0] === '/') return { tag: '', rest: s, tagC: '', restC: TOKENS.violetHot, gut: TOKENS.violetHot };
   const i = s.indexOf(']');
   const tag = i > 0 ? s.slice(0, i + 1) : '', rest = i > 0 ? s.slice(i + 1) : s;
-  if (s.indexOf('gestoppt') >= 0) return { tag: tag, rest: rest, tagC: rgba(T().primary, 0.75), restC: '#FF7A7A' };
-  if (s.indexOf('gestartet') >= 0) return { tag: tag, rest: rest, tagC: rgba(TOKENS.ok, 0.6), restC: TOKENS.ok };
-  if (tag === '[Chat]') return { tag: tag, rest: rest, tagC: rgba(TOKENS.muted, 0.85), restC: '#EDE8F6' };
-  return { tag: tag, rest: rest, tagC: rgba(TOKENS.secondary, 0.85), restC: rgba(T().text, 0.82) };
+  if (s.indexOf('gestoppt') >= 0) return { tag: tag, rest: rest, tagC: rgba(T().primary, 0.75), restC: '#FF7A7A', gut: T().primary };
+  if (s.indexOf('gestartet') >= 0) return { tag: tag, rest: rest, tagC: rgba(TOKENS.ok, 0.6), restC: TOKENS.ok, gut: TOKENS.ok };
+  if (tag === '[Chat]') return { tag: tag, rest: rest, tagC: rgba(TOKENS.muted, 0.85), restC: '#EDE8F6', gut: TOKENS.muted };
+  return { tag: tag, rest: rest, tagC: rgba(TOKENS.secondary, 0.85), restC: rgba(T().text, 0.82), gut: TOKENS.secondary };
 }
 
 /* the phone screen (drawn into the offscreen, in phone-local pixels) */
@@ -822,25 +943,38 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
   // screen wash
   linearFill(ctx, x, y, x, y + h, [[0, 'rgba(28,16,52,0.55)'], [0.5, 'rgba(10,7,20,0.2)'], [1, 'rgba(24,10,34,0.5)']], [x, y, w, h]);
 
-  /* status row */
-  const sy = y + 46;
+  /* status row — runtime on the left, the status lamp on the right (mirrored from v1) */
+  const sy = y + 44;
   const dotC = stopped ? '#6B6478' : TOKENS.ok;
+  drawText(ctx, s06_s07_hms(s06_s07_uptime(t)), left, sy + 1,
+    { size: 26, family: FONTS.mono, weight: 600, color: rgba(T().text, stopped ? 0.4 : 0.82), align: 'left' });
+  const lab = stopped ? 'GESTOPPT' : 'ONLINE';
+  const lo = { size: 23, family: FONTS.silk, weight: 700, color: stopped ? TOKENS.muted : TOKENS.ok, align: 'right', tracking: 2 };
+  drawText(ctx, lab, right, sy + 1, lo);
+  const lw = measureText(ctx, lab, lo);
+  const dx = right - lw - 20;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  dot(ctx, left + 11, sy, 22, dotC, stopped ? 0.28 : 0.5 + 0.28 * pulse(t, 1.0, 3.2, 17.6));
+  dot(ctx, dx, sy, 22, dotC, stopped ? 0.28 : 0.5 + 0.28 * pulse(t, 1.0, 3.2, 17.6));
   ctx.restore();
-  ctx.fillStyle = dotC; ctx.beginPath(); ctx.arc(left + 11, sy, 8, 0, TAU); ctx.fill();
-  drawText(ctx, stopped ? 'GESTOPPT' : 'ONLINE', left + 32, sy + 1,
-    { size: 23, family: FONTS.silk, weight: 700, color: stopped ? TOKENS.muted : TOKENS.ok, align: 'left', tracking: 2 });
-  drawText(ctx, s06_s07_hms(s06_s07_uptime(t)), right, sy + 1,
-    { size: 26, family: FONTS.mono, weight: 600, color: rgba(T().text, stopped ? 0.4 : 0.82), align: 'right' });
-  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(left, sy + 32, w - pad * 2, 2);
+  ctx.fillStyle = dotC; ctx.beginPath(); ctx.arc(dx, sy, 8, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(left, sy + 30, w - pad * 2, 2);
+
+  /* live activity strip — the session statistics, scrolling (no numbers, just motion) */
+  const ay = sy + 40, aw = w - pad * 2, bars = 30, bwd = aw / bars;
+  for (let i = 0; i < bars; i++) {
+    const ph = i - (t - 17.5) * 7.5;
+    const nvl = 0.30 + 0.70 * Math.abs(Math.sin(ph * 0.55 + fbm1(ph * 0.22, 5) * 4.2));
+    const hgt = (stopped ? 4 : 6 + nvl * 26);
+    ctx.fillStyle = stopped ? 'rgba(120,112,140,0.35)' : rgba(i > bars - 4 ? TOKENS.violetHot : TOKENS.secondary, 0.30 + 0.45 * nvl);
+    ctx.fillRect(left + i * bwd, ay + 30 - hgt, bwd - 3, hgt);
+  }
 
   /* console feed: newest line at the bottom, older ones scroll up */
-  const btnTop = y + h - 172, bh = 92;
-  const top = sy + 46, bot = btnTop - 22, lh = 48;
+  const btnTop = y + h - 158, bh = 86;
+  const top = ay + 44, bot = btnTop - 20, lh = 46;
   // VT323 advances at 0.4 em — keep the longest line inside the screen, never below the 36 px floor
   let size = 38;
-  while (size > 36 && 27 * 0.4 * size > w - pad * 2) size -= 0.5;
+  while (size > 36 && 27 * 0.4 * size > w - pad * 2 - 14) size -= 0.5;
   ctx.save();
   ctx.beginPath(); ctx.rect(left - 4, top, w - pad * 2 + 8, bot - top); ctx.clip();
   const shown = [];
@@ -848,21 +982,27 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
   const newest = shown.length ? shown[shown.length - 1].t : 0;
   // sub-pixel scroll: the feed eases in the new line and keeps creeping between arrivals
   const slide = (1 - E.outCubic(clamp((t - newest) / 0.22))) * lh - Math.min(6, (t - newest) * 3.2);
-  ctx.font = font(size, FONTS.term, 400); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.letterSpacing = '0px';
   for (let i = shown.length - 1; i >= 0; i--) {
-    const yy = bot - 22 - (shown.length - 1 - i) * lh + slide;
+    const yy = bot - 20 - (shown.length - 1 - i) * lh + slide;
     if (yy < top - lh || yy > bot + lh) continue;
-    const fade = clamp((yy - top) / 46) * clamp((bot - yy) / 18);
+    const fade = clamp((yy - top) / 44) * clamp((bot - yy) / 18);
     const c = s06_s07_logColor(shown[i].s);
-    let xx = left;
-    ctx.globalAlpha = fade * (i === shown.length - 1 ? clamp((t - shown[i].t) / 0.12) : 1);
+    const a = fade * (i === shown.length - 1 ? clamp((t - shown[i].t) / 0.12) : 1);
+    // row band + coloured gutter tick, so the feed reads as a log, not as loose text
+    ctx.globalAlpha = a * 0.5;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.18)';
+    ctx.fillRect(left - 4, yy - lh / 2 + 2, w - pad * 2 + 8, lh - 4);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = c.gut; ctx.fillRect(left - 2, yy - 13, 4, 26);
+    ctx.font = font(size, FONTS.term, 400); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.letterSpacing = '0px';
+    let xx = left + 12;
     if (c.tag) { ctx.fillStyle = c.tagC; ctx.fillText(c.tag, xx, yy); xx += ctx.measureText(c.tag).width; }
     ctx.fillStyle = c.restC; ctx.fillText(c.rest, xx, yy);
   }
   // caret — smooth blink so it moves on every frame
   ctx.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * 9.4));
-  ctx.fillStyle = TOKENS.violetHot; ctx.fillRect(left, bot - 10, 16, 5);
+  ctx.fillStyle = TOKENS.violetHot; ctx.fillRect(left + 12, bot - 8, 16, 5);
   ctx.globalAlpha = 1;
   // a soft violet scan band travelling down the feed keeps the screen alive
   const sc0 = ((t - 17.5) * 0.62) % 1, syy = lerp(top, bot, sc0);
@@ -874,7 +1014,7 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
   ctx.restore();
 
   /* the one-click control */
-  const bw = w - pad * 2 - 24, bx = x + w / 2 - bw / 2, by = btnTop;
+  const bwd2 = w - pad * 2 - 16, bx = x + w / 2 - bwd2 / 2, by = btnTop;
   const press = win(t, 18.98, 19.03, 19.12, 19.20) + win(t, 19.50, 19.55, 19.62, 19.70);
   const sc = 1 - 0.035 * clamp(press);
   const label = stopped ? 'START' : 'STOPP';
@@ -884,12 +1024,17 @@ function s06_s07_screen(ctx, x, y, w, h, t) {
   ctx.save();
   ctx.translate(x + w / 2, by + bh / 2); ctx.scale(sc, sc); ctx.translate(-(x + w / 2), -(by + bh / 2));
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= (stopped ? 0.16 : 0.35) + 0.3 * clamp(press);
-  dot(ctx, x + w / 2, by + bh / 2, bw * 0.55, stopped ? TOKENS.ok : col, 0.5); ctx.restore();
+  dot(ctx, x + w / 2, by + bh / 2, bwd2 * 0.55, stopped ? TOKENS.ok : col, 0.5); ctx.restore();
   ctx.fillStyle = stopped ? col : mixColor(col, '#000000', 0.12 + 0.18 * clamp(press));
-  roundRect(ctx, bx, by, bw, bh, 16); ctx.fill();
-  ctx.strokeStyle = edge; ctx.lineWidth = stopped ? 3 : 2; roundRect(ctx, bx + 1, by + 1, bw - 2, bh - 2, 15); ctx.stroke();
-  drawText(ctx, label, x + w / 2, by + bh / 2 + 2,
-    { size: 48, family: FONTS.body, weight: 800, color: stopped ? TOKENS.ok : '#FFF4F4', align: 'center', tracking: 2 });
+  roundRect(ctx, bx, by, bwd2, bh, 15); ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = stopped ? 3 : 2; roundRect(ctx, bx + 1, by + 1, bwd2 - 2, bh - 2, 14); ctx.stroke();
+  // power ring on the left of the button, the label stays centred and clear
+  const gx = bx + 40, gy = by + bh / 2, gc = stopped ? TOKENS.ok : '#FFF4F4';
+  ctx.strokeStyle = rgba(gc, 0.85); ctx.lineWidth = 3.4;
+  ctx.beginPath(); ctx.arc(gx, gy, 15, -Math.PI * 0.36, Math.PI * 1.36); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx, gy - 21); ctx.lineTo(gx, gy - 5); ctx.stroke();
+  drawText(ctx, label, x + w / 2 + 14, by + bh / 2 + 2,
+    { size: 46, family: FONTS.body, weight: 800, color: stopped ? TOKENS.ok : '#FFF4F4', align: 'center', tracking: 2 });
   ctx.restore();
   return { bx: bx, by: by + bh / 2 };
 }
@@ -902,26 +1047,26 @@ function s06_s07_map(u, v, P) {
   return { x: P.cx + x * cr - y * sr, y: P.cy + x * sr + y * cr, s: s };
 }
 
-/* finger tap indicator */
+/* finger tap indicator — the hand now comes in from the lower LEFT */
 function s06_s07_finger(ctx, t, P, vBtn) {
   const taps = [{ a: 18.86, c: 19.00, up: 19.22 }, { a: 19.38, c: 19.52, up: 19.74 }];
   for (const tp of taps) {
     if (t < tp.a || t > tp.up + 0.16) continue;
     const app = E.outCubic(remap(t, tp.a, tp.c)), lift = remap(t, tp.up, tp.up + 0.16);
-    const off = (1 - app) * 120 + lift * 150;
-    // the contact point sits on the button's lower band (bh = 92), so neither the
+    const off = (1 - app) * 130 + lift * 155;
+    // the contact point sits on the button's lower band (bh = 86), so neither the
     // fingertip disc nor its ring ever covers the STOPP / START label
-    const pt = s06_s07_map(off * 0.55, vBtn + 78 + off, P);
+    const pt = s06_s07_map(-off * 0.72 - 6, vBtn + 86 + off * 0.9, P);
     const a = clamp(app * app * 2.2) * (1 - lift);
     ctx.save(); ctx.globalAlpha *= a;
-    radialFill(ctx, pt.x, pt.y, 56, [[0, 'rgba(255,255,255,0.22)'], [0.62, 'rgba(255,255,255,0.10)'], [1, 'rgba(255,255,255,0)']]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(pt.x, pt.y, 50, 0, TAU); ctx.stroke();
+    radialFill(ctx, pt.x, pt.y, 52, [[0, 'rgba(255,255,255,0.22)'], [0.62, 'rgba(255,255,255,0.10)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(pt.x, pt.y, 46, 0, TAU); ctx.stroke();
     ctx.restore();
     const r = remap(t, tp.c, tp.c + 0.34);
     if (r > 0 && r < 1) {
       ctx.save(); ctx.globalAlpha *= (1 - r) * 0.55;
       ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(pt.x, pt.y, 48 + E.outCubic(r) * 92, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 44 + E.outCubic(r) * 92, 0, TAU); ctx.stroke();
       ctx.restore();
     }
   }
@@ -935,32 +1080,32 @@ SCENES.s07 = {
     const outP = E.inOutCubic(clamp(remap(t, 20.30, 20.50)));
 
     /* backdrop: violet breath + drifting voxel dust */
-    nightSky(ctx, t, { count: 60, seed: 91, color: '#CFC6E8', alpha: 0.2, hMul: 1, drift: true });
+    nightSky(ctx, t, { count: 60, seed: 128, color: '#CFC6E8', alpha: 0.2, hMul: 1, drift: true });
     s06_s07_dust(ctx, t, 0.4);
     // beat pulse behind the phone (18.0 / 18.5 / 19.0 / 19.5 / 20.0 …)
     const beat = pulse(t, 0.5, 6.5, 17.5);
-    radialFill(ctx, CX, s06_s07_PCY, 760,
+    radialFill(ctx, s06_s07_PCX, s06_s07_PCY, 780,
       [[0, rgba(TOKENS.secondary, 0.15 + 0.05 * Math.sin((t - 17.5) * 2) + 0.09 * beat)], [0.6, rgba(TOKENS.deepViolet, 0.06 + 0.03 * beat)], [1, 'rgba(0,0,0,0)']], 'lighter');
     // the 17.5 braam: a violet impact ring so the cut lands on a hit, not on a hole
     const imp = 1 - remap(t, 17.50, 17.90);
     if (imp > 0.01) {
-      radialFill(ctx, CX, s06_s07_PCY, 900,
+      radialFill(ctx, s06_s07_PCX, s06_s07_PCY, 900,
         [[0, rgba(TOKENS.violetHot, 0.30 * imp * imp)], [0.55, rgba(TOKENS.secondary, 0.12 * imp)], [1, 'rgba(0,0,0,0)']], 'lighter');
-      shockwave(ctx, CX, s06_s07_PCY, remap(t, 17.50, 17.92), { radius: 700, color: TOKENS.violetHot, width: 14, alpha: 0.55 });
-      speedLines(ctx, t, { count: 22, seed: 17, color: TOKENS.secondary, speed: 1900, dir: 1, alpha: 0.26 * imp * imp });
+      shockwave(ctx, s06_s07_PCX, s06_s07_PCY, remap(t, 17.50, 17.92), { radius: 700, color: TOKENS.violetHot, width: 14, alpha: 0.55 });
+      speedLines(ctx, t, { count: 22, seed: 41, color: TOKENS.secondary, speed: 1900, dir: -1, alpha: 0.26 * imp * imp });
     }
 
-    lightSweep(ctx, ((t - 17.5) / 2) % 1, { angle: -0.42, width: 620, color: TOKENS.secondary, alpha: 0.075 });
+    lightSweep(ctx, ((t - 17.5) / 2) % 1, { angle: 0.5, width: 560, color: TOKENS.secondary, alpha: 0.075 });
 
-    /* the phone, rendered flat and then mapped with a perspective yaw */
+    /* the phone: it rises into frame from below and settles held at an angle */
     const fly = ez(t, 17.50, 17.90, E.outExpo);
     const breath = 1 + 0.014 * Math.sin((t - 17.5) * 1.7);         // never stops moving
     const P = {
-      cx: lerp(CX + 104, CX, fly) + 7 * Math.sin((t - 17.5) * 0.73),
-      cy: lerp(s06_s07_PCY + 44, s06_s07_PCY, fly) + 11 * Math.sin((t - 17.5) * 1.35 + 0.6),
-      k: lerp(0.90, 1, fly) * breath,
-      yaw: lerp(-0.34, 0, fly) + 0.09 * Math.sin((t - 17.5) * 1.05),
-      roll: lerp(0.115, 0, fly) + 0.022 * Math.sin((t - 17.5) * 0.66 + 1.3),
+      cx: lerp(s06_s07_PCX - 46, s06_s07_PCX, fly) + 6 * Math.sin((t - 17.5) * 0.73),
+      cy: lerp(s06_s07_PCY + 180, s06_s07_PCY, fly) + 10 * Math.sin((t - 17.5) * 1.35 + 0.6),
+      k: lerp(0.84, 1, fly) * breath,
+      yaw: lerp(0.62, 0.33, fly) + 0.05 * Math.sin((t - 17.5) * 1.05),
+      roll: lerp(-0.29, -0.100, fly) + 0.018 * Math.sin((t - 17.5) * 0.66 + 1.3),
       f: 1250,
     };
     const x = s06_s07_poff();
@@ -978,7 +1123,7 @@ SCENES.s07 = {
 
     ctx.save();
     ctx.translate(P.cx, P.cy); ctx.rotate(P.roll); ctx.translate(-P.cx, -P.cy);
-    const N = 26, OW = s06_s07_OW, OH = s06_s07_OH, DW = OW * P.k, DH = OH * P.k;
+    const N = 34, OW = s06_s07_OW, OH = s06_s07_OH, DW = OW * P.k, DH = OH * P.k;
     const sn = Math.sin(P.yaw), cs = Math.cos(P.yaw);
     for (let i = 0; i < N; i++) {
       const u0 = -DW / 2 + i * DW / N, u1 = u0 + DW / N, um = (u0 + u1) / 2;
