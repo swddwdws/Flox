@@ -1,0 +1,3 @@
+# rendered frames / intermediates (large); the final MP4 lives in promo/ root
+out/
+__pycache__/
